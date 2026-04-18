@@ -1,0 +1,8 @@
+{
+  "name": "formula-sushki-webapp",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "build": "mkdir -p dist && cp -r index.html lesson.html app.js config.js csv.js styles.css nutrition.css nutrition.js tg.js sample-sheet.csv assets dist/"
+  }
+}
