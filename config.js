@@ -11,9 +11,7 @@ window.APP_CONFIG = {
   // Курс
   courseId: "course_sushka",
 
-  // Публичный CSV URL из Google Sheets
-  googleSheetCsvUrl: "https://docs.google.com/spreadsheets/d/1lECEyvXasIWrsbGaodgxzR4kqkAMQNCigjKVeUkFyQU/export?format=csv",
-
-  // Локальный демо-файл
-  sampleCsvPath: "./sample-sheet.csv"
+// Supabase
+  supabaseUrl: "https://kellbigftdbjpcpkznir.supabase.co",
+  supabaseAnonKey: "sb_publishable_RnQeGG-sDCGzudYrgjT1CQ_df_9CYdy"
 };
