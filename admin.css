@@ -1,0 +1,72 @@
+.admin-layout {
+  display: grid;
+  grid-template-columns: 320px 1fr;
+  min-height: 100vh;
+}
+
+.admin-sidebar {
+  border-right: 1px solid rgba(255,255,255,0.08);
+  padding: 20px;
+  background: rgba(10, 20, 35, 0.95);
+}
+
+.admin-main {
+  padding: 24px;
+}
+
+.admin-lessons-list,
+.admin-blocks-list {
+  display: grid;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.admin-lesson-item,
+.admin-block-item {
+  padding: 14px;
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 14px;
+  background: rgba(18, 36, 58, 0.9);
+  cursor: pointer;
+}
+
+.admin-lesson-item.active {
+  outline: 2px solid var(--accent, #8B5CF6);
+}
+
+.admin-form {
+  display: grid;
+  gap: 14px;
+  margin: 18px 0;
+}
+
+.admin-form label {
+  display: grid;
+  gap: 6px;
+  color: #eef3ff;
+}
+
+.admin-form input,
+.admin-form textarea {
+  width: 100%;
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px solid rgba(255,255,255,0.08);
+  background: rgba(18, 36, 58, 0.9);
+  color: #fff;
+}
+
+.admin-editor-header,
+.admin-blocks-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+.admin-empty {
+  padding: 40px;
+  border: 1px dashed rgba(255,255,255,0.15);
+  border-radius: 16px;
+  color: #9facc4;
+}
