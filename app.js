@@ -146,6 +146,7 @@
       var isLocked = raw.is_locked === true || String(raw.is_locked || "").trim() === "1";
 
     return {
+      id: raw.id,
       course_id: raw.course_id,
       lesson_id: raw.lesson_id,
       day_number: Number(raw.day_number || 0),
@@ -180,6 +181,27 @@
     }
 
     return (result.data || []).map(normalizeLesson);
+  }
+
+    async function fetchLessonBlocks(lessonId) {
+    var client = window.getSupabaseClient();
+
+    if (!client) {
+      throw new Error("Supabase client not initialized");
+    }
+
+    var result = await client
+      .from("lesson_blocks")
+      .select("*")
+      .eq("lesson_id", lessonId)
+      .order("sort_order", { ascending: true });
+
+    if (result.error) {
+      console.error("Supabase blocks load error:", result.error);
+      throw new Error("Ошибка загрузки блоков урока");
+    }
+
+    return result.data || [];
   }
 
   function getMaxCompletedDayNumber(lessons, completed) {
@@ -665,7 +687,16 @@
     }
 
     var content = document.getElementById("lessonContent");
-    if (lesson.content_html) {
+    var blocks = await fetchLessonBlocks(lesson.id);
+
+    if (blocks.length) {
+      content.innerHTML = blocks.map(function (block) {
+        if (block.block_type === "html" && block.content_html) {
+          return block.content_html;
+        }
+        return "";
+      }).join("");
+    } else if (lesson.content_html) {
       content.innerHTML = lesson.content_html;
     } else {
       content.textContent = lesson.content_text || "Содержимое урока пока пустое.";
