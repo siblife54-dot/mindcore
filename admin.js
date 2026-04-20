@@ -135,6 +135,7 @@
     if (!state.selectedLesson) return;
 
     var client = getClient();
+    if (!client) return;
 
     var nextOrder = 1;
 
@@ -143,17 +144,6 @@
         return b.sort_order || 0;
       })) + 1;
     }
-
-
-    var updated = result.data && result.data[0];
-    if (!updated) return;
-
-    state.blocks = state.blocks.map(function (block) {
-      return String(block.id) === String(blockId) ? updated : block;
-    });
-
-    alert("Блок сохранён");
-  }
 
     var result = await client
       .from("lesson_blocks")
@@ -178,7 +168,7 @@
     renderBlocksList();
   }
 
- async function saveBlock(blockId) {
+  async function saveBlock(blockId) {
     var client = getClient();
     if (!client) return;
 
@@ -198,6 +188,16 @@
       alert("Ошибка сохранения блока");
       return;
     }
+
+    var updated = result.data && result.data[0];
+    if (!updated) return;
+
+    state.blocks = state.blocks.map(function (block) {
+      return String(block.id) === String(blockId) ? updated : block;
+    });
+
+    alert("Блок сохранён");
+  }
 
   function bindEvents() {
     document.getElementById("lessonsList").addEventListener("click", function (event) {
