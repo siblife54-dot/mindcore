@@ -136,6 +136,42 @@
     renderEditor();
   }
 
+  async function createBlock() {
+    if (!state.selectedLesson) return;
+
+    var client = getClient();
+
+    var nextOrder = 1;
+
+    if (state.blocks.length) {
+      nextOrder = Math.max.apply(null, state.blocks.map(function (b) {
+        return b.sort_order || 0;
+      })) + 1;
+    }
+
+    var result = await client
+      .from("lesson_blocks")
+      .insert({
+        lesson_id: state.selectedLesson.id,
+        sort_order: nextOrder,
+        block_type: "html",
+        content_html: `<div class="lesson-block">
+<h3>Новый блок</h3>
+<p>Напишите текст...</p>
+</div>`
+      })
+      .select();
+
+    if (result.error) {
+      console.error(result.error);
+      alert("Ошибка создания блока");
+      return;
+    }
+
+    state.blocks.push(result.data[0]);
+    renderBlocksList();
+  }
+
   function bindEvents() {
     document.getElementById("lessonsList").addEventListener("click", function (event) {
       var button = event.target.closest("[data-lesson-db-id]");
@@ -143,6 +179,10 @@
 
       var lessonDbId = button.getAttribute("data-lesson-db-id");
       void selectLessonById(lessonDbId);
+    });
+
+    document.getElementById("addBlockBtn").addEventListener("click", function () {
+      void createBlock();
     });
   }
 
