@@ -64,10 +64,15 @@
         <div class="admin-rich-editor" id="richEditorWrap" hidden>
           <h3>Редактор блока</h3>
           <div id="quillEditor" style="height: 260px; background: #fff; color: #111;"></div>
+          <div class="admin-block-video">
+            <label for="videoIdInput">ID видео Kinescope</label>
+            <input id="videoIdInput" type="text" placeholder="Например: 5qYpGTvDTbrLMBeBL6hpN1" />
+            <p class="admin-hint">Полная ссылка соберётся автоматически: https://kinescope.io/embed/{ID}</p>
+          </div>
           <div style="margin-top: 12px;">
-          <button id="saveRichBlockBtn" class="btn btn-primary" type="button">Сохранить из редактора</button>
-      </div>
-  </div>
+            <button id="saveRichBlockBtn" class="btn btn-primary" type="button">Сохранить из редактора</button>
+          </div>
+        </div>
 
         <div id="blocksList" class="admin-blocks-list"></div>
       </div>

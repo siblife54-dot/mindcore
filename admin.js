@@ -155,7 +155,16 @@
     }
 
     state.selectedBlockId = block.id;
-    state.quill.root.innerHTML = block.content_html || "";
+    state.quill.root.innerHTML = block.text_html || "";
+
+    var videoInput = document.getElementById("videoIdInput");
+    if (videoInput) {
+      if (Array.isArray(block.video_items) && block.video_items[0] && block.video_items[0].video_id) {
+        videoInput.value = block.video_items[0].video_id || "";
+      } else {
+        videoInput.value = "";
+      }
+    }
   }
 
   async function selectLessonById(lessonDbId) {
@@ -248,11 +257,15 @@
     if (!client) return;
 
     var html = state.quill.root.innerHTML;
+    var videoInput = document.getElementById("videoIdInput");
+    var videoId = videoInput ? videoInput.value.trim() : "";
+    var videoItems = videoId ? [{ video_id: videoId }] : [];
 
     var result = await client
       .from("lesson_blocks")
       .update({
-        text_html: html
+        text_html: html,
+        video_items: videoItems
       })
       .eq("id", state.selectedBlockId)
       .select();

@@ -691,11 +691,32 @@
 
     if (blocks.length) {
       content.innerHTML = blocks.map(function (block) {
+        var html = "";
+
         if (block.text_html) {
-          return '<div class="lesson-block">' + block.text_html + '</div>';
+          html += block.text_html;
         }
 
-        return "";
+        if (Array.isArray(block.video_items)) {
+          block.video_items.forEach(function (video) {
+            if (!video || !video.video_id) return;
+
+            var src = "https://kinescope.io/embed/" + video.video_id;
+            html += [
+              '<div class="lesson-media">',
+              '<div class="lesson-media__frame">',
+              '<iframe class="lesson-media__content" src="' + src + '" frameborder="0" allow="autoplay; fullscreen; picture-in-picture" allowfullscreen loading="lazy"></iframe>',
+              '</div>',
+              '</div>'
+            ].join("");
+          });
+        }
+
+        if (!html) {
+          return "";
+        }
+
+        return '<div class="lesson-block">' + html + '</div>';
       }).join("");
     } else if (lesson.content_html) {
       content.innerHTML = lesson.content_html;
