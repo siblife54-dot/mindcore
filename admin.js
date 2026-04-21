@@ -6,6 +6,7 @@
     selectedLesson: null,
     blocks: [],
     selectedBlockId: null,
+    blockItems: [],
     quill: null
   };
 
@@ -51,6 +52,25 @@
     if (result.error) {
       console.error(result.error);
       throw new Error("Не удалось загрузить блоки урока");
+    }
+
+    return result.data || [];
+  }
+
+  async function fetchBlockItems(blockId) {
+    var client = getClient();
+    if (!client) return [];
+
+    var result = await client
+      .from("lesson_block_items")
+      .select("*")
+      .eq("block_id", blockId)
+      .order("sort_order", { ascending: true });
+
+    if (result.error) {
+      console.error(result.error);
+      alert("Ошибка загрузки элементов блока");
+      return [];
     }
 
     return result.data || [];
@@ -119,6 +139,27 @@
     }).join("");
   }
 
+  function renderBlockItemsList() {
+    var list = document.getElementById("blockItemsList");
+    if (!list) return;
+
+    if (!state.blockItems.length) {
+      list.innerHTML = '<div class="admin-empty">У блока пока нет элементов</div>';
+      return;
+    }
+
+    list.innerHTML = state.blockItems.map(function (item) {
+      var label = "Текст";
+      if (item.item_type === "video") {
+        label = "Видео: " + escapeHtml(item.video_id || "");
+      } else if (item.item_type === "file") {
+        label = "Файл: " + escapeHtml(item.file_label || "") + " (" + escapeHtml(item.file_id || "") + ")";
+      }
+
+      return '<div class="admin-block-item-row">' + label + '</div>';
+    }).join("");
+  }
+
   function initQuillEditor() {
     var editorElement = document.getElementById("quillEditor");
     if (!editorElement || state.quill) return;
@@ -138,7 +179,7 @@
     });
   }
 
-  function openBlockInRichEditor(blockId) {
+  async function openBlockInRichEditor(blockId) {
     var block = state.blocks.find(function (item) {
       return String(item.id) === String(blockId);
     });
@@ -156,6 +197,8 @@
 
     state.selectedBlockId = block.id;
     state.quill.root.innerHTML = block.text_html || "";
+    state.blockItems = await fetchBlockItems(block.id);
+    renderBlockItemsList();
 
     var videoInput = document.getElementById("videoIdInput");
     if (videoInput) {
@@ -176,9 +219,12 @@
 
     state.selectedLesson = lesson;
     state.blocks = await fetchLessonBlocks(lesson.id);
+    state.selectedBlockId = null;
+    state.blockItems = [];
 
     renderLessonsList();
     renderEditor();
+    renderBlockItemsList();
   }
 
   async function createBlock() {
@@ -216,6 +262,113 @@
 
     state.blocks.push(result.data[0]);
     renderBlocksList();
+  }
+
+  function getNextBlockItemOrder() {
+    if (!state.blockItems.length) return 1;
+    return Math.max.apply(null, state.blockItems.map(function (item) {
+      return item.sort_order || 0;
+    })) + 1;
+  }
+
+  async function createTextItem() {
+    if (!state.selectedBlockId) return;
+
+    var client = getClient();
+    if (!client) return;
+
+    var nextOrder = getNextBlockItemOrder();
+    var result = await client
+      .from("lesson_block_items")
+      .insert({
+        block_id: state.selectedBlockId,
+        sort_order: nextOrder,
+        item_type: "text",
+        text_html: "<p>Новый текст</p>"
+      })
+      .select()
+      .single();
+
+    if (result.error) {
+      console.error(result.error);
+      alert("Ошибка создания текстового элемента");
+      return;
+    }
+
+    state.blockItems.push(result.data);
+    renderBlockItemsList();
+  }
+
+  async function createVideoItem() {
+    if (!state.selectedBlockId) return;
+
+    var videoId = window.prompt("ID видео Kinescope");
+    if (!videoId) return;
+    videoId = videoId.trim();
+    if (!videoId) return;
+
+    var client = getClient();
+    if (!client) return;
+
+    var nextOrder = getNextBlockItemOrder();
+    var result = await client
+      .from("lesson_block_items")
+      .insert({
+        block_id: state.selectedBlockId,
+        sort_order: nextOrder,
+        item_type: "video",
+        video_id: videoId
+      })
+      .select()
+      .single();
+
+    if (result.error) {
+      console.error(result.error);
+      alert("Ошибка создания видео элемента");
+      return;
+    }
+
+    state.blockItems.push(result.data);
+    renderBlockItemsList();
+  }
+
+  async function createFileItem() {
+    if (!state.selectedBlockId) return;
+
+    var fileLabel = window.prompt("Название файла");
+    if (!fileLabel) return;
+    fileLabel = fileLabel.trim();
+    if (!fileLabel) return;
+
+    var fileId = window.prompt("Google Drive file_id");
+    if (!fileId) return;
+    fileId = fileId.trim();
+    if (!fileId) return;
+
+    var client = getClient();
+    if (!client) return;
+
+    var nextOrder = getNextBlockItemOrder();
+    var result = await client
+      .from("lesson_block_items")
+      .insert({
+        block_id: state.selectedBlockId,
+        sort_order: nextOrder,
+        item_type: "file",
+        file_label: fileLabel,
+        file_id: fileId
+      })
+      .select()
+      .single();
+
+    if (result.error) {
+      console.error(result.error);
+      alert("Ошибка создания файла");
+      return;
+    }
+
+    state.blockItems.push(result.data);
+    renderBlockItemsList();
   }
 
   async function saveBlock(blockId) {
@@ -301,6 +454,18 @@
 
     document.getElementById("saveRichBlockBtn").addEventListener("click", function () {
       void saveRichEditorBlock();
+    });
+
+    document.getElementById("addTextItemBtn").addEventListener("click", function () {
+      void createTextItem();
+    });
+
+    document.getElementById("addVideoItemBtn").addEventListener("click", function () {
+      void createVideoItem();
+    });
+
+    document.getElementById("addFileItemBtn").addEventListener("click", function () {
+      void createFileItem();
     });
 
     document.getElementById("blocksList").addEventListener("click", function (event) {
