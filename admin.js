@@ -4,7 +4,9 @@
   var state = {
     lessons: [],
     selectedLesson: null,
-    blocks: []
+    blocks: [],
+    selectedBlockId: null,
+    quill: null
   };
 
   function getConfig() {
@@ -117,6 +119,45 @@
     }).join("");
   }
 
+  function initQuillEditor() {
+    var editorElement = document.getElementById("quillEditor");
+    if (!editorElement || state.quill) return;
+    if (!window.Quill) return;
+
+    state.quill = new window.Quill("#quillEditor", {
+      theme: "snow",
+      modules: {
+        toolbar: [
+          [{ header: [2, 3, false] }],
+          ["bold", "italic", "underline"],
+          [{ list: "ordered" }, { list: "bullet" }],
+          ["link", "blockquote"],
+          ["clean"]
+        ]
+      }
+    });
+  }
+
+  function openBlockInRichEditor(blockId) {
+    var block = state.blocks.find(function (item) {
+      return String(item.id) === String(blockId);
+    });
+
+    if (!block) return;
+    if (block.block_type !== "html") return;
+
+    initQuillEditor();
+    if (!state.quill) return;
+
+    var richEditorWrap = document.getElementById("richEditorWrap");
+    if (richEditorWrap) {
+      richEditorWrap.hidden = false;
+    }
+
+    state.selectedBlockId = block.id;
+    state.quill.root.innerHTML = block.content_html || "";
+  }
+
   async function selectLessonById(lessonDbId) {
     var lesson = state.lessons.find(function (item) {
       return String(item.id) === String(lessonDbId);
@@ -218,6 +259,17 @@
 
       var blockId = button.getAttribute("data-block-id");
       void saveBlock(blockId);
+    });
+
+    document.getElementById("blocksList").addEventListener("click", function (event) {
+      if (event.target.closest(".admin-block-editor")) return;
+      if (event.target.closest(".save-block-btn")) return;
+
+      var block = event.target.closest(".admin-block-item");
+      if (!block) return;
+
+      var blockId = block.getAttribute("data-block-id");
+      void openBlockInRichEditor(blockId);
     });
   }
 
