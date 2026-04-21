@@ -691,9 +691,10 @@
 
     if (blocks.length) {
       content.innerHTML = blocks.map(function (block) {
-        if (block.block_type === "html" && block.content_html) {
-          return block.content_html;
+        if (block.text_html) {
+          return '<div class="lesson-block">' + block.text_html + '</div>';
         }
+
         return "";
       }).join("");
     } else if (lesson.content_html) {
