@@ -452,20 +452,23 @@
       ? Math.max.apply(null, state.blocks.map(function (block) { return block.sort_order || 0; })) + 1
       : 1;
 
+    var newBlockPayload = {
+      lesson_id: state.selectedLesson.id,
+      sort_order: nextOrder
+    };
+
+    // Совместимость со схемой, где block_type может оставаться обязательным.
+    newBlockPayload.block_type = "section";
+
     var result = await client
       .from("lesson_blocks")
-      .insert({
-        lesson_id: state.selectedLesson.id,
-        sort_order: nextOrder,
-        block_type: "html",
-        content_html: "<div class=\"lesson-block\"><h3>Новая секция</h3><p>Напишите текст...</p></div>"
-      })
+      .insert(newBlockPayload)
       .select()
       .single();
 
     if (result.error) {
       console.error(result.error);
-      alert("Ошибка создания секции");
+      alert("Ошибка создания секции: " + result.error.message);
       return;
     }
 
