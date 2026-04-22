@@ -16,87 +16,58 @@
         <p id="adminCourseLabel">Загрузка...</p>
       </div>
 
-      <button id="addLessonBtn" class="btn btn-primary" type="button">+ Добавить урок</button>
+      <button id="addLessonBtn" class="btn btn-primary admin-sidebar__add-lesson" type="button">+ Новый урок</button>
 
       <div id="lessonsList" class="admin-lessons-list"></div>
     </aside>
 
     <main class="admin-main">
-      <div id="editorEmpty" class="admin-empty">
-        Выберите урок слева
-      </div>
+      <div id="editorEmpty" class="admin-empty">Выберите урок слева</div>
 
       <div id="editorPanel" hidden>
-        <div class="admin-editor-header">
-          <h2 id="editorLessonTitle">Урок</h2>
-          <button id="saveLessonBtn" class="btn btn-primary" type="button">Сохранить</button>
-        </div>
-
-        <div class="admin-form">
-          <label>
-            Lesson ID
-            <input id="lessonIdInput" type="text" />
-          </label>
-
-          <label>
-            День
-            <input id="dayNumberInput" type="number" />
-          </label>
-
-          <label>
-            Заголовок
-            <input id="titleInput" type="text" />
-          </label>
-
-          <label>
-            Подзаголовок
-            <input id="subtitleInput" type="text" />
-          </label>
-        </div>
-
-        <hr />
-
-        <div class="admin-blocks-header">
-          <h3>Блоки урока</h3>
-          <button id="addBlockBtn" class="btn btn-primary" type="button">+ Добавить блок</button>
-        </div>
-
-        <div class="admin-rich-editor" id="richEditorWrap" hidden>
-          <h3>Редактор блока</h3>
-
-          <h4>Текст</h4>
-          <div id="quillEditor" style="height: 260px; background: #fff; color: #111;"></div>
-          <div style="margin-top: 12px;">
-            <button id="saveRichBlockBtn" class="btn btn-primary" type="button">Сохранить текст</button>
-          </div>
-
-          <div class="admin-block-video" style="margin-top: 20px;">
-            <h4>Видео</h4>
-            <button id="addVideoToggleBtn" class="btn btn-primary" type="button">+ Добавить видео</button>
-            <div id="videoForm" hidden style="margin-top: 8px;">
-              <label for="videoIdInput">Video ID (Kinescope)</label>
-              <input id="videoIdInput" type="text" placeholder="Например: 5qYpGTvDTbrLMBeBL6hpN1" />
-              <p class="admin-hint">Ссылка генерируется автоматически: https://kinescope.io/embed/{ID}</p>
-              <button id="saveVideoBtn" class="btn btn-primary" type="button">Сохранить видео</button>
+        <section class="admin-card admin-lesson-card">
+          <div class="admin-card__header">
+            <div>
+              <p class="admin-card__eyebrow">Редактор урока</p>
+              <h2 id="editorLessonTitle">Урок</h2>
             </div>
-            <div id="videoCard" style="margin-top: 10px;"></div>
+            <button id="saveLessonBtn" class="btn btn-primary" type="button">Сохранить урок</button>
           </div>
 
-          <div class="admin-block-files" style="margin-top: 20px;">
-            <h4>Файлы</h4>
-            <button id="addFileToggleBtn" class="btn btn-primary" type="button">+ Добавить файл</button>
-            <div id="fileForm" hidden style="margin-top: 8px;">
-              <label for="fileLabelInput">Название файла</label>
-              <input id="fileLabelInput" type="text" placeholder="Например: File1.pdf" />
-              <label for="fileIdInput">Google Drive file_id</label>
-              <input id="fileIdInput" type="text" placeholder="Например: 1abcDEF..." />
-              <button id="saveFileBtn" class="btn btn-primary" type="button">Сохранить файл</button>
-            </div>
-            <div id="filesList" style="margin-top: 10px;"></div>
-          </div>
-        </div>
+          <div class="admin-form admin-form--lesson">
+            <label>
+              Название урока
+              <input id="titleInput" type="text" placeholder="Введите название урока" />
+            </label>
 
-        <div id="blocksList" class="admin-blocks-list"></div>
+            <label>
+              Подзаголовок
+              <input id="subtitleInput" type="text" placeholder="Введите подзаголовок" />
+            </label>
+
+            <label>
+              Номер дня
+              <input id="dayNumberInput" type="number" min="1" placeholder="Например, 7" />
+            </label>
+          </div>
+
+          <details class="admin-advanced">
+            <summary>Дополнительно</summary>
+            <label>
+              Lesson ID
+              <input id="lessonIdInput" type="text" placeholder="Внутренний lesson_id" />
+            </label>
+          </details>
+        </section>
+
+        <section class="admin-blocks">
+          <div class="admin-blocks-header">
+            <h3>Блоки урока</h3>
+            <button id="addBlockBtn" class="btn btn-primary" type="button">+ Добавить блок</button>
+          </div>
+
+          <div id="blocksList" class="admin-blocks-list"></div>
+        </section>
       </div>
     </main>
   </div>
