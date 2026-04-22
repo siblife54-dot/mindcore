@@ -48,7 +48,7 @@
 
     if (result.error) {
       console.error(result.error);
-      throw new Error("Не удалось загрузить блоки урока");
+      throw new Error("Не удалось загрузить секции урока");
     }
 
     return result.data || [];
@@ -66,7 +66,7 @@
 
     if (result.error) {
       console.error(result.error);
-      alert("Ошибка загрузки элементов блока");
+      alert("Ошибка загрузки данных секции");
       return [];
     }
 
@@ -163,7 +163,7 @@
     var blocksList = document.getElementById("blocksList");
 
     if (!state.blocks.length) {
-      blocksList.innerHTML = '<div class="admin-empty">У этого урока пока нет блоков</div>';
+      blocksList.innerHTML = '<div class="admin-empty">У этого урока пока нет секций</div>';
       return;
     }
 
@@ -175,7 +175,7 @@
       return [
         '<article class="admin-block-item" data-block-id="' + block.id + '">',
         '<div class="admin-block-head">',
-        '<h4>Блок ' + (index + 1) + '</h4>',
+        '<div><h4>Секция ' + (index + 1) + '</h4><p class="admin-section-subtitle">Часть урока</p></div>',
         '<div class="admin-inline-actions">',
         '<button class="admin-btn-ghost move-block-btn" data-dir="up" data-block-id="' + block.id + '" type="button">↑</button>',
         '<button class="admin-btn-ghost move-block-btn" data-dir="down" data-block-id="' + block.id + '" type="button">↓</button>',
@@ -185,7 +185,7 @@
 
         '<section class="admin-block-section">',
         '<div class="admin-section-head">',
-        '<h5>Текст</h5>',
+        '<h5>Текст секции</h5>',
         '<button class="btn btn-primary save-text-btn" data-block-id="' + block.id + '" type="button">Сохранить текст</button>',
         '</div>',
         '<div id="quillEditor-' + block.id + '" class="admin-quill" data-quill-block-id="' + block.id + '" data-initial-html="' + escapeAttr(textItem ? textItem.text_html || '<p></p>' : '<p></p>') + '"></div>',
@@ -400,14 +400,14 @@
         lesson_id: state.selectedLesson.id,
         sort_order: nextOrder,
         block_type: "html",
-        content_html: "<div class=\"lesson-block\"><h3>Новый блок</h3><p>Напишите текст...</p></div>"
+        content_html: "<div class=\"lesson-block\"><h3>Новая секция</h3><p>Напишите текст...</p></div>"
       })
       .select()
       .single();
 
     if (result.error) {
       console.error(result.error);
-      alert("Ошибка создания блока");
+      alert("Ошибка создания секции");
       return;
     }
 
@@ -445,7 +445,7 @@
 
     if (firstUpdate.error) {
       console.error(firstUpdate.error);
-      alert("Ошибка перемещения блока");
+      alert("Ошибка перемещения секции");
       return;
     }
 
@@ -456,7 +456,7 @@
 
     if (secondUpdate.error) {
       console.error(secondUpdate.error);
-      alert("Ошибка перемещения блока");
+      alert("Ошибка перемещения секции");
       return;
     }
 
@@ -473,7 +473,7 @@
     var client = getClient();
     if (!client) return;
 
-    var confirmDelete = window.confirm("Удалить блок и все вложенные элементы?");
+    var confirmDelete = window.confirm("Удалить секцию и все её материалы?");
     if (!confirmDelete) return;
 
     var deleteItemsResult = await client
@@ -483,7 +483,7 @@
 
     if (deleteItemsResult.error) {
       console.error(deleteItemsResult.error);
-      alert("Ошибка удаления элементов блока");
+      alert("Ошибка удаления материалов секции");
       return;
     }
 
@@ -494,7 +494,7 @@
 
     if (deleteBlockResult.error) {
       console.error(deleteBlockResult.error);
-      alert("Ошибка удаления блока");
+      alert("Ошибка удаления секции");
       return;
     }
 
@@ -527,7 +527,7 @@
 
     if (result.error) {
       console.error(result.error);
-      alert("Ошибка создания текстового элемента");
+      alert("Ошибка создания текстового содержимого");
       return null;
     }
 
@@ -558,7 +558,7 @@
 
     if (result.error) {
       console.error(result.error);
-      alert("Ошибка сохранения текста");
+      alert("Ошибка сохранения текста секции");
       return;
     }
 
@@ -567,7 +567,7 @@
       return String(item.id) === String(result.data.id) ? result.data : item;
     });
 
-    alert("Текст сохранён");
+    alert("Текст секции сохранён");
   }
 
   async function createVideoItem(blockId, videoId) {
