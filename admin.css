@@ -69,14 +69,14 @@ body[data-page="admin"] {
 }
 
 .admin-main {
-  padding: 30px;
+  padding: 34px;
 }
 
 .admin-card {
   border: 1px solid var(--border);
-  border-radius: 18px;
+  border-radius: 20px;
   background: linear-gradient(180deg, rgba(18, 36, 58, 0.96), rgba(18, 36, 58, 0.72));
-  padding: 22px;
+  padding: 24px;
 }
 
 .admin-card__header {
@@ -142,7 +142,7 @@ body[data-page="admin"] {
 }
 
 .admin-blocks {
-  margin-top: 26px;
+  margin-top: 30px;
 }
 
 .admin-blocks-header {
@@ -154,33 +154,39 @@ body[data-page="admin"] {
 
 .admin-blocks-header h3 {
   margin: 0;
-  font-size: 24px;
+  font-size: 28px;
 }
 
 .admin-blocks-list {
   margin-top: 16px;
   display: grid;
-  gap: 16px;
+  gap: 18px;
 }
 
 .admin-block-item {
   border: 1px solid var(--border);
-  border-radius: 18px;
-  padding: 18px;
-  background: rgba(18, 36, 58, 0.82);
+  border-radius: 20px;
+  padding: 20px;
+  background: linear-gradient(180deg, rgba(18, 36, 58, 0.92), rgba(13, 29, 47, 0.9));
 }
 
 .admin-block-head {
   display: flex;
   justify-content: space-between;
-  align-items: center;
+  align-items: flex-start;
   gap: 10px;
-  margin-bottom: 16px;
+  margin-bottom: 18px;
 }
 
 .admin-block-head h4 {
   margin: 0;
-  font-size: 19px;
+  font-size: 22px;
+}
+
+.admin-section-subtitle {
+  margin: 4px 0 0;
+  color: var(--muted);
+  font-size: 12px;
 }
 
 .admin-inline-actions {
@@ -199,15 +205,11 @@ body[data-page="admin"] {
 }
 
 .admin-block-section {
-  border-top: 1px solid var(--border);
-  padding-top: 16px;
-  margin-top: 16px;
-}
-
-.admin-block-section:first-of-type {
-  border-top: 0;
-  padding-top: 0;
-  margin-top: 0;
+  border: 1px solid color-mix(in srgb, var(--border) 80%, transparent);
+  border-radius: 14px;
+  padding: 14px;
+  margin-top: 12px;
+  background: rgba(8, 18, 30, 0.42);
 }
 
 .admin-section-head {
@@ -220,7 +222,7 @@ body[data-page="admin"] {
 
 .admin-section-head h5 {
   margin: 0;
-  font-size: 15px;
+  font-size: 16px;
 }
 
 .admin-section-form {
@@ -284,6 +286,11 @@ body[data-page="admin"] {
   border-radius: 16px;
   color: var(--muted);
   padding: 24px;
+}
+
+.admin-block-section .admin-empty {
+  padding: 12px;
+  border-radius: 12px;
 }
 
 .admin-quill {
