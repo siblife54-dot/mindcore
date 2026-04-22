@@ -6,7 +6,9 @@
     selectedLesson: null,
     blocks: [],
     blockItemsByBlockId: {},
-    quills: {}
+    quills: {},
+    activeSectionId: null,
+    activeSectionTab: "text"
   };
 
   function getConfig() {
@@ -119,6 +121,13 @@
     })) + 1;
   }
 
+  function getActiveBlock() {
+    if (!state.activeSectionId) return null;
+    return state.blocks.find(function (block) {
+      return String(block.id) === String(state.activeSectionId);
+    }) || null;
+  }
+
   function renderLessonsList() {
     var lessonsList = document.getElementById("lessonsList");
     var selectedId = state.selectedLesson ? state.selectedLesson.id : null;
@@ -156,7 +165,7 @@
     document.getElementById("subtitleInput").value = lesson.subtitle || "";
 
     renderBlocksList();
-    initQuills();
+    renderSectionEditor();
   }
 
   function renderBlocksList() {
@@ -171,64 +180,116 @@
       var textItem = getTextItem(block.id);
       var videos = getVideoItems(block.id);
       var files = getFileItems(block.id);
+      var isActive = String(state.activeSectionId) === String(block.id);
 
       return [
-        '<article class="admin-block-item" data-block-id="' + block.id + '">',
+        '<article class="admin-block-item' + (isActive ? ' active' : '') + '" data-block-id="' + block.id + '">',
         '<div class="admin-block-head">',
-        '<div><h4>Секция ' + (index + 1) + '</h4><p class="admin-section-subtitle">Часть урока</p></div>',
+        '<div>',
+        '<h4>Секция ' + (index + 1) + '</h4>',
+        '<p class="admin-section-subtitle">Часть урока</p>',
+        '<div class="admin-statuses">',
+        '<span>Текст: ' + (textItem && (textItem.text_html || "").trim() !== "" && textItem.text_html !== "<p></p>" ? "заполнен" : "пусто") + '</span>',
+        '<span>Видео: ' + videos.length + '</span>',
+        '<span>Файлы: ' + files.length + '</span>',
+        '</div>',
+        '</div>',
         '<div class="admin-inline-actions">',
+        '<button class="admin-btn-ghost edit-block-btn" data-block-id="' + block.id + '" type="button">Редактировать</button>',
         '<button class="admin-btn-ghost move-block-btn" data-dir="up" data-block-id="' + block.id + '" type="button">↑</button>',
         '<button class="admin-btn-ghost move-block-btn" data-dir="down" data-block-id="' + block.id + '" type="button">↓</button>',
         '<button class="admin-btn-ghost delete-block-btn" data-block-id="' + block.id + '" type="button">Удалить</button>',
         '</div>',
         '</div>',
-
-        '<section class="admin-block-section">',
-        '<div class="admin-section-head">',
-        '<h5>Текст секции</h5>',
-        '<button class="btn btn-primary save-text-btn" data-block-id="' + block.id + '" type="button">Сохранить текст</button>',
-        '</div>',
-        '<div id="quillEditor-' + block.id + '" class="admin-quill" data-quill-block-id="' + block.id + '" data-initial-html="' + escapeAttr(textItem ? textItem.text_html || '<p></p>' : '<p></p>') + '"></div>',
-        '</section>',
-
-        '<section class="admin-block-section">',
-        '<div class="admin-section-head">',
-        '<h5>Видео</h5>',
-        '<button class="btn btn-primary toggle-video-form-btn" data-block-id="' + block.id + '" type="button">+ Добавить видео</button>',
-        '</div>',
-        '<div class="admin-section-form" id="videoForm-' + block.id + '" hidden>',
-        '<label> ID видео Kinescope',
-        '<input class="video-id-input" data-block-id="' + block.id + '" type="text" placeholder="Например: 5qYpGTvDTbrLMBeBL6hpN1" />',
-        '</label>',
-        '<p class="admin-hint">Полная ссылка соберётся автоматически: https://kinescope.io/embed/{ID}</p>',
-        '<button class="btn btn-primary save-video-btn" data-block-id="' + block.id + '" type="button">Сохранить видео</button>',
-        '</div>',
-        '<div class="admin-mini-cards">',
-        renderVideoCards(videos),
-        '</div>',
-        '</section>',
-
-        '<section class="admin-block-section">',
-        '<div class="admin-section-head">',
-        '<h5>Файлы</h5>',
-        '<button class="btn btn-primary toggle-file-form-btn" data-block-id="' + block.id + '" type="button">+ Добавить файл</button>',
-        '</div>',
-        '<div class="admin-section-form" id="fileForm-' + block.id + '" hidden>',
-        '<label>Название файла',
-        '<input class="file-label-input" data-block-id="' + block.id + '" type="text" placeholder="Например: Чеклист.pdf" />',
-        '</label>',
-        '<label>Google Drive file_id',
-        '<input class="file-id-input" data-block-id="' + block.id + '" type="text" placeholder="Например: 1abcDEF..." />',
-        '</label>',
-        '<button class="btn btn-primary save-file-btn" data-block-id="' + block.id + '" type="button">Сохранить файл</button>',
-        '</div>',
-        '<div class="admin-mini-cards">',
-        renderFileCards(files),
-        '</div>',
-        '</section>',
         '</article>'
       ].join("");
     }).join("");
+  }
+
+  function renderSectionEditor() {
+    var panel = document.getElementById("sectionEditorPanel");
+    var content = document.getElementById("sectionEditorContent");
+    var activeBlock = getActiveBlock();
+
+    if (!activeBlock) {
+      panel.hidden = true;
+      content.innerHTML = "";
+      return;
+    }
+
+    panel.hidden = false;
+
+    document.querySelectorAll(".admin-tab-btn").forEach(function (btn) {
+      btn.classList.toggle("active", btn.getAttribute("data-section-tab") === state.activeSectionTab);
+    });
+
+    if (state.activeSectionTab === "video") {
+      content.innerHTML = renderVideoTab(activeBlock.id);
+      return;
+    }
+
+    if (state.activeSectionTab === "file") {
+      content.innerHTML = renderFileTab(activeBlock.id);
+      return;
+    }
+
+    content.innerHTML = renderTextTab(activeBlock.id);
+    initQuillForActiveSection(activeBlock.id);
+  }
+
+  function renderTextTab(blockId) {
+    var textItem = getTextItem(blockId);
+    return [
+      '<section class="admin-tab-panel">',
+      '<h5>Текст</h5>',
+      '<div id="quillEditor-' + blockId + '" class="admin-quill" data-quill-block-id="' + blockId + '" data-initial-html="' + escapeAttr(textItem ? textItem.text_html || '<p></p>' : '<p></p>') + '"></div>',
+      '<div class="admin-form" style="margin-top:12px;">',
+      '<button class="btn btn-primary save-text-btn" data-block-id="' + blockId + '" type="button">Сохранить текст</button>',
+      '</div>',
+      '</section>'
+    ].join("");
+  }
+
+  function renderVideoTab(blockId) {
+    var videos = getVideoItems(blockId);
+    return [
+      '<section class="admin-tab-panel">',
+      '<h5>Видео</h5>',
+      '<button class="btn btn-primary toggle-video-form-btn" data-block-id="' + blockId + '" type="button">+ Добавить видео</button>',
+      '<div class="admin-section-form" id="videoForm-' + blockId + '" hidden>',
+      '<label>ID видео Kinescope',
+      '<input class="video-id-input" data-block-id="' + blockId + '" type="text" placeholder="Например: 5qYpGTvDTbrLMBeBL6hpN1" />',
+      '</label>',
+      '<p class="admin-hint">Полная ссылка соберётся автоматически: https://kinescope.io/embed/{ID}</p>',
+      '<button class="btn btn-primary save-video-btn" data-block-id="' + blockId + '" type="button">Сохранить видео</button>',
+      '</div>',
+      '<div class="admin-mini-cards">',
+      renderVideoCards(videos),
+      '</div>',
+      '</section>'
+    ].join("");
+  }
+
+  function renderFileTab(blockId) {
+    var files = getFileItems(blockId);
+    return [
+      '<section class="admin-tab-panel">',
+      '<h5>Файлы</h5>',
+      '<button class="btn btn-primary toggle-file-form-btn" data-block-id="' + blockId + '" type="button">+ Добавить файл</button>',
+      '<div class="admin-section-form" id="fileForm-' + blockId + '" hidden>',
+      '<label>Название файла',
+      '<input class="file-label-input" data-block-id="' + blockId + '" type="text" placeholder="Например: Чеклист.pdf" />',
+      '</label>',
+      '<label>Google Drive file_id',
+      '<input class="file-id-input" data-block-id="' + blockId + '" type="text" placeholder="Например: 1abcDEF..." />',
+      '</label>',
+      '<button class="btn btn-primary save-file-btn" data-block-id="' + blockId + '" type="button">Сохранить файл</button>',
+      '</div>',
+      '<div class="admin-mini-cards">',
+      renderFileCards(files),
+      '</div>',
+      '</section>'
+    ].join("");
   }
 
   function renderVideoCards(videos) {
@@ -237,13 +298,10 @@
     }
 
     return videos.map(function (video) {
-      var videoId = video.video_id || "";
-      var embedUrl = "https://kinescope.io/embed/" + encodeURIComponent(videoId);
       return [
         '<div class="admin-mini-card">',
         '<p><strong>Видео</strong></p>',
-        '<p>ID: ' + escapeHtml(videoId) + '</p>',
-        videoId ? '<iframe src="' + embedUrl + '" allowfullscreen loading="lazy"></iframe>' : "",
+        '<p>ID: ' + escapeHtml(video.video_id || "") + '</p>',
         '<button class="admin-btn-ghost delete-item-btn" data-item-id="' + video.id + '" type="button">Удалить</button>',
         '</div>'
       ].join("");
@@ -259,36 +317,34 @@
       return [
         '<div class="admin-mini-card">',
         '<p><strong>' + escapeHtml(file.file_label || "Без названия") + '</strong></p>',
-        '<p>file_id: ' + escapeHtml(file.file_id || "") + '</p>',
+        '<p>ID: ' + escapeHtml(file.file_id || "") + '</p>',
         '<button class="admin-btn-ghost delete-item-btn" data-item-id="' + file.id + '" type="button">Удалить</button>',
         '</div>'
       ].join("");
     }).join("");
   }
 
-  function initQuills() {
+  function initQuillForActiveSection(blockId) {
     if (!window.Quill) return;
 
-    document.querySelectorAll("[data-quill-block-id]").forEach(function (container) {
-      var blockId = container.getAttribute("data-quill-block-id");
-      if (!blockId || state.quills[blockId]) return;
+    var container = document.querySelector('[data-quill-block-id="' + blockId + '"]');
+    if (!container || state.quills[String(blockId)]) return;
 
-      var quill = new window.Quill("#" + container.id, {
-        theme: "snow",
-        modules: {
-          toolbar: [
-            [{ header: [2, 3, false] }],
-            ["bold", "italic", "underline"],
-            [{ list: "ordered" }, { list: "bullet" }],
-            ["link", "blockquote"],
-            ["clean"]
-          ]
-        }
-      });
-
-      quill.root.innerHTML = container.getAttribute("data-initial-html") || "<p></p>";
-      state.quills[blockId] = quill;
+    var quill = new window.Quill("#" + container.id, {
+      theme: "snow",
+      modules: {
+        toolbar: [
+          [{ header: [2, 3, false] }],
+          ["bold", "italic", "underline"],
+          [{ list: "ordered" }, { list: "bullet" }],
+          ["link", "blockquote"],
+          ["clean"]
+        ]
+      }
     });
+
+    quill.root.innerHTML = container.getAttribute("data-initial-html") || "<p></p>";
+    state.quills[String(blockId)] = quill;
   }
 
   async function selectLessonById(lessonDbId) {
@@ -300,6 +356,8 @@
 
     state.selectedLesson = lesson;
     state.quills = {};
+    state.activeSectionId = null;
+    state.activeSectionTab = "text";
 
     state.blocks = await fetchLessonBlocks(lesson.id);
     var blockIds = state.blocks.map(function (block) { return block.id; });
@@ -416,6 +474,8 @@
       return (a.sort_order || 0) - (b.sort_order || 0);
     });
     state.blockItemsByBlockId[String(result.data.id)] = [];
+    state.activeSectionId = result.data.id;
+    state.activeSectionTab = "text";
 
     renderEditor();
   }
@@ -504,6 +564,11 @@
     delete state.blockItemsByBlockId[String(blockId)];
     delete state.quills[String(blockId)];
 
+    if (String(state.activeSectionId) === String(blockId)) {
+      state.activeSectionId = null;
+      state.activeSectionTab = "text";
+    }
+
     renderEditor();
   }
 
@@ -568,6 +633,7 @@
     });
 
     alert("Текст секции сохранён");
+    renderBlocksList();
   }
 
   async function createVideoItem(blockId, videoId) {
@@ -594,7 +660,8 @@
     }
 
     getItems(blockId).push(result.data);
-    renderEditor();
+    renderBlocksList();
+    renderSectionEditor();
   }
 
   async function createFileItem(blockId, fileLabel, fileId) {
@@ -622,7 +689,8 @@
     }
 
     getItems(blockId).push(result.data);
-    renderEditor();
+    renderBlocksList();
+    renderSectionEditor();
   }
 
   async function deleteItem(itemId) {
@@ -646,7 +714,8 @@
       });
     });
 
-    renderEditor();
+    renderBlocksList();
+    renderSectionEditor();
   }
 
   function bindEvents() {
@@ -670,7 +739,29 @@
       void createBlock();
     });
 
+    document.getElementById("closeSectionEditorBtn").addEventListener("click", function () {
+      state.activeSectionId = null;
+      state.activeSectionTab = "text";
+      renderEditor();
+    });
+
+    document.querySelectorAll(".admin-tab-btn").forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        state.activeSectionTab = btn.getAttribute("data-section-tab") || "text";
+        renderSectionEditor();
+      });
+    });
+
     document.getElementById("blocksList").addEventListener("click", function (event) {
+      var editBlockBtn = event.target.closest(".edit-block-btn");
+      if (editBlockBtn) {
+        state.activeSectionId = editBlockBtn.getAttribute("data-block-id");
+        state.activeSectionTab = "text";
+        state.quills = {};
+        renderEditor();
+        return;
+      }
+
       var moveBtn = event.target.closest(".move-block-btn");
       if (moveBtn) {
         void swapBlocks(moveBtn.getAttribute("data-block-id"), moveBtn.getAttribute("data-dir"));
@@ -680,9 +771,10 @@
       var deleteBlockBtn = event.target.closest(".delete-block-btn");
       if (deleteBlockBtn) {
         void deleteBlock(deleteBlockBtn.getAttribute("data-block-id"));
-        return;
       }
+    });
 
+    document.getElementById("sectionEditorContent").addEventListener("click", function (event) {
       var saveTextBtn = event.target.closest(".save-text-btn");
       if (saveTextBtn) {
         void saveTextItem(saveTextBtn.getAttribute("data-block-id"));

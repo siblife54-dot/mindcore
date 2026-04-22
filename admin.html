@@ -68,6 +68,24 @@
 
           <div id="blocksList" class="admin-blocks-list"></div>
         </section>
+
+        <section id="sectionEditorPanel" class="admin-section-editor" hidden>
+          <div class="admin-section-editor__head">
+            <div>
+              <p class="admin-card__eyebrow">Панель секции</p>
+              <h4>Редактирование секции</h4>
+            </div>
+            <button id="closeSectionEditorBtn" class="admin-btn-ghost" type="button">Закрыть</button>
+          </div>
+
+          <div class="admin-tabs">
+            <button class="admin-tab-btn" type="button" data-section-tab="text">Текст</button>
+            <button class="admin-tab-btn" type="button" data-section-tab="video">Видео</button>
+            <button class="admin-tab-btn" type="button" data-section-tab="file">Файлы</button>
+          </div>
+
+          <div id="sectionEditorContent"></div>
+        </section>
       </div>
     </main>
   </div>
