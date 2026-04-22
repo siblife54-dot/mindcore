@@ -128,6 +128,70 @@
     }) || null;
   }
 
+  function stripHtml(html) {
+    if (!html) return "";
+    var container = document.createElement("div");
+    container.innerHTML = html;
+    return (container.textContent || container.innerText || "").replace(/\s+/g, " ").trim();
+  }
+
+  function shortenText(value, maxLength) {
+    if (!value) return "";
+    if (value.length <= maxLength) return value;
+    return value.slice(0, maxLength).trim() + "…";
+  }
+
+  function getSectionSummary(blockId) {
+    var textItem = getTextItem(blockId);
+    var videos = getVideoItems(blockId);
+    var files = getFileItems(blockId);
+    var textPreview = shortenText(stripHtml(textItem ? textItem.text_html : ""), 160);
+
+    if (textPreview) {
+      return textPreview;
+    }
+
+    if (videos.length && files.length) {
+      return "Секция содержит видео и файлы для скачивания.";
+    }
+
+    if (videos.length) {
+      return "Секция с видеоматериалом.";
+    }
+
+    if (files.length) {
+      return "Секция с прикреплёнными файлами.";
+    }
+
+    return "Пока контент не добавлен.";
+  }
+
+  function getContentBadges(blockId) {
+    var badges = [];
+    var textPreview = shortenText(stripHtml((getTextItem(blockId) || {}).text_html || ""), 160);
+    var videos = getVideoItems(blockId);
+    var files = getFileItems(blockId);
+
+    if (textPreview) {
+      badges.push("Текст");
+    }
+    if (videos.length) {
+      badges.push("Видео: " + videos.length);
+    }
+    if (files.length) {
+      var fileNames = files.slice(0, 2).map(function (item) {
+        return item.file_label || "Без названия";
+      }).join(", ");
+      badges.push("Файлы: " + fileNames + (files.length > 2 ? " +" + (files.length - 2) : ""));
+    }
+
+    if (!badges.length) {
+      badges.push("Пустая секция");
+    }
+
+    return badges;
+  }
+
   function renderLessonsList() {
     var lessonsList = document.getElementById("lessonsList");
     var selectedId = state.selectedLesson ? state.selectedLesson.id : null;
@@ -150,6 +214,7 @@
     if (!state.selectedLesson) {
       empty.hidden = false;
       panel.hidden = true;
+      renderPreview();
       return;
     }
 
@@ -165,7 +230,7 @@
     document.getElementById("subtitleInput").value = lesson.subtitle || "";
 
     renderBlocksList();
-    renderSectionEditor();
+    renderPreview();
   }
 
   function renderBlocksList() {
@@ -177,21 +242,20 @@
     }
 
     blocksList.innerHTML = state.blocks.map(function (block, index) {
-      var textItem = getTextItem(block.id);
-      var videos = getVideoItems(block.id);
-      var files = getFileItems(block.id);
       var isActive = String(state.activeSectionId) === String(block.id);
+      var summary = getSectionSummary(block.id);
+      var badges = getContentBadges(block.id);
 
       return [
         '<article class="admin-block-item' + (isActive ? ' active' : '') + '" data-block-id="' + block.id + '">',
         '<div class="admin-block-head">',
         '<div>',
         '<h4>Секция ' + (index + 1) + '</h4>',
-        '<p class="admin-section-subtitle">Часть урока</p>',
-        '<div class="admin-statuses">',
-        '<span>Текст: ' + (textItem && (textItem.text_html || "").trim() !== "" && textItem.text_html !== "<p></p>" ? "заполнен" : "пусто") + '</span>',
-        '<span>Видео: ' + videos.length + '</span>',
-        '<span>Файлы: ' + files.length + '</span>',
+        '<p class="admin-section-summary' + (summary === "Пока контент не добавлен." ? ' admin-section-summary--empty' : '') + '">' + escapeHtml(summary) + '</p>',
+        '<div class="admin-content-badges">',
+        badges.map(function (badge) {
+          return '<span class="admin-content-badge">' + escapeHtml(badge) + '</span>';
+        }).join(""),
         '</div>',
         '</div>',
         '<div class="admin-inline-actions">',
@@ -201,40 +265,35 @@
         '<button class="admin-btn-ghost delete-block-btn" data-block-id="' + block.id + '" type="button">Удалить</button>',
         '</div>',
         '</div>',
+        isActive ? renderSectionEditor(block.id) : "",
         '</article>'
       ].join("");
     }).join("");
+
+    var activeBlock = getActiveBlock();
+    if (activeBlock && state.activeSectionTab === "text") {
+      initQuillForActiveSection(activeBlock.id);
+    }
   }
 
-  function renderSectionEditor() {
-    var panel = document.getElementById("sectionEditorPanel");
-    var content = document.getElementById("sectionEditorContent");
-    var activeBlock = getActiveBlock();
+  function renderSectionEditor(blockId) {
+    return [
+      '<div class="admin-block-editor-inline" id="blockEditor-' + blockId + '">',
+      '<div class="admin-tabs">',
+      '<button class="admin-tab-btn' + (state.activeSectionTab === 'text' ? ' active' : '') + '" type="button" data-section-tab="text" data-block-id="' + blockId + '">Текст</button>',
+      '<button class="admin-tab-btn' + (state.activeSectionTab === 'video' ? ' active' : '') + '" type="button" data-section-tab="video" data-block-id="' + blockId + '">Видео</button>',
+      '<button class="admin-tab-btn' + (state.activeSectionTab === 'file' ? ' active' : '') + '" type="button" data-section-tab="file" data-block-id="' + blockId + '">Файлы</button>',
+      '<button class="admin-btn-ghost close-inline-editor-btn" type="button">Закрыть</button>',
+      '</div>',
+      renderSectionTabContent(blockId),
+      '</div>'
+    ].join("");
+  }
 
-    if (!activeBlock) {
-      panel.hidden = true;
-      content.innerHTML = "";
-      return;
-    }
-
-    panel.hidden = false;
-
-    document.querySelectorAll(".admin-tab-btn").forEach(function (btn) {
-      btn.classList.toggle("active", btn.getAttribute("data-section-tab") === state.activeSectionTab);
-    });
-
-    if (state.activeSectionTab === "video") {
-      content.innerHTML = renderVideoTab(activeBlock.id);
-      return;
-    }
-
-    if (state.activeSectionTab === "file") {
-      content.innerHTML = renderFileTab(activeBlock.id);
-      return;
-    }
-
-    content.innerHTML = renderTextTab(activeBlock.id);
-    initQuillForActiveSection(activeBlock.id);
+  function renderSectionTabContent(blockId) {
+    if (state.activeSectionTab === "video") return renderVideoTab(blockId);
+    if (state.activeSectionTab === "file") return renderFileTab(blockId);
+    return renderTextTab(blockId);
   }
 
   function renderTextTab(blockId) {
@@ -324,6 +383,65 @@
     }).join("");
   }
 
+  function renderPreview() {
+    var container = document.getElementById("previewContainer");
+    if (!container) return;
+
+    if (!state.selectedLesson) {
+      container.innerHTML = '<div class="preview-placeholder">Выберите урок, чтобы увидеть предпросмотр.</div>';
+      return;
+    }
+
+    var title = document.getElementById("titleInput") ? document.getElementById("titleInput").value.trim() : (state.selectedLesson.title || "");
+    var subtitle = document.getElementById("subtitleInput") ? document.getElementById("subtitleInput").value.trim() : (state.selectedLesson.subtitle || "");
+
+    var blocksHtml = state.blocks.map(function (block, index) {
+      var textItem = getTextItem(block.id);
+      var textHtml = textItem && stripHtml(textItem.text_html) ? textItem.text_html : "";
+      var videos = getVideoItems(block.id);
+      var files = getFileItems(block.id);
+
+      var contentParts = [];
+
+      if (textHtml) {
+        contentParts.push('<div class="preview-text">' + textHtml + '</div>');
+      }
+
+      if (videos.length) {
+        contentParts.push(videos.map(function (video) {
+          return '<div class="preview-video">▶ Видео добавлено (ID: ' + escapeHtml(video.video_id || "") + ')</div>';
+        }).join(""));
+      }
+
+      if (files.length) {
+        contentParts.push([
+          '<div class="preview-files">',
+          files.map(function (file) {
+            return '<button class="preview-file-btn" type="button">📎 ' + escapeHtml(file.file_label || "Файл") + '</button>';
+          }).join(""),
+          '</div>'
+        ].join(""));
+      }
+
+      if (!contentParts.length) {
+        contentParts.push('<div class="preview-placeholder">Контент секции пока пуст.</div>');
+      }
+
+      return [
+        '<section class="preview-block">',
+        '<h5>Секция ' + (index + 1) + '</h5>',
+        contentParts.join(""),
+        '</section>'
+      ].join("");
+    }).join("");
+
+    container.innerHTML = [
+      '<h4 class="preview-lesson-title">' + escapeHtml(title || "Без названия") + '</h4>',
+      '<p class="preview-lesson-subtitle">' + escapeHtml(subtitle || "Подзаголовок пока не добавлен") + '</p>',
+      blocksHtml || '<div class="preview-placeholder" style="margin-top: 14px;">Добавьте первую секцию, чтобы увидеть содержание урока.</div>'
+    ].join("");
+  }
+
   function initQuillForActiveSection(blockId) {
     if (!window.Quill) return;
 
@@ -344,6 +462,9 @@
     });
 
     quill.root.innerHTML = container.getAttribute("data-initial-html") || "<p></p>";
+    quill.on("text-change", function () {
+      renderPreview();
+    });
     state.quills[String(blockId)] = quill;
   }
 
@@ -454,11 +575,9 @@
 
     var newBlockPayload = {
       lesson_id: state.selectedLesson.id,
-      sort_order: nextOrder
+      sort_order: nextOrder,
+      block_type: "section"
     };
-
-    // Совместимость со схемой, где block_type может оставаться обязательным.
-    newBlockPayload.block_type = "section";
 
     var result = await client
       .from("lesson_blocks")
@@ -635,8 +754,9 @@
       return String(item.id) === String(result.data.id) ? result.data : item;
     });
 
-    alert("Текст секции сохранён");
     renderBlocksList();
+    renderPreview();
+    alert("Текст секции сохранён");
   }
 
   async function createVideoItem(blockId, videoId) {
@@ -664,7 +784,7 @@
 
     getItems(blockId).push(result.data);
     renderBlocksList();
-    renderSectionEditor();
+    renderPreview();
   }
 
   async function createFileItem(blockId, fileLabel, fileId) {
@@ -693,7 +813,7 @@
 
     getItems(blockId).push(result.data);
     renderBlocksList();
-    renderSectionEditor();
+    renderPreview();
   }
 
   async function deleteItem(itemId) {
@@ -718,7 +838,7 @@
     });
 
     renderBlocksList();
-    renderSectionEditor();
+    renderPreview();
   }
 
   function bindEvents() {
@@ -742,16 +862,14 @@
       void createBlock();
     });
 
-    document.getElementById("closeSectionEditorBtn").addEventListener("click", function () {
-      state.activeSectionId = null;
-      state.activeSectionTab = "text";
-      renderEditor();
-    });
-
-    document.querySelectorAll(".admin-tab-btn").forEach(function (btn) {
-      btn.addEventListener("click", function () {
-        state.activeSectionTab = btn.getAttribute("data-section-tab") || "text";
-        renderSectionEditor();
+    ["titleInput", "subtitleInput", "dayNumberInput", "lessonIdInput"].forEach(function (id) {
+      var input = document.getElementById(id);
+      if (!input) return;
+      input.addEventListener("input", function () {
+        if (id === "titleInput") {
+          document.getElementById("editorLessonTitle").textContent = input.value.trim() || "Урок";
+        }
+        renderPreview();
       });
     });
 
@@ -761,7 +879,26 @@
         state.activeSectionId = editBlockBtn.getAttribute("data-block-id");
         state.activeSectionTab = "text";
         state.quills = {};
-        renderEditor();
+        renderBlocksList();
+        renderPreview();
+        return;
+      }
+
+      var closeEditorBtn = event.target.closest(".close-inline-editor-btn");
+      if (closeEditorBtn) {
+        state.activeSectionId = null;
+        state.activeSectionTab = "text";
+        state.quills = {};
+        renderBlocksList();
+        return;
+      }
+
+      var tabBtn = event.target.closest(".admin-tab-btn[data-section-tab]");
+      if (tabBtn) {
+        state.activeSectionId = tabBtn.getAttribute("data-block-id") || state.activeSectionId;
+        state.activeSectionTab = tabBtn.getAttribute("data-section-tab") || "text";
+        state.quills = {};
+        renderBlocksList();
         return;
       }
 
@@ -774,10 +911,9 @@
       var deleteBlockBtn = event.target.closest(".delete-block-btn");
       if (deleteBlockBtn) {
         void deleteBlock(deleteBlockBtn.getAttribute("data-block-id"));
+        return;
       }
-    });
 
-    document.getElementById("sectionEditorContent").addEventListener("click", function (event) {
       var saveTextBtn = event.target.closest(".save-text-btn");
       if (saveTextBtn) {
         void saveTextItem(saveTextBtn.getAttribute("data-block-id"));
@@ -878,6 +1014,7 @@
 
     state.lessons = await fetchLessons();
     renderLessonsList();
+    renderPreview();
 
     if (state.lessons.length) {
       await selectLessonById(state.lessons[0].id);

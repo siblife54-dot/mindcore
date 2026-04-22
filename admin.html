@@ -24,68 +24,64 @@
     <main class="admin-main">
       <div id="editorEmpty" class="admin-empty">Выберите урок слева</div>
 
-      <div id="editorPanel" hidden>
-        <section class="admin-card admin-lesson-card">
-          <div class="admin-card__header">
-            <div>
-              <p class="admin-card__eyebrow">Редактор урока</p>
-              <h2 id="editorLessonTitle">Урок</h2>
+      <div id="editorPanel" class="admin-builder" hidden>
+        <section class="admin-builder__center">
+          <section class="admin-card admin-lesson-card">
+            <div class="admin-card__header">
+              <div>
+                <p class="admin-card__eyebrow">Редактор урока</p>
+                <h2 id="editorLessonTitle">Урок</h2>
+              </div>
+              <button id="saveLessonBtn" class="btn btn-primary" type="button">Сохранить урок</button>
             </div>
-            <button id="saveLessonBtn" class="btn btn-primary" type="button">Сохранить урок</button>
-          </div>
 
-          <div class="admin-form admin-form--lesson">
-            <label>
-              Название урока
-              <input id="titleInput" type="text" placeholder="Введите название урока" />
-            </label>
+            <div class="admin-form admin-form--lesson">
+              <label>
+                Название урока
+                <input id="titleInput" type="text" placeholder="Введите название урока" />
+              </label>
 
-            <label>
-              Подзаголовок
-              <input id="subtitleInput" type="text" placeholder="Введите подзаголовок" />
-            </label>
+              <label>
+                Подзаголовок
+                <input id="subtitleInput" type="text" placeholder="Введите подзаголовок" />
+              </label>
 
-            <label>
-              Номер дня
-              <input id="dayNumberInput" type="number" min="1" placeholder="Например, 7" />
-            </label>
-          </div>
-
-          <details class="admin-advanced">
-            <summary>Дополнительные поля</summary>
-            <label>
-              Внутренний lesson_id
-              <input id="lessonIdInput" type="text" placeholder="Внутренний lesson_id" />
-            </label>
-          </details>
-        </section>
-
-        <section class="admin-blocks">
-          <div class="admin-blocks-header">
-            <h3>Секции урока</h3>
-            <button id="addBlockBtn" class="btn btn-primary" type="button">+ Добавить секцию</button>
-          </div>
-
-          <div id="blocksList" class="admin-blocks-list"></div>
-        </section>
-
-        <section id="sectionEditorPanel" class="admin-section-editor" hidden>
-          <div class="admin-section-editor__head">
-            <div>
-              <p class="admin-card__eyebrow">Панель секции</p>
-              <h4>Редактирование секции</h4>
+              <label>
+                Номер дня
+                <input id="dayNumberInput" type="number" min="1" placeholder="Например, 7" />
+              </label>
             </div>
-            <button id="closeSectionEditorBtn" class="admin-btn-ghost" type="button">Закрыть</button>
-          </div>
 
-          <div class="admin-tabs">
-            <button class="admin-tab-btn" type="button" data-section-tab="text">Текст</button>
-            <button class="admin-tab-btn" type="button" data-section-tab="video">Видео</button>
-            <button class="admin-tab-btn" type="button" data-section-tab="file">Файлы</button>
-          </div>
+            <details class="admin-advanced">
+              <summary>Дополнительные поля</summary>
+              <label>
+                Внутренний lesson_id
+                <input id="lessonIdInput" type="text" placeholder="Внутренний lesson_id" />
+              </label>
+            </details>
+          </section>
 
-          <div id="sectionEditorContent"></div>
+          <section class="admin-blocks">
+            <div class="admin-blocks-header">
+              <h3>Секции урока</h3>
+              <button id="addBlockBtn" class="btn btn-primary" type="button">+ Добавить секцию</button>
+            </div>
+
+            <div id="blocksList" class="admin-blocks-list"></div>
+          </section>
         </section>
+
+        <aside class="admin-preview-column">
+          <div class="admin-preview-sticky">
+            <div class="admin-preview-header">
+              <p class="admin-card__eyebrow">Предпросмотр для ученика</p>
+              <h3>Мобильный вид урока</h3>
+            </div>
+            <div class="admin-phone-frame">
+              <div id="previewContainer" class="admin-phone-screen"></div>
+            </div>
+          </div>
+        </aside>
       </div>
     </main>
   </div>
