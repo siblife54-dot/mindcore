@@ -59,6 +59,23 @@
                 <input id="lessonIdInput" type="text" placeholder="Внутренний lesson_id" />
               </label>
             </details>
+
+            <section class="admin-lesson-preview-uploader">
+              <div class="admin-lesson-preview-uploader__header">
+                <h3>Превью урока</h3>
+              </div>
+              <div id="lessonPreviewBox" class="admin-lesson-preview-box"></div>
+              <p class="admin-hint admin-lesson-preview-uploader__hint">
+                Рекомендуемый формат: JPG или PNG, соотношение сторон 4:3.<br>
+                Оптимальный размер: 1600×1200 px.<br>
+                Можно загружать только JPG, PNG или WEBP размером до 5 MB.
+              </p>
+              <div class="admin-lesson-preview-uploader__actions">
+                <input id="lessonPreviewFileInput" type="file" accept="image/jpeg,image/png,image/webp" hidden />
+                <button id="uploadLessonPreviewBtn" class="btn btn-primary" type="button">Загрузить превью</button>
+                <button id="removeLessonPreviewBtn" class="admin-btn-ghost" type="button" hidden>Удалить превью</button>
+              </div>
+            </section>
           </section>
 
           <section class="admin-blocks">

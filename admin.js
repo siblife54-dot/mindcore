@@ -17,6 +17,8 @@
       dropHappened: false
     }
   };
+  var ALLOWED_PREVIEW_MIME_TYPES = ["image/jpeg", "image/png", "image/webp"];
+  var MAX_PREVIEW_FILE_SIZE = 5 * 1024 * 1024;
 
   function getConfig() {
     return window.APP_CONFIG || {};
@@ -313,8 +315,24 @@
     document.getElementById("titleInput").value = lesson.title || "";
     document.getElementById("subtitleInput").value = lesson.subtitle || "";
 
+    renderLessonPreviewUploader();
     renderBlocksList();
     renderPreview();
+  }
+
+  function renderLessonPreviewUploader() {
+    var previewBox = document.getElementById("lessonPreviewBox");
+    var removeBtn = document.getElementById("removeLessonPreviewBtn");
+    if (!previewBox || !removeBtn) return;
+
+    if (!state.selectedLesson || !state.selectedLesson.preview_image_url) {
+      previewBox.innerHTML = '<div class="admin-lesson-preview-box__placeholder">Превью пока не загружено</div>';
+      removeBtn.hidden = true;
+      return;
+    }
+
+    previewBox.innerHTML = '<img src="' + escapeAttr(state.selectedLesson.preview_image_url) + '" alt="Превью урока">';
+    removeBtn.hidden = false;
   }
 
   function renderBlocksList() {
@@ -485,6 +503,7 @@
 
     var title = document.getElementById("titleInput") ? document.getElementById("titleInput").value.trim() : (state.selectedLesson.title || "");
     var subtitle = document.getElementById("subtitleInput") ? document.getElementById("subtitleInput").value.trim() : (state.selectedLesson.subtitle || "");
+    var previewImageUrl = state.selectedLesson.preview_image_url || "";
 
     var blocksHtml = state.blocks.map(function (block, index) {
       var textItem = getTextItem(block.id);
@@ -529,8 +548,122 @@
     container.innerHTML = [
       '<h4 class="preview-lesson-title">' + escapeHtml(title || "Без названия") + '</h4>',
       '<p class="preview-lesson-subtitle">' + escapeHtml(subtitle || "Подзаголовок пока не добавлен") + '</p>',
+      previewImageUrl
+        ? '<div class="preview-lesson-image"><img src="' + escapeAttr(previewImageUrl) + '" alt="Превью урока"></div>'
+        : "",
       blocksHtml || '<div class="preview-placeholder" style="margin-top: 14px;">Добавьте первую секцию, чтобы увидеть содержание урока.</div>'
     ].join("");
+  }
+
+  function validateImageFile(file) {
+    if (!file) {
+      return { isValid: false, message: "Файл не выбран" };
+    }
+    if (ALLOWED_PREVIEW_MIME_TYPES.indexOf(file.type) === -1) {
+      return { isValid: false, message: "Можно загружать только JPG, PNG или WEBP" };
+    }
+    if (file.size > MAX_PREVIEW_FILE_SIZE) {
+      return { isValid: false, message: "Файл слишком большой. Максимум 5 MB" };
+    }
+    return { isValid: true, message: "" };
+  }
+
+  function sanitizeFileName(fileName) {
+    return String(fileName || "preview")
+      .toLowerCase()
+      .replace(/[^a-z0-9._-]+/g, "-")
+      .replace(/-+/g, "-")
+      .replace(/^-|-$/g, "");
+  }
+
+  async function saveLessonPreviewUrl(lessonId, url) {
+    var client = getClient();
+    if (!client) return null;
+
+    var result = await client
+      .from("lessons")
+      .update({ preview_image_url: url || null })
+      .eq("id", lessonId)
+      .select()
+      .single();
+
+    if (result.error) {
+      console.error(result.error);
+      throw new Error("Не удалось сохранить превью урока");
+    }
+
+    return result.data;
+  }
+
+  function extractStoragePathFromPublicUrl(publicUrl) {
+    if (!publicUrl) return null;
+    var marker = "/storage/v1/object/public/lesson-previews/";
+    var markerIndex = publicUrl.indexOf(marker);
+    if (markerIndex === -1) return null;
+    return decodeURIComponent(publicUrl.slice(markerIndex + marker.length));
+  }
+
+  async function uploadLessonPreview(file) {
+    if (!state.selectedLesson) {
+      throw new Error("Сначала выберите урок");
+    }
+
+    var validation = validateImageFile(file);
+    if (!validation.isValid) {
+      throw new Error(validation.message);
+    }
+
+    var client = getClient();
+    var config = getConfig();
+    if (!client) throw new Error("Supabase client not initialized");
+
+    var folderCourseId = config.courseId || state.selectedLesson.course_id || "course";
+    var folderLessonId = state.selectedLesson.lesson_id || String(state.selectedLesson.id);
+    var safeName = sanitizeFileName(file.name || "preview-image");
+    var filePath = folderCourseId + "/" + folderLessonId + "/" + Date.now() + "-" + safeName;
+
+    var uploadResult = await client.storage
+      .from("lesson-previews")
+      .upload(filePath, file, { upsert: false, contentType: file.type });
+
+    if (uploadResult.error) {
+      console.error(uploadResult.error);
+      throw new Error("Ошибка загрузки файла в Storage");
+    }
+
+    var publicResult = client.storage.from("lesson-previews").getPublicUrl(filePath);
+    var publicUrl = publicResult && publicResult.data ? publicResult.data.publicUrl : "";
+    if (!publicUrl) {
+      throw new Error("Не удалось получить public URL файла");
+    }
+
+    return { publicUrl: publicUrl, filePath: filePath };
+  }
+
+  async function clearLessonPreview() {
+    if (!state.selectedLesson) return;
+
+    var previousUrl = state.selectedLesson.preview_image_url || "";
+    var savedLesson = await saveLessonPreviewUrl(state.selectedLesson.id, null);
+    state.selectedLesson = savedLesson;
+    state.lessons = state.lessons.map(function (lesson) {
+      return String(lesson.id) === String(savedLesson.id) ? savedLesson : lesson;
+    });
+
+    var storagePath = extractStoragePathFromPublicUrl(previousUrl);
+    if (storagePath) {
+      var client = getClient();
+      if (client) {
+        var removeResult = await client.storage.from("lesson-previews").remove([storagePath]);
+        if (removeResult.error) {
+          console.warn("Не удалось удалить файл из Storage:", removeResult.error.message);
+        }
+      }
+    }
+
+    renderLessonsList();
+    renderLessonPreviewUploader();
+    renderPreview();
   }
 
   function initQuillForActiveSection(blockId) {
@@ -596,7 +729,8 @@
         lesson_id: "lesson-" + Date.now(),
         day_number: nextDay,
         title: "Новый урок",
-        subtitle: ""
+        subtitle: "",
+        preview_image_url: null
       })
       .select()
       .single();
@@ -1018,6 +1152,31 @@
     renderPreview();
   }
 
+  async function handleLessonPreviewUpload(event) {
+    var file = event && event.target && event.target.files ? event.target.files[0] : null;
+    if (!file || !state.selectedLesson) return;
+
+    try {
+      var uploadResult = await uploadLessonPreview(file);
+      var savedLesson = await saveLessonPreviewUrl(state.selectedLesson.id, uploadResult.publicUrl);
+
+      state.selectedLesson = savedLesson;
+      state.lessons = state.lessons.map(function (lesson) {
+        return String(lesson.id) === String(savedLesson.id) ? savedLesson : lesson;
+      });
+
+      renderLessonsList();
+      renderLessonPreviewUploader();
+      renderPreview();
+      alert("Превью урока загружено");
+    } catch (error) {
+      console.error(error);
+      alert(error && error.message ? error.message : "Не удалось загрузить превью");
+    } finally {
+      event.target.value = "";
+    }
+  }
+
   function bindEvents() {
     document.getElementById("lessonsList").addEventListener("click", function (event) {
       var lessonButton = event.target.closest("[data-lesson-db-id]");
@@ -1037,6 +1196,33 @@
 
     document.getElementById("addBlockBtn").addEventListener("click", function () {
       void createBlock();
+    });
+
+    document.getElementById("uploadLessonPreviewBtn").addEventListener("click", function () {
+      if (!state.selectedLesson) {
+        alert("Сначала выберите урок");
+        return;
+      }
+      var input = document.getElementById("lessonPreviewFileInput");
+      if (input) input.click();
+    });
+
+    document.getElementById("lessonPreviewFileInput").addEventListener("change", function (event) {
+      void handleLessonPreviewUpload(event);
+    });
+
+    document.getElementById("removeLessonPreviewBtn").addEventListener("click", function () {
+      if (!state.selectedLesson || !state.selectedLesson.preview_image_url) return;
+
+      var confirmed = window.confirm("Удалить превью урока?");
+      if (!confirmed) return;
+
+      void clearLessonPreview().then(function () {
+        alert("Превью удалено");
+      }).catch(function (error) {
+        console.error(error);
+        alert(error && error.message ? error.message : "Не удалось удалить превью");
+      });
     });
 
     ["titleInput", "subtitleInput", "dayNumberInput", "lessonIdInput"].forEach(function (id) {
@@ -1294,7 +1480,12 @@
 
     bindEvents();
 
-    state.lessons = await fetchLessons();
+    state.lessons = (await fetchLessons()).map(function (lesson) {
+      if (typeof lesson.preview_image_url === "undefined") {
+        lesson.preview_image_url = null;
+      }
+      return lesson;
+    });
     renderLessonsList();
     renderPreview();
 
