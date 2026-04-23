@@ -8,7 +8,12 @@
     blockItemsByBlockId: {},
     quills: {},
     activeSectionId: null,
-    activeSectionTab: "text"
+    activeSectionTab: "text",
+    dnd: {
+      draggedBlockId: null,
+      dropTargetBlockId: null,
+      dropPosition: null
+    }
   };
 
   function getConfig() {
@@ -336,6 +341,7 @@
         '</div>',
         '</div>',
         '<div class="admin-inline-actions">',
+        '<button class="admin-btn-ghost block-drag-handle" data-block-id="' + block.id + '" draggable="true" type="button" title="Перетащить секцию" aria-label="Перетащить секцию">⋮⋮</button>',
         '<button class="admin-btn-ghost edit-block-btn" data-block-id="' + block.id + '" type="button">Редактировать</button>',
         '<button class="admin-btn-ghost move-block-btn" data-dir="up" data-block-id="' + block.id + '" type="button">↑</button>',
         '<button class="admin-btn-ghost move-block-btn" data-dir="down" data-block-id="' + block.id + '" type="button">↓</button>',
@@ -734,6 +740,81 @@
     renderEditor();
   }
 
+  function resetDragAndDropState() {
+    state.dnd.draggedBlockId = null;
+    state.dnd.dropTargetBlockId = null;
+    state.dnd.dropPosition = null;
+  }
+
+  function clearDragOverClasses() {
+    var cards = document.querySelectorAll(".admin-block-item");
+    cards.forEach(function (card) {
+      card.classList.remove("drag-over-top");
+      card.classList.remove("drag-over-bottom");
+    });
+  }
+
+  function getReorderedBlocks(sourceId, targetId, position) {
+    var sourceIndex = state.blocks.findIndex(function (block) {
+      return String(block.id) === String(sourceId);
+    });
+    var targetIndex = state.blocks.findIndex(function (block) {
+      return String(block.id) === String(targetId);
+    });
+
+    if (sourceIndex < 0 || targetIndex < 0) return null;
+    if (sourceIndex === targetIndex) return null;
+
+    var ordered = state.blocks.slice();
+    var moved = ordered.splice(sourceIndex, 1)[0];
+    var insertIndex = position === "before" ? targetIndex : targetIndex + 1;
+
+    if (sourceIndex < targetIndex) {
+      insertIndex -= 1;
+    }
+
+    ordered.splice(insertIndex, 0, moved);
+    return ordered;
+  }
+
+  async function saveBlocksOrder(orderedBlocks) {
+    if (!orderedBlocks || !orderedBlocks.length) return;
+
+    var client = getClient();
+    if (!client) return;
+
+    var updates = orderedBlocks.map(function (block, index) {
+      return {
+        id: block.id,
+        newOrder: index + 1,
+        oldOrder: block.sort_order || 0
+      };
+    }).filter(function (entry) {
+      return entry.newOrder !== entry.oldOrder;
+    });
+
+    for (var i = 0; i < updates.length; i += 1) {
+      var updateEntry = updates[i];
+      var updateResult = await client
+        .from("lesson_blocks")
+        .update({ sort_order: updateEntry.newOrder })
+        .eq("id", updateEntry.id);
+
+      if (updateResult.error) {
+        console.error(updateResult.error);
+        alert("Ошибка сохранения нового порядка секций");
+        return;
+      }
+    }
+
+    state.blocks = orderedBlocks.map(function (block, index) {
+      return Object.assign({}, block, { sort_order: index + 1 });
+    });
+
+    renderBlocksList();
+    renderPreview();
+  }
+
   async function deleteBlock(blockId) {
     var client = getClient();
     if (!client) return;
@@ -1080,6 +1161,69 @@
       if (deleteItemBtn) {
         void deleteItem(deleteItemBtn.getAttribute("data-item-id"));
       }
+    });
+
+    document.getElementById("blocksList").addEventListener("dragstart", function (event) {
+      var handle = event.target.closest(".block-drag-handle");
+      if (!handle) return;
+
+      var blockId = handle.getAttribute("data-block-id");
+      if (!blockId) return;
+
+      state.dnd.draggedBlockId = blockId;
+      var card = handle.closest(".admin-block-item");
+      if (card) {
+        card.classList.add("is-dragging");
+      }
+
+      if (event.dataTransfer) {
+        event.dataTransfer.effectAllowed = "move";
+        event.dataTransfer.setData("text/plain", String(blockId));
+      }
+    });
+
+    document.getElementById("blocksList").addEventListener("dragover", function (event) {
+      var targetCard = event.target.closest(".admin-block-item");
+      if (!targetCard || !state.dnd.draggedBlockId) return;
+
+      var targetBlockId = targetCard.getAttribute("data-block-id");
+      if (!targetBlockId || String(targetBlockId) === String(state.dnd.draggedBlockId)) return;
+
+      event.preventDefault();
+
+      clearDragOverClasses();
+      var rect = targetCard.getBoundingClientRect();
+      var isTopHalf = event.clientY < rect.top + rect.height / 2;
+      targetCard.classList.add(isTopHalf ? "drag-over-top" : "drag-over-bottom");
+
+      state.dnd.dropTargetBlockId = targetBlockId;
+      state.dnd.dropPosition = isTopHalf ? "before" : "after";
+    });
+
+    document.getElementById("blocksList").addEventListener("drop", function (event) {
+      if (!state.dnd.draggedBlockId || !state.dnd.dropTargetBlockId || !state.dnd.dropPosition) return;
+      event.preventDefault();
+
+      var reordered = getReorderedBlocks(
+        state.dnd.draggedBlockId,
+        state.dnd.dropTargetBlockId,
+        state.dnd.dropPosition
+      );
+
+      clearDragOverClasses();
+      resetDragAndDropState();
+
+      if (!reordered) return;
+      void saveBlocksOrder(reordered);
+    });
+
+    document.getElementById("blocksList").addEventListener("dragend", function () {
+      var draggingCard = document.querySelector(".admin-block-item.is-dragging");
+      if (draggingCard) {
+        draggingCard.classList.remove("is-dragging");
+      }
+      clearDragOverClasses();
+      resetDragAndDropState();
     });
   }
 
