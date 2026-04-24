@@ -150,8 +150,46 @@
   function stripHtml(html) {
     if (!html) return "";
     var container = document.createElement("div");
-    container.innerHTML = html;
+    container.innerHTML = normalizeRichTextHtml(html);
     return (container.textContent || container.innerText || "").replace(/\s+/g, " ").trim();
+  }
+
+  function removeQuillCursorArtifacts(html) {
+    if (!html) return "";
+    return String(html).replace(/<span[^>]*class="[^"]*\bql-cursor\b[^"]*"[^>]*>[\s\S]*?<\/span>/gi, "");
+  }
+
+  function normalizeRichTextHtml(html) {
+    if (!html) return "";
+
+    var container = document.createElement("div");
+    container.innerHTML = removeQuillCursorArtifacts(html);
+
+    var paragraphs = container.querySelectorAll("p");
+    paragraphs.forEach(function (paragraph) {
+      var clone = paragraph.cloneNode(true);
+      clone.querySelectorAll("span.ql-cursor").forEach(function (node) {
+        node.remove();
+      });
+
+      var normalizedInner = (clone.innerHTML || "")
+        .replace(/&nbsp;/gi, " ")
+        .replace(/\u00a0/g, " ")
+        .replace(/\u200b/g, "")
+        .trim();
+
+      var visibleText = (clone.textContent || "")
+        .replace(/\u00a0/g, " ")
+        .replace(/\u200b/g, "")
+        .trim();
+
+      var hasMedia = Boolean(clone.querySelector("img, video, iframe, svg, canvas, table"));
+      if (!visibleText && !hasMedia && (normalizedInner === "" || normalizedInner === "<br>")) {
+        paragraph.remove();
+      }
+    });
+
+    return container.innerHTML;
   }
 
   function shortenText(value, maxLength) {
@@ -629,7 +667,8 @@
 
     var blocksHtml = state.blocks.map(function (block, index) {
       var textItem = getTextItem(block.id);
-      var textHtml = textItem && stripHtml(textItem.text_html) ? textItem.text_html : "";
+      var normalizedTextHtml = normalizeRichTextHtml(textItem ? textItem.text_html : "");
+      var textHtml = stripHtml(normalizedTextHtml) ? normalizedTextHtml : "";
       var videos = getVideoItems(block.id);
       var files = getFileItems(block.id);
 
@@ -807,7 +846,7 @@
       }
     });
 
-    quill.root.innerHTML = container.getAttribute("data-initial-html") || "<p></p>";
+    quill.root.innerHTML = removeQuillCursorArtifacts(container.getAttribute("data-initial-html") || "<p></p>");
     quill.on("text-change", function () {
       renderPreview();
     });
@@ -1264,9 +1303,10 @@
     var client = getClient();
     if (!client) return;
 
+    var cleanedHtml = removeQuillCursorArtifacts(quill.root.innerHTML);
     var result = await client
       .from("lesson_block_items")
-      .update({ text_html: quill.root.innerHTML })
+      .update({ text_html: cleanedHtml })
       .eq("id", textItem.id)
       .select()
       .single();
