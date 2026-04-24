@@ -15,6 +15,11 @@
       dropPosition: null,
       originalOrder: null,
       dropHappened: false
+    },
+    lessonDnd: {
+      draggedLessonId: null,
+      originalOrder: null,
+      dropHappened: false
     }
   };
   var ALLOWED_PREVIEW_MIME_TYPES = ["image/jpeg", "image/png", "image/webp"];
@@ -298,12 +303,111 @@
     lessonsList.innerHTML = state.lessons.map(function (lesson) {
       var isActive = selectedId === lesson.id;
       return [
-        '<button class="admin-lesson-item' + (isActive ? ' active' : '') + '" data-lesson-db-id="' + lesson.id + '" type="button">',
+        '<article class="admin-lesson-item' + (isActive ? ' active' : '') + '" data-lesson-db-id="' + lesson.id + '">',
+        '<button class="admin-lesson-select" data-lesson-select-id="' + lesson.id + '" type="button">',
         '<strong>' + escapeHtml(lesson.title || "Без названия") + '</strong>',
         '<span>' + escapeHtml(getLessonDisplayLabel(lesson)) + '</span>',
-        '</button>'
+        '</button>',
+        '<button class="admin-btn-ghost lesson-drag-handle" data-lesson-db-id="' + lesson.id + '" draggable="true" type="button" title="Перетащить урок" aria-label="Перетащить урок">⋮⋮</button>',
+        '</article>'
       ].join("");
     }).join("");
+  }
+
+  function resetLessonDragState() {
+    state.lessonDnd.draggedLessonId = null;
+    state.lessonDnd.originalOrder = null;
+    state.lessonDnd.dropHappened = false;
+  }
+
+  function clearLessonDragClasses() {
+    var cards = document.querySelectorAll("#lessonsList .admin-lesson-item");
+    cards.forEach(function (card) {
+      card.classList.remove("is-dragging");
+      card.classList.remove("drag-over-top");
+      card.classList.remove("drag-over-bottom");
+    });
+  }
+
+  function getReorderedLessons() {
+    var cards = Array.prototype.slice.call(document.querySelectorAll("#lessonsList .admin-lesson-item[data-lesson-db-id]"));
+    if (!cards.length) return null;
+
+    var byId = {};
+    state.lessons.forEach(function (lesson) {
+      byId[String(lesson.id)] = lesson;
+    });
+
+    var ordered = cards.map(function (card) {
+      return byId[String(card.getAttribute("data-lesson-db-id"))];
+    }).filter(Boolean);
+
+    if (ordered.length !== state.lessons.length) return null;
+    return ordered;
+  }
+
+  async function saveLessonsOrder(orderedLessons) {
+    if (!orderedLessons || !orderedLessons.length) return false;
+    var client = getClient();
+    if (!client) return false;
+
+    var selectedLessonId = state.selectedLesson ? String(state.selectedLesson.id) : null;
+    var hasSortOrderField = orderedLessons.some(function (lesson) {
+      return Object.prototype.hasOwnProperty.call(lesson, "sort_order");
+    });
+
+    var updates = orderedLessons.map(function (lesson, index) {
+      var nextOrder = index + 1;
+      var shouldUpdate = (lesson.day_number || 0) !== nextOrder;
+      if (!shouldUpdate && hasSortOrderField) {
+        shouldUpdate = (lesson.sort_order || 0) !== nextOrder;
+      }
+
+      return {
+        lesson: lesson,
+        nextOrder: nextOrder,
+        shouldUpdate: shouldUpdate
+      };
+    }).filter(function (entry) {
+      return entry.shouldUpdate;
+    });
+
+    for (var i = 0; i < updates.length; i += 1) {
+      var entry = updates[i];
+      var payload = { day_number: entry.nextOrder };
+      if (hasSortOrderField) {
+        payload.sort_order = entry.nextOrder;
+      }
+
+      var updateResult = await client
+        .from("lessons")
+        .update(payload)
+        .eq("id", entry.lesson.id);
+
+      if (updateResult.error) {
+        console.error(updateResult.error);
+        alert("Ошибка сохранения порядка уроков");
+        return false;
+      }
+    }
+
+    state.lessons = orderedLessons.map(function (lesson, index) {
+      var nextLesson = Object.assign({}, lesson, { day_number: index + 1 });
+      if (hasSortOrderField) {
+        nextLesson.sort_order = index + 1;
+      }
+      return nextLesson;
+    });
+
+    if (selectedLessonId) {
+      state.selectedLesson = state.lessons.find(function (lesson) {
+        return String(lesson.id) === selectedLessonId;
+      }) || state.selectedLesson;
+    }
+
+    renderLessonsList();
+    renderEditor();
+    return true;
   }
 
   function renderEditor() {
@@ -1195,11 +1299,112 @@
 
   function bindEvents() {
     document.getElementById("lessonsList").addEventListener("click", function (event) {
-      var lessonButton = event.target.closest("[data-lesson-db-id]");
+      if (event.target.closest(".lesson-drag-handle")) return;
+      var lessonButton = event.target.closest("[data-lesson-select-id]");
+      if (!lessonButton) {
+        lessonButton = event.target.closest(".admin-lesson-item[data-lesson-db-id]");
+      }
       if (!lessonButton) return;
 
-      var lessonDbId = lessonButton.getAttribute("data-lesson-db-id");
+      var lessonDbId = lessonButton.getAttribute("data-lesson-select-id")
+        || lessonButton.getAttribute("data-lesson-db-id");
       void selectLessonById(lessonDbId);
+    });
+
+    document.getElementById("lessonsList").addEventListener("dragstart", function (event) {
+      var handle = event.target.closest(".lesson-drag-handle");
+      if (!handle) return;
+
+      var lessonId = handle.getAttribute("data-lesson-db-id");
+      if (!lessonId) return;
+
+      state.lessonDnd.draggedLessonId = lessonId;
+      state.lessonDnd.originalOrder = state.lessons.slice();
+      state.lessonDnd.dropHappened = false;
+
+      var list = document.getElementById("lessonsList");
+      if (list) {
+        list.classList.add("is-sorting");
+      }
+
+      var card = handle.closest(".admin-lesson-item");
+      if (card) {
+        card.classList.add("is-dragging");
+      }
+
+      if (event.dataTransfer) {
+        event.dataTransfer.effectAllowed = "move";
+        event.dataTransfer.setData("text/plain", String(lessonId));
+      }
+    });
+
+    document.getElementById("lessonsList").addEventListener("dragover", function (event) {
+      if (!state.lessonDnd.draggedLessonId) return;
+      event.preventDefault();
+
+      var list = document.getElementById("lessonsList");
+      if (!list) return;
+
+      var targetCard = event.target.closest(".admin-lesson-item");
+      var draggedCard = list.querySelector('.admin-lesson-item[data-lesson-db-id="' + state.lessonDnd.draggedLessonId + '"]');
+      if (!targetCard || !draggedCard) return;
+
+      var targetLessonId = targetCard.getAttribute("data-lesson-db-id");
+      if (!targetLessonId || String(targetLessonId) === String(state.lessonDnd.draggedLessonId)) return;
+
+      clearLessonDragClasses();
+      draggedCard.classList.add("is-dragging");
+
+      var rect = targetCard.getBoundingClientRect();
+      var isTopHalf = event.clientY < rect.top + rect.height / 2;
+      targetCard.classList.add(isTopHalf ? "drag-over-top" : "drag-over-bottom");
+
+      var beforeNode = isTopHalf ? targetCard : targetCard.nextElementSibling;
+      if (beforeNode !== draggedCard) {
+        list.insertBefore(draggedCard, beforeNode);
+      }
+    });
+
+    document.getElementById("lessonsList").addEventListener("drop", function (event) {
+      if (!state.lessonDnd.draggedLessonId) return;
+      event.preventDefault();
+      state.lessonDnd.dropHappened = true;
+
+      var reorderedLessons = getReorderedLessons();
+      clearLessonDragClasses();
+
+      var list = document.getElementById("lessonsList");
+      if (list) {
+        list.classList.remove("is-sorting");
+      }
+
+      if (!reorderedLessons) {
+        if (state.lessonDnd.originalOrder) {
+          state.lessons = state.lessonDnd.originalOrder.slice();
+          renderLessonsList();
+        }
+        resetLessonDragState();
+        return;
+      }
+
+      void saveLessonsOrder(reorderedLessons).finally(function () {
+        resetLessonDragState();
+      });
+    });
+
+    document.getElementById("lessonsList").addEventListener("dragend", function () {
+      var list = document.getElementById("lessonsList");
+      if (list) {
+        list.classList.remove("is-sorting");
+      }
+
+      if (state.lessonDnd.draggedLessonId && !state.lessonDnd.dropHappened && state.lessonDnd.originalOrder) {
+        state.lessons = state.lessonDnd.originalOrder.slice();
+        renderLessonsList();
+      }
+
+      clearLessonDragClasses();
+      resetLessonDragState();
     });
 
     document.getElementById("addLessonBtn").addEventListener("click", function () {

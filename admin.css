@@ -44,21 +44,33 @@ body[data-page="admin"] {
 
 .admin-lesson-item {
   width: 100%;
-  text-align: left;
   border: 1px solid var(--border);
   border-radius: 14px;
-  padding: 14px;
+  padding: 12px;
   background: linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.01));
-  cursor: pointer;
   color: var(--text);
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease, transform 0.16s ease;
 }
 
-.admin-lesson-item strong {
+.admin-lesson-select {
+  border: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  text-align: left;
+  width: 100%;
+  padding: 2px;
+}
+
+.admin-lesson-select strong {
   display: block;
   font-size: 15px;
 }
 
-.admin-lesson-item span {
+.admin-lesson-select span {
   color: var(--muted);
   font-size: 12px;
 }
@@ -66,6 +78,40 @@ body[data-page="admin"] {
 .admin-lesson-item.active {
   border-color: color-mix(in srgb, var(--accent) 80%, transparent);
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 45%, transparent), 0 0 0 2px rgba(139, 92, 246, 0.22);
+}
+
+.lesson-drag-handle {
+  cursor: grab;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  user-select: none;
+  touch-action: none;
+  flex: 0 0 auto;
+  padding: 8px 10px;
+}
+
+.lesson-drag-handle:active {
+  cursor: grabbing;
+}
+
+.admin-lessons-list.is-sorting .lesson-drag-handle {
+  opacity: 0.95;
+}
+
+.admin-lesson-item.is-dragging {
+  opacity: 0.84;
+  border-color: color-mix(in srgb, var(--accent) 75%, transparent);
+  background: linear-gradient(180deg, rgba(31, 58, 90, 0.92), rgba(20, 37, 58, 0.86));
+  box-shadow: 0 10px 24px rgba(8, 16, 28, 0.4), 0 0 0 1px color-mix(in srgb, var(--accent) 55%, transparent);
+  transform: scale(1.01);
+}
+
+.admin-lesson-item.drag-over-top {
+  box-shadow: inset 0 2px 0 0 color-mix(in srgb, var(--accent) 80%, #ffffff 20%);
+}
+
+.admin-lesson-item.drag-over-bottom {
+  box-shadow: inset 0 -2px 0 0 color-mix(in srgb, var(--accent) 80%, #ffffff 20%);
 }
 
 .admin-main {
