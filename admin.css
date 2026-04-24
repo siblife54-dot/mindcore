@@ -626,6 +626,44 @@ body[data-page="admin"] {
   color: #c8d9f5;
 }
 
+/* Normalize Quill HTML spacing in admin preview */
+.preview-text {
+  line-height: 1.5;
+}
+
+.preview-text p,
+.preview-text div,
+.preview-text ul,
+.preview-text ol {
+  margin: 0 0 10px;
+}
+
+.preview-text p:last-child,
+.preview-text div:last-child,
+.preview-text ul:last-child,
+.preview-text ol:last-child {
+  margin-bottom: 0;
+}
+
+.preview-text ul,
+.preview-text ol {
+  padding-left: 18px;
+}
+
+.preview-text li {
+  margin: 0 0 6px;
+}
+
+.preview-text li:last-child {
+  margin-bottom: 0;
+}
+
+.admin-quill .ql-editor p:empty,
+.preview-text p:empty {
+  margin: 0;
+  min-height: 0;
+}
+
 .preview-video {
   border-radius: 10px;
   border: 1px solid rgba(255, 255, 255, 0.12);

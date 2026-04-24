@@ -357,8 +357,10 @@ a { color: inherit; }
    Add to the END of styles.css
    ========================= */
 
-.lesson-content {
-  line-height: 1.65;
+.lesson-content,
+#lessonContent,
+#lessonContent .lesson-block {
+  line-height: 1.5;
 }
 
 .lesson-content h2 {
@@ -374,12 +376,39 @@ a { color: inherit; }
   color: #dbe7ff;
 }
 
-.lesson-content p {
+.lesson-content p,
+#lessonContent p,
+#lessonContent .lesson-block p,
+.lesson-content div,
+#lessonContent div,
+#lessonContent .lesson-block div,
+.lesson-content ul,
+#lessonContent ul,
+#lessonContent .lesson-block ul,
+.lesson-content ol,
+#lessonContent ol,
+#lessonContent .lesson-block ol {
   margin: 0 0 12px 0;
+}
+
+.lesson-content p,
+#lessonContent p,
+#lessonContent .lesson-block p {
   color: var(--text);
 }
 
-.lesson-content p:last-child {
+.lesson-content p:last-child,
+#lessonContent p:last-child,
+#lessonContent .lesson-block p:last-child,
+.lesson-content div:last-child,
+#lessonContent div:last-child,
+#lessonContent .lesson-block div:last-child,
+.lesson-content ul:last-child,
+#lessonContent ul:last-child,
+#lessonContent .lesson-block ul:last-child,
+.lesson-content ol:last-child,
+#lessonContent ol:last-child,
+#lessonContent .lesson-block ol:last-child {
   margin-bottom: 0;
 }
 
@@ -405,22 +434,46 @@ a { color: inherit; }
 }
 
 /* Lists inside lesson */
-.lesson-content ul {
+.lesson-content ul,
+#lessonContent ul,
+#lessonContent .lesson-block ul,
+.lesson-content ol,
+#lessonContent ol,
+#lessonContent .lesson-block ol {
   margin: 10px 0 0;
   padding-left: 18px;
 }
 
-.lesson-content li {
-  margin: 0 0 12px 0;
+.lesson-content li,
+#lessonContent li,
+#lessonContent .lesson-block li {
+  margin: 0 0 8px 0;
 }
 
-.lesson-content li:last-child {
+.lesson-content li:last-child,
+#lessonContent li:last-child,
+#lessonContent .lesson-block li:last-child {
   margin-bottom: 0;
 }
 
 .lesson-content ul ul {
   margin-top: 8px;
   padding-left: 18px;
+}
+
+#lessonContent ul ul,
+#lessonContent ol ol,
+#lessonContent .lesson-block ul ul,
+#lessonContent .lesson-block ol ol {
+  margin-top: 8px;
+  padding-left: 18px;
+}
+
+.lesson-content p:empty,
+#lessonContent p:empty,
+#lessonContent .lesson-block p:empty {
+  margin: 0;
+  min-height: 0;
 }
 
 /* Links inside lesson */
