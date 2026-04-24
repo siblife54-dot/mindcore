@@ -25,6 +25,11 @@
   var ALLOWED_PREVIEW_MIME_TYPES = ["image/jpeg", "image/png", "image/webp"];
   var MAX_PREVIEW_FILE_SIZE = 5 * 1024 * 1024;
 
+  function generateLessonId() {
+    var randomSuffix = Math.random().toString(36).slice(2, 6);
+    return "lesson_" + Date.now() + "_" + randomSuffix;
+  }
+
   function getConfig() {
     return window.APP_CONFIG || {};
   }
@@ -427,7 +432,6 @@
     var lesson = state.selectedLesson;
 
     document.getElementById("editorLessonTitle").textContent = lesson.title || "Урок";
-    document.getElementById("lessonIdInput").value = lesson.lesson_id || "";
     document.getElementById("dayNumberInput").value = lesson.day_number || "";
     document.getElementById("lessonLabelInput").value = lesson.lesson_label || "";
     document.getElementById("titleInput").value = lesson.title || "";
@@ -844,7 +848,7 @@
       .from("lessons")
       .insert({
         course_id: config.courseId,
-        lesson_id: "lesson-" + Date.now(),
+        lesson_id: generateLessonId(),
         day_number: nextDay,
         lesson_label: "",
         title: "Новый урок",
@@ -879,9 +883,12 @@
       title: document.getElementById("titleInput").value.trim(),
       subtitle: document.getElementById("subtitleInput").value.trim(),
       day_number: Number(document.getElementById("dayNumberInput").value) || null,
-      lesson_label: document.getElementById("lessonLabelInput").value.trim(),
-      lesson_id: document.getElementById("lessonIdInput").value.trim()
+      lesson_label: document.getElementById("lessonLabelInput").value.trim()
     };
+
+    if (!state.selectedLesson.lesson_id) {
+      payload.lesson_id = generateLessonId();
+    }
 
     var result = await client
       .from("lessons")
@@ -1446,7 +1453,7 @@
       });
     });
 
-    ["titleInput", "subtitleInput", "dayNumberInput", "lessonLabelInput", "lessonIdInput"].forEach(function (id) {
+    ["titleInput", "subtitleInput", "dayNumberInput", "lessonLabelInput"].forEach(function (id) {
       var input = document.getElementById(id);
       if (!input) return;
       input.addEventListener("input", function () {
