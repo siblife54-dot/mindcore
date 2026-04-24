@@ -788,7 +788,7 @@ body[data-page="admin"] {
 
 .admin-phone-screen .rich-text-content p,
 .admin-phone-screen .rich-text-content div {
-  margin: 0 0 8px 0 !important;
+  margin: 0 0 6px 0 !important;
   padding: 0 !important;
   line-height: 1.45 !important;
 }
@@ -796,4 +796,12 @@ body[data-page="admin"] {
 .admin-phone-screen .rich-text-content p:empty,
 .admin-phone-screen .rich-text-content div:empty {
   display: none !important;
+}
+
+.admin-phone-screen .rich-text-content blockquote {
+  margin: 8px 0 !important;
+  padding: 8px 12px !important;
+  border-left: 3px solid var(--accent) !important;
+  background: rgba(255, 255, 255, 0.04) !important;
+  border-radius: 8px !important;
 }

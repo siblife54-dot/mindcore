@@ -311,6 +311,44 @@
     return normalizePreviewImageUrl(raw);
   }
 
+  function removeQuillCursorArtifacts(html) {
+    if (!html) return "";
+    return String(html).replace(/<span[^>]*class="[^"]*\bql-cursor\b[^"]*"[^>]*>[\s\S]*?<\/span>/gi, "");
+  }
+
+  function normalizeRichTextHtml(html) {
+    if (!html) return "";
+
+    var container = document.createElement("div");
+    container.innerHTML = removeQuillCursorArtifacts(html);
+
+    var paragraphs = container.querySelectorAll("p");
+    paragraphs.forEach(function (paragraph) {
+      var clone = paragraph.cloneNode(true);
+      clone.querySelectorAll("span.ql-cursor").forEach(function (node) {
+        node.remove();
+      });
+
+      var normalizedInner = (clone.innerHTML || "")
+        .replace(/&nbsp;/gi, " ")
+        .replace(/\u00a0/g, " ")
+        .replace(/\u200b/g, "")
+        .trim();
+
+      var visibleText = (clone.textContent || "")
+        .replace(/\u00a0/g, " ")
+        .replace(/\u200b/g, "")
+        .trim();
+
+      var hasMedia = Boolean(clone.querySelector("img, video, iframe, svg, canvas, table"));
+      if (!visibleText && !hasMedia && (normalizedInner === "" || normalizedInner === "<br>")) {
+        paragraph.remove();
+      }
+    });
+
+    return container.innerHTML;
+  }
+
   async function renderDebugPanel(config, lessons, completed, model) {
     if (!isDebugMode()) return;
 
@@ -732,7 +770,7 @@
         if (items.length) {
           items.forEach(function (item) {
             if (item.item_type === "text" && item.text_html) {
-              html += '<div class="rich-text-content">' + item.text_html + '</div>';
+              html += '<div class="rich-text-content">' + normalizeRichTextHtml(item.text_html) + '</div>';
             }
 
             if (item.item_type === "video" && item.video_id) {
@@ -775,7 +813,7 @@
         }
 
         if (block.text_html) {
-          return '<div class="lesson-block"><div class="rich-text-content">' + block.text_html + '</div></div>';
+          return '<div class="lesson-block"><div class="rich-text-content">' + normalizeRichTextHtml(block.text_html) + '</div></div>';
         }
 
         return "";
@@ -783,7 +821,7 @@
 
       content.innerHTML = renderedBlocks.join("");
     } else if (lesson.content_html) {
-      content.innerHTML = '<div class="rich-text-content">' + lesson.content_html + '</div>';
+      content.innerHTML = '<div class="rich-text-content">' + normalizeRichTextHtml(lesson.content_html) + '</div>';
     } else {
       content.textContent = lesson.content_text || "Содержимое урока пока пустое.";
     }
