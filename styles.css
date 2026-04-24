@@ -673,3 +673,40 @@ a { color: inherit; }
   box-shadow: none !important;
   background: transparent !important;
 }
+
+/* Final override: compact Quill HTML spacing in lesson WebApp */
+#lessonContent .lesson-block {
+  font-size: clamp(16px, 3.9vw, 18px);
+  line-height: 1.5;
+}
+
+#lessonContent .lesson-block p,
+#lessonContent .lesson-block div {
+  margin: 0 0 8px;
+  line-height: 1.5;
+}
+
+#lessonContent .lesson-block p:empty,
+#lessonContent .lesson-block div:empty {
+  margin: 0;
+  min-height: 0;
+}
+
+#lessonContent .lesson-block ul,
+#lessonContent .lesson-block ol {
+  margin: 0 0 8px;
+  padding-left: 18px;
+}
+
+#lessonContent .lesson-block li {
+  margin: 0 0 4px;
+  line-height: 1.5;
+}
+
+#lessonContent .lesson-block li:last-child,
+#lessonContent .lesson-block p:last-child,
+#lessonContent .lesson-block div:last-child,
+#lessonContent .lesson-block ul:last-child,
+#lessonContent .lesson-block ol:last-child {
+  margin-bottom: 0;
+}

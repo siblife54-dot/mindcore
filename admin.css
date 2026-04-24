@@ -743,3 +743,40 @@ body[data-page="admin"] {
     align-items: stretch;
   }
 }
+
+/* Final override: compact Quill HTML spacing in admin preview */
+#previewContainer .preview-block .preview-text {
+  font-size: clamp(16px, 1.05vw, 18px);
+  line-height: 1.5;
+}
+
+#previewContainer .preview-block .preview-text p,
+#previewContainer .preview-block .preview-text div {
+  margin: 0 0 8px;
+  line-height: 1.5;
+}
+
+#previewContainer .preview-block .preview-text p:empty,
+#previewContainer .preview-block .preview-text div:empty {
+  margin: 0;
+  min-height: 0;
+}
+
+#previewContainer .preview-block .preview-text ul,
+#previewContainer .preview-block .preview-text ol {
+  margin: 0 0 8px;
+  padding-left: 18px;
+}
+
+#previewContainer .preview-block .preview-text li {
+  margin: 0 0 4px;
+  line-height: 1.5;
+}
+
+#previewContainer .preview-block .preview-text li:last-child,
+#previewContainer .preview-block .preview-text p:last-child,
+#previewContainer .preview-block .preview-text div:last-child,
+#previewContainer .preview-block .preview-text ul:last-child,
+#previewContainer .preview-block .preview-text ol:last-child {
+  margin-bottom: 0;
+}
