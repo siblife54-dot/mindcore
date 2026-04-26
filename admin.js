@@ -30,6 +30,53 @@
     return "lesson_" + Date.now() + "_" + randomSuffix;
   }
 
+  function cloneRecord(record, excludedKeys) {
+    var next = Object.assign({}, record || {});
+    (excludedKeys || []).forEach(function (key) {
+      delete next[key];
+    });
+    return next;
+  }
+
+  function escapeRegExp(value) {
+    return String(value || "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  }
+
+  function getDuplicateTitle(baseTitle, existingTitles) {
+    var cleanBaseTitle = String(baseTitle || "").trim();
+    if (!cleanBaseTitle) return "Урок (копия)";
+
+    var escaped = escapeRegExp(cleanBaseTitle);
+    var copyPattern = new RegExp("^" + escaped + " \\(копия(?: (\\d+))?\\)$");
+    var hasFirstCopy = false;
+    var maxCopyIndex = 1;
+
+    (existingTitles || []).forEach(function (title) {
+      var value = String(title || "").trim();
+      if (!value) return;
+
+      if (value === cleanBaseTitle + " (копия)") {
+        hasFirstCopy = true;
+        maxCopyIndex = Math.max(maxCopyIndex, 1);
+        return;
+      }
+
+      var match = value.match(copyPattern);
+      if (!match) return;
+      hasFirstCopy = true;
+      var index = Number(match[1]);
+      if (Number.isFinite(index) && index > maxCopyIndex) {
+        maxCopyIndex = index;
+      }
+    });
+
+    if (!hasFirstCopy) {
+      return cleanBaseTitle + " (копия)";
+    }
+
+    return cleanBaseTitle + " (копия " + (maxCopyIndex + 1) + ")";
+  }
+
   function getConfig() {
     return window.APP_CONFIG || {};
   }
@@ -309,6 +356,7 @@
         '<strong>' + escapeHtml(lesson.title || "Без названия") + '</strong>',
         '<span>' + escapeHtml(getLessonDisplayLabel(lesson)) + '</span>',
         '</button>',
+        '<button class="admin-btn-ghost duplicate-lesson-btn" data-lesson-db-id="' + lesson.id + '" type="button" title="Дублировать урок" aria-label="Дублировать урок">⧉</button>',
         '<button class="admin-btn-ghost lesson-drag-handle" data-lesson-db-id="' + lesson.id + '" draggable="true" type="button" title="Перетащить урок" aria-label="Перетащить урок">⋮⋮</button>',
         '</article>'
       ].join("");
@@ -486,6 +534,7 @@
         '<div class="admin-inline-actions">',
         '<button class="admin-btn-ghost block-drag-handle" data-block-id="' + block.id + '" draggable="true" type="button" title="Перетащить секцию" aria-label="Перетащить секцию">⋮⋮</button>',
         '<button class="admin-btn-ghost edit-block-btn" data-block-id="' + block.id + '" type="button">Редактировать</button>',
+        '<button class="admin-btn-ghost duplicate-block-btn" data-block-id="' + block.id + '" type="button" title="Дублировать секцию" aria-label="Дублировать секцию">⧉</button>',
         '<button class="admin-btn-ghost move-block-btn" data-dir="up" data-block-id="' + block.id + '" type="button">↑</button>',
         '<button class="admin-btn-ghost move-block-btn" data-dir="down" data-block-id="' + block.id + '" type="button">↓</button>',
         '<button class="admin-btn-ghost delete-block-btn" data-block-id="' + block.id + '" type="button">Удалить</button>',
@@ -828,6 +877,203 @@
     setItemsByBlock(allItems);
 
     renderLessonsList();
+    renderEditor();
+  }
+
+  async function duplicateLesson(lessonDbId) {
+    var sourceLesson = state.lessons.find(function (lesson) {
+      return String(lesson.id) === String(lessonDbId);
+    });
+
+    if (!sourceLesson) return;
+
+    var client = getClient();
+    if (!client) return;
+
+    var sourceBlocks = await fetchLessonBlocks(sourceLesson.id);
+    var sourceBlockIds = sourceBlocks.map(function (block) {
+      return block.id;
+    });
+    var sourceItems = await fetchItemsForBlocks(sourceBlockIds);
+
+    var nextDayNumber = state.lessons.length
+      ? Math.max.apply(null, state.lessons.map(function (lesson) {
+        return lesson.day_number || 0;
+      })) + 1
+      : 1;
+
+    var nextLessonPayload = cloneRecord(sourceLesson, [
+      "id",
+      "created_at",
+      "updated_at",
+      "day_number",
+      "lesson_id"
+    ]);
+
+    nextLessonPayload.day_number = nextDayNumber;
+    nextLessonPayload.lesson_id = generateLessonId();
+    nextLessonPayload.title = getDuplicateTitle(
+      sourceLesson.title || "Урок",
+      state.lessons.map(function (lesson) {
+        return lesson.title;
+      })
+    );
+
+    var lessonInsert = await client
+      .from("lessons")
+      .insert(nextLessonPayload)
+      .select()
+      .single();
+
+    if (lessonInsert.error) {
+      console.error(lessonInsert.error);
+      alert("Ошибка дублирования урока");
+      return;
+    }
+
+    var insertedLesson = lessonInsert.data;
+    var oldToNewBlockId = {};
+
+    var sortedSourceBlocks = sourceBlocks.slice().sort(function (a, b) {
+      return (a.sort_order || 0) - (b.sort_order || 0);
+    });
+
+    for (var i = 0; i < sortedSourceBlocks.length; i += 1) {
+      var sourceBlock = sortedSourceBlocks[i];
+      var newBlockPayload = cloneRecord(sourceBlock, ["id", "created_at", "updated_at", "lesson_id"]);
+      newBlockPayload.lesson_id = insertedLesson.id;
+
+      var blockInsert = await client
+        .from("lesson_blocks")
+        .insert(newBlockPayload)
+        .select()
+        .single();
+
+      if (blockInsert.error) {
+        console.error(blockInsert.error);
+        alert("Урок создан, но не удалось скопировать секции полностью");
+        break;
+      }
+
+      oldToNewBlockId[String(sourceBlock.id)] = blockInsert.data.id;
+    }
+
+    var sortedSourceItems = sourceItems.slice().sort(function (a, b) {
+      return (a.sort_order || 0) - (b.sort_order || 0);
+    });
+
+    for (var j = 0; j < sortedSourceItems.length; j += 1) {
+      var sourceItem = sortedSourceItems[j];
+      var mappedBlockId = oldToNewBlockId[String(sourceItem.block_id)];
+      if (!mappedBlockId) continue;
+
+      var newItemPayload = cloneRecord(sourceItem, ["id", "created_at", "updated_at", "block_id"]);
+      newItemPayload.block_id = mappedBlockId;
+
+      var itemInsert = await client
+        .from("lesson_block_items")
+        .insert(newItemPayload);
+
+      if (itemInsert.error) {
+        console.error(itemInsert.error);
+        alert("Урок и секции созданы, но часть материалов не скопирована");
+        break;
+      }
+    }
+
+    state.lessons.push(insertedLesson);
+    state.lessons.sort(function (a, b) {
+      return (a.day_number || 0) - (b.day_number || 0);
+    });
+
+    renderLessonsList();
+    await selectLessonById(insertedLesson.id);
+  }
+
+  async function duplicateBlock(blockId) {
+    if (!state.selectedLesson) return;
+
+    var sourceIndex = state.blocks.findIndex(function (block) {
+      return String(block.id) === String(blockId);
+    });
+    if (sourceIndex < 0) return;
+
+    var sourceBlock = state.blocks[sourceIndex];
+    var sourceItems = getItems(blockId).slice().sort(function (a, b) {
+      return (a.sort_order || 0) - (b.sort_order || 0);
+    });
+
+    var client = getClient();
+    if (!client) return;
+
+    for (var i = sourceIndex + 1; i < state.blocks.length; i += 1) {
+      var blockToShift = state.blocks[i];
+      var newSortOrder = (blockToShift.sort_order || (i + 1)) + 1;
+
+      var shiftResult = await client
+        .from("lesson_blocks")
+        .update({ sort_order: newSortOrder })
+        .eq("id", blockToShift.id);
+
+      if (shiftResult.error) {
+        console.error(shiftResult.error);
+        alert("Ошибка дублирования секции");
+        return;
+      }
+
+      blockToShift.sort_order = newSortOrder;
+    }
+
+    var copiedBlockPayload = cloneRecord(sourceBlock, ["id", "created_at", "updated_at"]);
+    copiedBlockPayload.lesson_id = state.selectedLesson.id;
+    copiedBlockPayload.sort_order = (sourceBlock.sort_order || (sourceIndex + 1)) + 1;
+    if (String(sourceBlock.title || "").trim()) {
+      copiedBlockPayload.title = getDuplicateTitle(sourceBlock.title, state.blocks.map(function (block) {
+        return block.title;
+      }));
+    }
+
+    var blockInsert = await client
+      .from("lesson_blocks")
+      .insert(copiedBlockPayload)
+      .select()
+      .single();
+
+    if (blockInsert.error) {
+      console.error(blockInsert.error);
+      alert("Ошибка дублирования секции");
+      return;
+    }
+
+    var duplicatedBlock = blockInsert.data;
+    var duplicatedItems = [];
+
+    for (var j = 0; j < sourceItems.length; j += 1) {
+      var sourceItem = sourceItems[j];
+      var copiedItemPayload = cloneRecord(sourceItem, ["id", "created_at", "updated_at", "block_id"]);
+      copiedItemPayload.block_id = duplicatedBlock.id;
+
+      var itemInsert = await client
+        .from("lesson_block_items")
+        .insert(copiedItemPayload)
+        .select()
+        .single();
+
+      if (itemInsert.error) {
+        console.error(itemInsert.error);
+        alert("Секция создана, но не все материалы удалось скопировать");
+        continue;
+      }
+
+      duplicatedItems.push(itemInsert.data);
+    }
+
+    state.blocks.splice(sourceIndex + 1, 0, duplicatedBlock);
+    state.blockItemsByBlockId[String(duplicatedBlock.id)] = duplicatedItems;
+    state.activeSectionId = String(duplicatedBlock.id);
+    state.activeSectionTab = "text";
+    state.quills = {};
+
     renderEditor();
   }
 
@@ -1393,6 +1639,7 @@
   function bindEvents() {
     document.getElementById("lessonsList").addEventListener("click", function (event) {
       if (event.target.closest(".lesson-drag-handle")) return;
+      if (event.target.closest(".duplicate-lesson-btn")) return;
       var lessonButton = event.target.closest("[data-lesson-select-id]");
       if (!lessonButton) {
         lessonButton = event.target.closest(".admin-lesson-item[data-lesson-db-id]");
@@ -1402,6 +1649,13 @@
       var lessonDbId = lessonButton.getAttribute("data-lesson-select-id")
         || lessonButton.getAttribute("data-lesson-db-id");
       void selectLessonById(lessonDbId);
+    });
+
+    document.getElementById("lessonsList").addEventListener("click", function (event) {
+      var duplicateLessonBtn = event.target.closest(".duplicate-lesson-btn");
+      if (!duplicateLessonBtn) return;
+      event.stopPropagation();
+      void duplicateLesson(duplicateLessonBtn.getAttribute("data-lesson-db-id"));
     });
 
     document.getElementById("lessonsList").addEventListener("dragstart", function (event) {
@@ -1579,6 +1833,12 @@
           tabBtn.getAttribute("data-block-id") || state.activeSectionId,
           tabBtn.getAttribute("data-section-tab") || "text"
         );
+        return;
+      }
+
+      var duplicateBlockBtn = event.target.closest(".duplicate-block-btn");
+      if (duplicateBlockBtn) {
+        void duplicateBlock(duplicateBlockBtn.getAttribute("data-block-id"));
         return;
       }
 
