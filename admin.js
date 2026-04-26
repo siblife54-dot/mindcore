@@ -467,8 +467,12 @@
 
     blocksList.innerHTML = state.blocks.map(function (block, index) {
       var isActive = String(state.activeSectionId) === String(block.id);
+      var sectionItems = getSectionContentList(block.id);
+      var isEmptySection = !sectionItems.length;
       var summary = getSectionSummary(block.id);
       var badges = getContentBadges(block.id);
+      var shouldShowQuickActions = !isActive && !isEmptySection;
+      var shouldShowBadges = !(isActive && isEmptySection);
 
       return [
         '<article class="admin-block-item' + (isActive ? ' active' : '') + '" data-block-id="' + block.id + '">',
@@ -476,11 +480,13 @@
         '<div>',
         '<h4>Секция ' + (index + 1) + '</h4>',
         '<p class="admin-section-summary' + (summary === "Пока контент не добавлен." ? ' admin-section-summary--empty' : '') + '">' + escapeHtml(summary) + '</p>',
+        shouldShowBadges ? [
         '<div class="admin-content-badges">',
         badges.map(function (badge) {
           return '<span class="admin-content-badge">' + escapeHtml(badge) + '</span>';
         }).join(""),
         '</div>',
+        ].join("") : "",
         '</div>',
         '<div class="admin-inline-actions">',
         '<button class="admin-btn-ghost block-drag-handle" data-block-id="' + block.id + '" draggable="true" type="button" title="Перетащить секцию" aria-label="Перетащить секцию">⋮⋮</button>',
@@ -491,11 +497,13 @@
         '</div>',
         '</div>',
         renderSectionContentList(block.id),
+        shouldShowQuickActions ? [
         '<div class="admin-quick-actions">',
         '<button class="admin-action-chip quick-open-tab-btn" data-block-id="' + block.id + '" data-tab="text" type="button">+ Текст</button>',
         '<button class="admin-action-chip quick-open-tab-btn" data-block-id="' + block.id + '" data-tab="video" data-open-form="1" type="button">+ Видео</button>',
         '<button class="admin-action-chip quick-open-tab-btn" data-block-id="' + block.id + '" data-tab="file" data-open-form="1" type="button">+ Файл</button>',
         '</div>',
+        ].join("") : "",
         isActive ? renderSectionEditor(block.id) : "",
         '</article>'
       ].join("");
