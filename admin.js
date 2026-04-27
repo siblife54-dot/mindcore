@@ -211,6 +211,40 @@
     return value.slice(0, maxLength).trim() + "…";
   }
 
+  function extractGoogleDriveFileId(value) {
+    var input = String(value || "").trim();
+    if (!input) return "";
+
+    var directIdPattern = /^[A-Za-z0-9_-]{10,}$/;
+    if (directIdPattern.test(input) && input.indexOf("http") !== 0) {
+      return input;
+    }
+
+    var url;
+    try {
+      url = new URL(input);
+    } catch (error) {
+      return "";
+    }
+
+    var host = (url.hostname || "").toLowerCase();
+    if (host !== "drive.google.com" && host !== "www.drive.google.com") {
+      return "";
+    }
+
+    var pathMatch = (url.pathname || "").match(/\/file\/d\/([^/]+)/);
+    if (pathMatch && pathMatch[1]) {
+      return pathMatch[1];
+    }
+
+    var queryId = url.searchParams.get("id");
+    if (queryId) {
+      return queryId;
+    }
+
+    return "";
+  }
+
   function getSectionSummary(blockId) {
     var textItem = getTextItem(blockId);
     var videos = getVideoItems(blockId);
@@ -661,21 +695,13 @@
         label: "Как добавить файл ?",
         className: "admin-tooltip-trigger--link",
         content: [
-          "Можно прикрепить:",
+          "Как добавить файл?",
+          "1. Загрузите файл на Google Drive",
+          "2. Откройте доступ по ссылке",
+          "3. Скопируйте ссылку на файл",
+          "4. Вставьте её сюда",
           "",
-          "• PDF",
-          "• DOCX",
-          "• XLSX",
-          "• архив",
-          "• чек-лист",
-          "• гайд",
-          "",
-          "Как добавить:",
-          "1. Загрузите файл на Google drive",
-          "2. Скопируйте ссылку",
-          "3. Вставьте в поле",
-          "",
-          "Ученик увидит кнопку скачивания."
+          "Система сама определит ID файла."
         ].join("\n")
       }),
       '<button class="btn btn-primary toggle-file-form-btn" data-block-id="' + blockId + '" type="button">+ Добавить файл</button>',
@@ -685,8 +711,8 @@
       '<label>Название файла',
       '<input class="file-label-input" data-block-id="' + blockId + '" type="text" placeholder="Например: Чеклист.pdf" />',
       '</label>',
-      '<label>Google Drive file_id',
-      '<input class="file-id-input" data-block-id="' + blockId + '" type="text" placeholder="Например: 1abcDEF..." />',
+      '<label>Ссылка на файл Google Drive',
+      '<input class="file-link-input" data-block-id="' + blockId + '" type="text" placeholder="https://drive.google.com/file/d/.../view" />',
       '</label>',
       '<button class="btn btn-primary save-file-btn" data-block-id="' + blockId + '" type="button">Сохранить файл</button>',
       '</div>',
@@ -2119,20 +2145,26 @@
       if (saveFileBtn) {
         var fileBlockId = saveFileBtn.getAttribute("data-block-id");
         var fileLabelInput = document.querySelector('.file-label-input[data-block-id="' + fileBlockId + '"]');
-        var fileIdInput = document.querySelector('.file-id-input[data-block-id="' + fileBlockId + '"]');
+        var fileLinkInput = document.querySelector('.file-link-input[data-block-id="' + fileBlockId + '"]');
 
-        if (!fileLabelInput || !fileIdInput) return;
+        if (!fileLabelInput || !fileLinkInput) return;
 
         var fileLabel = fileLabelInput.value.trim();
-        var fileId = fileIdInput.value.trim();
+        var fileLinkValue = fileLinkInput.value.trim();
+        var fileId = extractGoogleDriveFileId(fileLinkValue);
 
-        if (!fileLabel || !fileId) {
-          alert("Заполните название файла и file_id");
+        if (!fileLabel || !fileLinkValue) {
+          alert("Заполните название файла и ссылку Google Drive");
+          return;
+        }
+
+        if (!fileId) {
+          alert("Не удалось определить ID файла. Вставьте ссылку Google Drive на файл.");
           return;
         }
 
         fileLabelInput.value = "";
-        fileIdInput.value = "";
+        fileLinkInput.value = "";
         var ff = document.getElementById("fileForm-" + fileBlockId);
         if (ff) {
           ff.hidden = true;
