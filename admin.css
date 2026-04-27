@@ -780,6 +780,36 @@ body[data-page="admin"] {
   overscroll-behavior: contain;
   scrollbar-gutter: stable;
   padding: 16px 14px 18px;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(139, 92, 246, 0.45) transparent;
+}
+
+.admin-phone-screen::-webkit-scrollbar {
+  width: 6px;
+}
+
+.admin-phone-screen::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.admin-phone-screen::-webkit-scrollbar-thumb {
+  background: rgba(139, 92, 246, 0.35);
+  border-radius: 999px;
+}
+
+.admin-phone-screen:hover::-webkit-scrollbar-thumb {
+  background: rgba(139, 92, 246, 0.55);
+}
+
+@media (hover: none), (pointer: coarse) {
+  .admin-phone-screen {
+    scrollbar-width: none;
+  }
+
+  .admin-phone-screen::-webkit-scrollbar {
+    width: 0;
+    height: 0;
+  }
 }
 
 .preview-lesson-title {
