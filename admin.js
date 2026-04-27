@@ -245,6 +245,48 @@
     return "";
   }
 
+  function extractKinescopeVideoId(value) {
+    var input = String(value || "").trim();
+    if (!input) return "";
+
+    var srcMatch = input.match(/<iframe[\s\S]*?\ssrc\s*=\s*["']([^"']+)["']/i);
+    var candidate = srcMatch && srcMatch[1] ? srcMatch[1].trim() : input;
+    if (!candidate) return "";
+
+    var directIdPattern = /^[A-Za-z0-9_-]{6,}$/;
+    if (directIdPattern.test(candidate) && candidate.indexOf("http") !== 0) {
+      return candidate;
+    }
+
+    if (candidate.indexOf("//") === 0) {
+      candidate = "https:" + candidate;
+    }
+
+    var url;
+    try {
+      url = new URL(candidate);
+    } catch (error) {
+      return "";
+    }
+
+    var host = (url.hostname || "").toLowerCase();
+    if (host !== "kinescope.io" && host !== "www.kinescope.io") {
+      return "";
+    }
+
+    var pathParts = (url.pathname || "")
+      .split("/")
+      .filter(Boolean);
+    if (!pathParts.length) return "";
+
+    var videoId = pathParts[0] === "embed" ? pathParts[1] : pathParts[0];
+    if (!videoId || !directIdPattern.test(videoId)) {
+      return "";
+    }
+
+    return videoId;
+  }
+
   function getSectionSummary(blockId) {
     var textItem = getTextItem(blockId);
     var videos = getVideoItems(blockId);
@@ -650,29 +692,22 @@
         label: "Как добавить видео ?",
         className: "admin-tooltip-trigger--link",
         content: [
-          "Рекомендуем Kinescope.",
-          "",
-          "Почему:",
-          "• быстро работает",
-          "• без рекламы",
-          "• отлично подходит для курсов",
-          "• удобно смотреть с телефона",
-          "",
-          "Как добавить:",
           "1. Загрузите видео в Kinescope",
           "2. Откройте видео",
           "3. Скопируйте ссылку или embed-код",
-          "4. Вставьте в поле"
+          "4. Вставьте сюда",
+          "",
+          "Система сама определит ID видео."
         ].join("\n")
       }),
       '<button class="btn btn-primary toggle-video-form-btn" data-block-id="' + blockId + '" type="button">+ Добавить видео</button>',
       '</div>',
       '</div>',
       '<div class="admin-section-form" id="videoForm-' + blockId + '" hidden>',
-      '<label>ID видео Kinescope',
-      '<input class="video-id-input" data-block-id="' + blockId + '" type="text" placeholder="Например: 5qYpGTvDTbrLMBeBL6hpN1" />',
+      '<label>Ссылка или ID видео Kinescope',
+      '<input class="video-id-input" data-block-id="' + blockId + '" type="text" placeholder="https://kinescope.io/embed/..." />',
       '</label>',
-      '<p class="admin-hint">Полная ссылка соберётся автоматически: https://kinescope.io/embed/{ID}</p>',
+      '<p class="admin-hint">Поддерживаются ссылка на видео, embed-ссылка, iframe-код или ID.</p>',
       '<button class="btn btn-primary save-video-btn" data-block-id="' + blockId + '" type="button">Сохранить видео</button>',
       '</div>',
       '<div class="admin-mini-cards">',
@@ -1626,7 +1661,7 @@
   }
 
   async function createVideoItem(blockId, videoId) {
-    if (!videoId) return;
+    if (!videoId) return null;
 
     var client = getClient();
     if (!client) return;
@@ -1645,12 +1680,13 @@
     if (result.error) {
       console.error(result.error);
       alert("Ошибка создания видео");
-      return;
+      return null;
     }
 
     getItems(blockId).push(result.data);
     renderBlocksList();
     renderPreview();
+    return result.data;
   }
 
   async function createFileItem(blockId, fileLabel, fileId) {
@@ -2116,19 +2152,26 @@
         var videoInput = document.querySelector('.video-id-input[data-block-id="' + videoBlockId + '"]');
         if (!videoInput) return;
 
-        var videoId = videoInput.value.trim();
-        if (!videoId) {
-          alert("Введите ID видео Kinescope");
+        var videoValue = videoInput.value.trim();
+        if (!videoValue) {
+          alert("Введите ссылку или ID видео Kinescope");
           return;
         }
 
-        videoInput.value = "";
-        var vf = document.getElementById("videoForm-" + videoBlockId);
-        if (vf) {
-          vf.hidden = true;
+        var videoId = extractKinescopeVideoId(videoValue);
+        if (!videoId) {
+          alert("Не удалось определить ID видео. Вставьте ссылку Kinescope или ID видео.");
+          return;
         }
 
-        void createVideoItem(videoBlockId, videoId);
+        void createVideoItem(videoBlockId, videoId).then(function (createdItem) {
+          if (!createdItem) return;
+          videoInput.value = "";
+          var vf = document.getElementById("videoForm-" + videoBlockId);
+          if (vf) {
+            vf.hidden = true;
+          }
+        });
         return;
       }
 
