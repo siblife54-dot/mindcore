@@ -11,12 +11,13 @@
 <body data-page="admin">
   <div class="admin-layout">
     <aside class="admin-sidebar">
-      <div class="admin-sidebar__top">
-        <h1>Админ-панель</h1>
-        <p id="adminCourseLabel">Загрузка...</p>
+      <div class="admin-sidebar__header-glass">
+        <div class="admin-sidebar__top">
+          <h1>Админ-панель</h1>
+          <p id="adminCourseLabel">Загрузка...</p>
+        </div>
+        <button id="addLessonBtn" class="btn btn-primary admin-sidebar__add-lesson" type="button">+ Новый урок</button>
       </div>
-
-      <button id="addLessonBtn" class="btn btn-primary admin-sidebar__add-lesson" type="button">+ Новый урок</button>
 
       <div id="lessonsList" class="admin-lessons-list"></div>
     </aside>
