@@ -429,7 +429,6 @@
   }
 
   function openSectionTab(blockId, tabName, options) {
-    var opts = options || {};
     if (!blockId) return;
 
     state.activeSectionId = String(blockId);
@@ -438,14 +437,6 @@
 
     renderBlocksList();
     renderPreview();
-
-    if (opts.openForm && (tabName === "video" || tabName === "file" || tabName === "image")) {
-      var formPrefix = tabName === "video" ? "videoForm-" : (tabName === "file" ? "fileForm-" : "imageForm-");
-      var form = document.getElementById(formPrefix + blockId);
-      if (form) {
-        form.hidden = false;
-      }
-    }
   }
 
   function renderLessonsList() {
@@ -664,7 +655,7 @@
       '<button class="admin-tab-btn' + (state.activeSectionTab === 'text' ? ' active' : '') + '" type="button" data-section-tab="text" data-block-id="' + blockId + '">Текст</button>',
       '<button class="admin-tab-btn' + (state.activeSectionTab === 'video' ? ' active' : '') + '" type="button" data-section-tab="video" data-block-id="' + blockId + '">Видео</button>',
       '<button class="admin-tab-btn' + (state.activeSectionTab === 'file' ? ' active' : '') + '" type="button" data-section-tab="file" data-block-id="' + blockId + '">Файлы</button>',
-      '<button class="admin-tab-btn' + (state.activeSectionTab === 'image' ? ' active' : '') + '" type="button" data-section-tab="image" data-block-id="' + blockId + '">+ Картинка</button>',
+      '<button class="admin-tab-btn' + (state.activeSectionTab === 'image' ? ' active' : '') + '" type="button" data-section-tab="image" data-block-id="' + blockId + '">Картинка</button>',
       '<button class="admin-btn-ghost close-inline-editor-btn" type="button">Закрыть</button>',
       '</div>',
       renderSectionTabContent(blockId),
@@ -726,10 +717,9 @@
           "Система сама определит ID видео."
         ].join("\n")
       }),
-      '<button class="btn btn-primary toggle-video-form-btn" data-block-id="' + blockId + '" type="button">+ Добавить видео</button>',
       '</div>',
       '</div>',
-      '<div class="admin-section-form" id="videoForm-' + blockId + '" hidden>',
+      '<div class="admin-section-form" id="videoForm-' + blockId + '">',
       '<label>Ссылка или ID видео Kinescope',
       '<input class="video-id-input" data-block-id="' + blockId + '" type="text" placeholder="https://kinescope.io/embed/..." />',
       '</label>',
@@ -765,10 +755,9 @@
           "Система сама определит ID файла."
         ].join("\n")
       }),
-      '<button class="btn btn-primary toggle-file-form-btn" data-block-id="' + blockId + '" type="button">+ Добавить файл</button>',
       '</div>',
       '</div>',
-      '<div class="admin-section-form" id="fileForm-' + blockId + '" hidden>',
+      '<div class="admin-section-form" id="fileForm-' + blockId + '">',
       '<label>Название файла',
       '<input class="file-label-input" data-block-id="' + blockId + '" type="text" placeholder="Например: Чеклист.pdf" />',
       '</label>',
@@ -790,11 +779,9 @@
       '<section class="admin-tab-panel">',
       '<div class="admin-panel-head">',
       '<h5>Картинка</h5>',
-      '<div class="admin-panel-actions">',
-      '<button class="btn btn-primary toggle-image-form-btn" data-block-id="' + blockId + '" type="button">+ Добавить картинку</button>',
+      '<div class="admin-panel-actions"></div>',
       '</div>',
-      '</div>',
-      '<div class="admin-section-form" id="imageForm-' + blockId + '" hidden>',
+      '<div class="admin-section-form" id="imageForm-' + blockId + '">',
       '<p class="admin-hint admin-image-upload-hint">Рекомендуемый формат: JPG или PNG.<br>Лучше использовать ширину от 1200 px.<br>Горизонтальные, квадратные и вертикальные изображения поддерживаются.<br>Можно загружать JPG, PNG или WEBP размером до 5 MB.</p>',
       '<label>Файл изображения',
       '<input class="image-file-input" data-block-id="' + blockId + '" type="file" accept="image/png,image/jpeg,image/webp" />',
@@ -2303,15 +2290,6 @@
         return;
       }
 
-      var toggleVideoFormBtn = event.target.closest(".toggle-video-form-btn");
-      if (toggleVideoFormBtn) {
-        var videoForm = document.getElementById("videoForm-" + toggleVideoFormBtn.getAttribute("data-block-id"));
-        if (videoForm) {
-          videoForm.hidden = !videoForm.hidden;
-        }
-        return;
-      }
-
       var saveVideoBtn = event.target.closest(".save-video-btn");
       if (saveVideoBtn) {
         var videoBlockId = saveVideoBtn.getAttribute("data-block-id");
@@ -2333,20 +2311,7 @@
         void createVideoItem(videoBlockId, videoId).then(function (createdItem) {
           if (!createdItem) return;
           videoInput.value = "";
-          var vf = document.getElementById("videoForm-" + videoBlockId);
-          if (vf) {
-            vf.hidden = true;
-          }
         });
-        return;
-      }
-
-      var toggleFileFormBtn = event.target.closest(".toggle-file-form-btn");
-      if (toggleFileFormBtn) {
-        var fileForm = document.getElementById("fileForm-" + toggleFileFormBtn.getAttribute("data-block-id"));
-        if (fileForm) {
-          fileForm.hidden = !fileForm.hidden;
-        }
         return;
       }
 
@@ -2374,21 +2339,7 @@
 
         fileLabelInput.value = "";
         fileLinkInput.value = "";
-        var ff = document.getElementById("fileForm-" + fileBlockId);
-        if (ff) {
-          ff.hidden = true;
-        }
-
         void createFileItem(fileBlockId, fileLabel, fileId);
-        return;
-      }
-
-      var toggleImageFormBtn = event.target.closest(".toggle-image-form-btn");
-      if (toggleImageFormBtn) {
-        var imageForm = document.getElementById("imageForm-" + toggleImageFormBtn.getAttribute("data-block-id"));
-        if (imageForm) {
-          imageForm.hidden = !imageForm.hidden;
-        }
         return;
       }
 
@@ -2410,8 +2361,6 @@
             if (!createdItem) return;
             if (imageFileInput) imageFileInput.value = "";
             if (imageAltInput) imageAltInput.value = "";
-            var imageForm = document.getElementById("imageForm-" + imageBlockId);
-            if (imageForm) imageForm.hidden = true;
             alert("Картинка загружена");
           });
         }).catch(function (error) {
