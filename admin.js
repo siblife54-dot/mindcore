@@ -592,12 +592,14 @@
 
   function renderTooltipTrigger(options) {
     var data = options || {};
+    var label = data.label || "?";
+    var extraClass = data.className ? " " + data.className : "";
     return [
-      '<button class="admin-tooltip-trigger" type="button"',
+      '<button class="admin-tooltip-trigger' + extraClass + '" type="button"',
       ' aria-label="' + escapeAttr(data.ariaLabel || "Открыть подсказку") + '"',
       ' data-tooltip-title="' + escapeAttr(data.title || "Подсказка") + '"',
       ' data-tooltip-content="' + escapeAttr(data.content || "") + '"',
-      '>?</button>'
+      '>' + escapeHtml(label) + '</button>'
     ].join("");
   }
 
@@ -605,9 +607,14 @@
     var videos = getVideoItems(blockId);
     return [
       '<section class="admin-tab-panel">',
-      '<h5 class="admin-label-title">Видео ' + renderTooltipTrigger({
+      '<div class="admin-panel-head">',
+      '<h5>Видео</h5>',
+      '<div class="admin-panel-actions">',
+      renderTooltipTrigger({
         ariaLabel: "Подсказка: как добавить видео",
         title: "Как добавить видео?",
+        label: "Как добавить видео ?",
+        className: "admin-tooltip-trigger--link",
         content: [
           "Рекомендуем Kinescope.",
           "",
@@ -623,8 +630,10 @@
           "3. Скопируйте ссылку или embed-код",
           "4. Вставьте в поле"
         ].join("\n")
-      }) + '</h5>',
+      }),
       '<button class="btn btn-primary toggle-video-form-btn" data-block-id="' + blockId + '" type="button">+ Добавить видео</button>',
+      '</div>',
+      '</div>',
       '<div class="admin-section-form" id="videoForm-' + blockId + '" hidden>',
       '<label>ID видео Kinescope',
       '<input class="video-id-input" data-block-id="' + blockId + '" type="text" placeholder="Например: 5qYpGTvDTbrLMBeBL6hpN1" />',
@@ -643,9 +652,14 @@
     var files = getFileItems(blockId);
     return [
       '<section class="admin-tab-panel">',
-      '<h5 class="admin-label-title">Файлы ' + renderTooltipTrigger({
+      '<div class="admin-panel-head">',
+      '<h5>Файлы</h5>',
+      '<div class="admin-panel-actions">',
+      renderTooltipTrigger({
         ariaLabel: "Подсказка: как добавить файл",
         title: "Как добавить файл?",
+        label: "Как добавить файл ?",
+        className: "admin-tooltip-trigger--link",
         content: [
           "Можно прикрепить:",
           "",
@@ -663,8 +677,10 @@
           "",
           "Ученик увидит кнопку скачивания."
         ].join("\n")
-      }) + '</h5>',
+      }),
       '<button class="btn btn-primary toggle-file-form-btn" data-block-id="' + blockId + '" type="button">+ Добавить файл</button>',
+      '</div>',
+      '</div>',
       '<div class="admin-section-form" id="fileForm-' + blockId + '" hidden>',
       '<label>Название файла',
       '<input class="file-label-input" data-block-id="' + blockId + '" type="text" placeholder="Например: Чеклист.pdf" />',
