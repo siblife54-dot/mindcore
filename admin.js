@@ -148,6 +148,42 @@
     renderTelegramConnectedState(data);
   }
 
+  function parseErrorMessage(value) {
+    if (!value) return "";
+    if (typeof value === "string") return value;
+
+    if (typeof value.error === "string" && value.error.trim()) return value.error;
+    if (typeof value.message === "string" && value.message.trim()) return value.message;
+
+    return "";
+  }
+
+  async function getInvokeErrorMessage(response) {
+    if (!response) return "";
+
+    var dataErrorMessage = parseErrorMessage(response.data);
+    if (dataErrorMessage) return dataErrorMessage;
+
+    var errorMessage = parseErrorMessage(response.error);
+    if (errorMessage && errorMessage !== "Edge Function returned a non-2xx status code") {
+      return errorMessage;
+    }
+
+    var context = response.error && response.error.context;
+    if (context && typeof context.json === "function") {
+      try {
+        var body = await context.json();
+        var bodyMessage = parseErrorMessage(body);
+        if (bodyMessage) return bodyMessage;
+      } catch (parseError) {
+        console.warn("Failed to parse error context body", parseError);
+      }
+    }
+
+    if (errorMessage) return errorMessage;
+    return "";
+  }
+
   async function connectTelegram() {
     var client = getClient();
     var config = getConfig();
@@ -188,7 +224,8 @@
       });
 
       if (response.error) {
-        throw new Error(response.error.message || "Ошибка подключения Telegram");
+        var invokeErrorMessage = await getInvokeErrorMessage(response);
+        throw new Error(invokeErrorMessage || "Ошибка подключения Telegram");
       }
 
       var payload = response.data || {};
