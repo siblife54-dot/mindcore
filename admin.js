@@ -24,6 +24,7 @@
     },
     activeAdminTab: "content"
   };
+  state.savedThemeId = "dark_premium";
   var tooltipState = {
     activeTrigger: null,
     popover: null
@@ -185,6 +186,47 @@
     }).join("");
   }
 
+  function getPreviewThemeTokens(themeId) {
+    var tokensByTheme = {
+      dark_premium: { bg: "#0E1B2B", card: "#12243A", card2: "#172E4A", text: "#F8FAFC", muted: "#94A3B8", accent: "#8B5CF6", border: "rgba(139, 92, 246, 0.22)", isDark: true },
+      light_clean: { bg: "#F6F7FB", card: "#FFFFFF", card2: "#F1F5F9", text: "#111827", muted: "#64748B", accent: "#2563EB", border: "rgba(15, 23, 42, 0.10)", isDark: false },
+      fitness_power: { bg: "#031812", card: "#041F18", card2: "#062720", text: "#F2FFF8", muted: "#9AC7B8", accent: "#67F08F", border: "rgba(122, 219, 173, 0.22)", isDark: true },
+      soft_women: { bg: "#FFF7F2", card: "#FFFFFF", card2: "#FFEDE5", text: "#3B2520", muted: "#9A6B60", accent: "#DB5F87", border: "rgba(219, 95, 135, 0.22)", isDark: false },
+      business_black: { bg: "#080808", card: "#141414", card2: "#1F1F1F", text: "#F8F5EC", muted: "#A8A29E", accent: "#D4AF37", border: "rgba(212, 175, 55, 0.24)", isDark: true },
+      wow_glass: { bg: "#04111f", card: "rgba(8, 20, 34, 0.72)", card2: "rgba(10, 34, 56, 0.68)", text: "#eef7ff", muted: "#9bb8d1", accent: "#5ff2ff", border: "rgba(255, 255, 255, 0.16)", isDark: true }
+    };
+    return tokensByTheme[normalizeThemeId(themeId)] || tokensByTheme.dark_premium;
+  }
+
+  function renderThemePreview(themeId) {
+    var container = document.getElementById("adminThemePreview");
+    if (!container) return;
+    var normalizedThemeId = normalizeThemeId(themeId);
+    var t = getPreviewThemeTokens(normalizedThemeId);
+    var bgStyle = normalizedThemeId === "wow_glass"
+      ? "radial-gradient(circle at 20% 20%, rgba(95,242,255,0.16), transparent 28%),radial-gradient(circle at 80% 30%, rgba(255,184,77,0.14), transparent 24%),linear-gradient(135deg, #04111f, #0a2238 60%, #06101a)"
+      : t.bg;
+    var btnStyle = normalizedThemeId === "wow_glass"
+      ? "background:linear-gradient(90deg,#5ff2ff,#87fbff);color:#03212a;"
+      : "background:" + t.accent + ";" + (t.isDark ? "color:#07111d;" : "color:#ffffff;");
+
+    container.innerHTML = [
+      '<div class="admin-theme-preview-phone" style="background:', bgStyle, ';color:', t.text, ';border-color:', t.border, ';">',
+      '<div class="admin-theme-preview-header" style="background:', t.card, ';border-color:', t.border, ';">Курс эксперта</div>',
+      '<div class="admin-theme-preview-progress" style="background:', t.card, ';border-color:', t.border, ';"><strong>3 из 10 уроков</strong><span><i style="background:', t.accent, ';"></i></span></div>',
+      '<article class="admin-theme-preview-card" style="background:', t.card2, ';border-color:', t.border, ';">',
+      '<p>День 1</p><h4>Введение</h4><div><button class="admin-theme-preview-button" style="', btnStyle, '">Открыть</button><span class="admin-theme-preview-badge" style="background:', t.card, ';color:', t.muted, ';">Пройдено</span></div></article>',
+      '<article class="admin-theme-preview-card" style="background:', t.card2, ';border-color:', t.border, ';">',
+      '<p>День 2</p><h4>Практика</h4><div><button class="admin-theme-preview-button" style="', btnStyle, '">Открыть</button></div></article>',
+      '</div>'
+    ].join("");
+  }
+
+  function renderThemeDirtyState() {
+    var dirtyNode = document.getElementById("themeDirtyStatus");
+    if (dirtyNode) dirtyNode.hidden = state.selectedThemeId === state.savedThemeId;
+  }
+
   async function fetchCourseThemeId() {
     var client = getClient();
     var config = getConfig();
@@ -244,7 +286,10 @@
     }
 
     state.selectedThemeId = normalizeThemeId(result.data && result.data.theme_id);
+    state.savedThemeId = state.selectedThemeId;
     renderThemeCards();
+    renderThemePreview(state.selectedThemeId);
+    renderThemeDirtyState();
   }
 
   async function fetchLessons() {
@@ -2267,21 +2312,25 @@
     var themeCards = document.getElementById("themeCards");
     if (themeCards) {
       themeCards.addEventListener("click", function (event) {
-        var themeBtn = event.target.closest(".admin-theme-choose-btn");
+        var themeBtn = event.target.closest(".admin-theme-choose-btn, .admin-theme-item");
         if (!themeBtn) return;
-
-        var themeId = themeBtn.getAttribute("data-theme-id");
+        var themeCard = themeBtn.closest(".admin-theme-item");
+        var themeId = (themeBtn.getAttribute("data-theme-id") || (themeCard && themeCard.getAttribute("data-theme-id")));
         if (!themeId || themeId === state.selectedThemeId) return;
-
-        var previousThemeId = state.selectedThemeId;
         state.selectedThemeId = normalizeThemeId(themeId);
         renderThemeCards();
-        void saveCourseThemeId(themeId).then(function () {
-          alert("Тема WebApp сохранена");
+        renderThemePreview(state.selectedThemeId);
+        renderThemeDirtyState();
+      });
+    }
+
+    var saveThemeBtn = document.getElementById("saveThemeBtn");
+    if (saveThemeBtn) {
+      saveThemeBtn.addEventListener("click", function () {
+        void saveCourseThemeId(state.selectedThemeId).then(function () {
+          alert("Дизайн сохранён");
         }).catch(function (error) {
           console.error(error);
-          state.selectedThemeId = previousThemeId;
-          renderThemeCards();
           alert(error && error.message ? error.message : "Не удалось сохранить тему");
         });
       });
@@ -2717,7 +2766,10 @@
     setActiveAdminTab(getDefaultAdminTab());
     renderConnectionScreen();
     state.selectedThemeId = await fetchCourseThemeId();
+    state.savedThemeId = state.selectedThemeId;
     renderThemeCards();
+    renderThemePreview(state.selectedThemeId);
+    renderThemeDirtyState();
 
     state.lessons = (await fetchLessons()).map(function (lesson) {
       if (typeof lesson.preview_image_url === "undefined") {
