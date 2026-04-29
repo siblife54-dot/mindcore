@@ -154,13 +154,37 @@ body[data-page="admin"] {
 .admin-theme-card {
   margin-bottom: 18px;
 }
+.admin-card__header--theme {
+  align-items: flex-start;
+}
+.admin-theme-layout {
+  margin-top: 16px;
+  display: grid;
+  gap: 18px;
+  grid-template-columns: 1fr;
+}
+.admin-theme-preview-column {
+  min-width: 0;
+}
+.admin-theme-preview-sticky {
+  position: static;
+}
+@media (min-width: 1060px) {
+  .admin-theme-layout {
+    grid-template-columns: minmax(0, 1fr) 360px;
+    align-items: start;
+  }
+  .admin-theme-preview-sticky {
+    position: sticky;
+    top: 18px;
+  }
+}
 
 .admin-card__header--compact {
   margin-bottom: 0;
 }
 
 .admin-theme-grid {
-  margin-top: 16px;
   display: grid;
   gap: 16px;
   grid-template-columns: repeat(1, minmax(0, 1fr));
@@ -233,6 +257,37 @@ body[data-page="admin"] {
   min-height: 180px;
   padding: 10px;
 }
+#adminThemePreview.admin-theme-preview {
+  min-height: auto;
+  padding: 14px;
+}
+.admin-theme-preview-phone {
+  border: 1px solid;
+  border-radius: 24px;
+  padding: 14px;
+  display: grid;
+  gap: 10px;
+}
+.admin-theme-preview-header,
+.admin-theme-preview-progress,
+.admin-theme-preview-card {
+  border: 1px solid;
+  border-radius: 14px;
+}
+.admin-theme-preview-header {
+  padding: 12px;
+  font-weight: 700;
+}
+.admin-theme-preview-progress { padding: 10px; }
+.admin-theme-preview-progress strong { display:block; font-size: 13px; margin-bottom: 8px; }
+.admin-theme-preview-progress span { display:block; height: 7px; background: rgba(255,255,255,.15); border-radius: 999px; overflow: hidden; }
+.admin-theme-preview-progress i { display:block; height:100%; width: 36%; border-radius: inherit; }
+.admin-theme-preview-card { padding: 10px; }
+.admin-theme-preview-card p { margin:0; font-size: 12px; opacity:.8; }
+.admin-theme-preview-card h4 { margin:4px 0 10px; font-size: 15px; }
+.admin-theme-preview-card div { display:flex; justify-content: space-between; align-items:center; gap:8px; }
+.admin-theme-preview-button { border:0; border-radius: 10px; font-weight:700; padding:8px 12px; }
+.admin-theme-preview-badge { border-radius: 999px; padding:4px 8px; font-size: 11px; }
 
 .admin-theme-preview__screen {
   height: 100%;

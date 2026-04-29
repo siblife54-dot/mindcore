@@ -31,13 +31,24 @@
 
       <section class="admin-tab-panel" data-admin-panel="appearance" hidden>
         <section class="admin-card admin-theme-card">
-        <div class="admin-card__header admin-card__header--compact">
+        <div class="admin-card__header admin-card__header--compact admin-card__header--theme">
           <div>
             <p class="admin-card__eyebrow">Настройки курса</p>
             <h2>Дизайн WebApp</h2>
+            <p id="themeDirtyStatus" class="admin-hint" hidden>Есть несохранённые изменения</p>
           </div>
+          <button id="saveThemeBtn" class="btn btn-primary" type="button">Сохранить дизайн</button>
         </div>
-        <div id="themeCards" class="admin-theme-grid"></div>
+        <div class="admin-theme-layout">
+          <div id="themeCards" class="admin-theme-grid"></div>
+          <aside class="admin-theme-preview-column">
+            <div class="admin-theme-preview-sticky">
+              <h3>Предпросмотр WebApp</h3>
+              <div id="adminThemePreview" class="admin-theme-preview"></div>
+              <p class="admin-hint">Так будет выглядеть кабинет ученика</p>
+            </div>
+          </aside>
+        </div>
       </section>
       </section>
 
