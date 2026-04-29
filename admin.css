@@ -162,17 +162,36 @@ body[data-page="admin"] {
 .admin-theme-grid {
   margin-top: 16px;
   display: grid;
-  gap: 12px;
-  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: 16px;
+  grid-template-columns: repeat(1, minmax(0, 1fr));
+}
+
+@media (min-width: 860px) {
+  .admin-theme-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1240px) {
+  .admin-theme-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
 }
 
 .admin-theme-item {
   border: 1px solid var(--border);
-  border-radius: 14px;
+  border-radius: 18px;
   background: rgba(8, 18, 34, 0.42);
-  padding: 12px;
-  display: grid;
-  gap: 8px;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  transition: transform .2s ease, box-shadow .2s ease, border-color .2s ease;
+}
+
+.admin-theme-item:hover {
+  transform: scale(1.02);
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.26);
 }
 
 .admin-theme-item.is-active {
@@ -192,9 +211,14 @@ body[data-page="admin"] {
 }
 
 .admin-theme-status {
-  font-size: 12px;
-  color: color-mix(in srgb, var(--accent) 70%, #fff 30%);
+  font-size: 11px;
+  color: #fff;
+  background: color-mix(in srgb, var(--accent) 75%, transparent);
   font-weight: 600;
+  width: fit-content;
+  padding: 5px 10px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--accent) 82%, transparent);
 }
 
 .admin-theme-choose-btn {
@@ -204,70 +228,197 @@ body[data-page="admin"] {
 }
 
 .admin-theme-preview {
-  border-radius: 10px;
+  border-radius: 14px;
   border: 1px solid rgba(255, 255, 255, 0.12);
-  height: 54px;
-  padding: 8px;
-  display: grid;
-  grid-template-columns: 1fr 1fr 1fr;
-  gap: 6px;
+  min-height: 180px;
+  padding: 10px;
 }
 
-.admin-theme-preview span {
-  border-radius: 6px;
-  background: rgba(255, 255, 255, 0.16);
+.admin-theme-preview__screen {
+  height: 100%;
+  border-radius: 10px;
+  padding: 10px;
+  display: grid;
+  grid-template-rows: 12px 8px 1fr auto;
+  gap: 10px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.admin-theme-preview__header {
+  width: 58%;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.38);
+}
+
+.admin-theme-preview__progress-track {
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.18);
+  overflow: hidden;
+}
+
+.admin-theme-preview__progress {
+  display: block;
+  width: 56%;
+  height: 100%;
+  border-radius: inherit;
+}
+
+.admin-theme-preview__lesson {
+  border-radius: 12px;
+  padding: 10px;
+  display: grid;
+  gap: 8px;
+}
+
+.admin-theme-preview__lesson-title {
+  width: 72%;
+  height: 9px;
+  border-radius: 999px;
+}
+
+.admin-theme-preview__lesson-subtitle {
+  width: 90%;
+  height: 8px;
+  border-radius: 999px;
+}
+
+.admin-theme-preview__cta {
+  width: 100%;
+  height: 26px;
+  border-radius: 10px;
+  display: grid;
+  place-items: center;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: .02em;
+  text-transform: uppercase;
+  color: #fff;
 }
 
 .admin-theme-preview.theme-dark-premium {
   background: #0E1B2B;
 }
 
-.admin-theme-preview.theme-dark-premium span:nth-child(2) {
+.admin-theme-preview.theme-dark-premium .admin-theme-preview__progress,
+.admin-theme-preview.theme-dark-premium .admin-theme-preview__cta {
   background: #8B5CF6;
+}
+
+.admin-theme-preview.theme-dark-premium .admin-theme-preview__lesson {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.admin-theme-preview.theme-dark-premium .admin-theme-preview__lesson-title,
+.admin-theme-preview.theme-dark-premium .admin-theme-preview__lesson-subtitle {
+  background: rgba(224, 231, 255, 0.66);
 }
 
 .admin-theme-preview.theme-light-clean {
   background: #F6F7FB;
 }
 
-.admin-theme-preview.theme-light-clean span {
+.admin-theme-preview.theme-light-clean .admin-theme-preview__screen {
+  background: rgba(255, 255, 255, 0.82);
+  border-color: rgba(15, 23, 42, 0.08);
+}
+
+.admin-theme-preview.theme-light-clean .admin-theme-preview__header,
+.admin-theme-preview.theme-light-clean .admin-theme-preview__progress-track {
   background: #cbd5e1;
 }
 
-.admin-theme-preview.theme-light-clean span:nth-child(2) {
+.admin-theme-preview.theme-light-clean .admin-theme-preview__progress,
+.admin-theme-preview.theme-light-clean .admin-theme-preview__cta {
   background: #2563EB;
+}
+
+.admin-theme-preview.theme-light-clean .admin-theme-preview__lesson {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+}
+
+.admin-theme-preview.theme-light-clean .admin-theme-preview__lesson-title,
+.admin-theme-preview.theme-light-clean .admin-theme-preview__lesson-subtitle {
+  background: #94a3b8;
+}
+
+.admin-theme-preview.theme-light-clean .admin-theme-preview__cta {
+  color: #eff6ff;
 }
 
 .admin-theme-preview.theme-fitness-power {
   background: #031812;
 }
 
-.admin-theme-preview.theme-fitness-power span:nth-child(2) {
+.admin-theme-preview.theme-fitness-power .admin-theme-preview__progress,
+.admin-theme-preview.theme-fitness-power .admin-theme-preview__cta {
   background: #67F08F;
+  color: #01240f;
+}
+
+.admin-theme-preview.theme-fitness-power .admin-theme-preview__lesson {
+  background: rgba(103, 240, 143, 0.12);
+  border: 1px solid rgba(103, 240, 143, 0.24);
+}
+
+.admin-theme-preview.theme-fitness-power .admin-theme-preview__lesson-title,
+.admin-theme-preview.theme-fitness-power .admin-theme-preview__lesson-subtitle,
+.admin-theme-preview.theme-fitness-power .admin-theme-preview__header {
+  background: rgba(210, 255, 226, 0.62);
 }
 
 .admin-theme-preview.theme-soft-women {
   background: #FFF7F2;
 }
 
-.admin-theme-preview.theme-soft-women span {
+.admin-theme-preview.theme-soft-women .admin-theme-preview__screen {
+  border-color: rgba(213, 127, 154, 0.22);
+}
+
+.admin-theme-preview.theme-soft-women .admin-theme-preview__header,
+.admin-theme-preview.theme-soft-women .admin-theme-preview__progress-track {
   background: #f7d8cc;
 }
 
-.admin-theme-preview.theme-soft-women span:nth-child(2) {
+.admin-theme-preview.theme-soft-women .admin-theme-preview__progress,
+.admin-theme-preview.theme-soft-women .admin-theme-preview__cta {
   background: #E8799A;
+}
+
+.admin-theme-preview.theme-soft-women .admin-theme-preview__lesson {
+  background: #fff;
+  border: 1px solid rgba(232, 121, 154, 0.22);
+}
+
+.admin-theme-preview.theme-soft-women .admin-theme-preview__lesson-title,
+.admin-theme-preview.theme-soft-women .admin-theme-preview__lesson-subtitle {
+  background: #f0a6be;
 }
 
 .admin-theme-preview.theme-business-black {
   background: #080808;
 }
 
-.admin-theme-preview.theme-business-black span {
+.admin-theme-preview.theme-business-black .admin-theme-preview__header,
+.admin-theme-preview.theme-business-black .admin-theme-preview__progress-track {
   background: #3f3f46;
 }
 
-.admin-theme-preview.theme-business-black span:nth-child(2) {
+.admin-theme-preview.theme-business-black .admin-theme-preview__progress,
+.admin-theme-preview.theme-business-black .admin-theme-preview__cta {
   background: #D4AF37;
+  color: #111;
+}
+
+.admin-theme-preview.theme-business-black .admin-theme-preview__lesson {
+  background: rgba(212, 175, 55, 0.08);
+  border: 1px solid rgba(212, 175, 55, 0.24);
+}
+
+.admin-theme-preview.theme-business-black .admin-theme-preview__lesson-title,
+.admin-theme-preview.theme-business-black .admin-theme-preview__lesson-subtitle {
+  background: rgba(253, 230, 138, 0.7);
 }
 
 .admin-theme-preview.theme-wow-glass {
@@ -277,13 +428,30 @@ body[data-page="admin"] {
     linear-gradient(135deg, #04111f, #0a2238 60%, #06101a);
 }
 
-.admin-theme-preview.theme-wow-glass span {
-  background: rgba(255, 255, 255, 0.2);
+.admin-theme-preview.theme-wow-glass .admin-theme-preview__screen {
+  background: rgba(255, 255, 255, 0.1);
   border: 1px solid rgba(255, 255, 255, 0.14);
 }
 
-.admin-theme-preview.theme-wow-glass span:nth-child(2) {
+.admin-theme-preview.theme-wow-glass .admin-theme-preview__header,
+.admin-theme-preview.theme-wow-glass .admin-theme-preview__progress-track {
+  background: rgba(255, 255, 255, 0.24);
+}
+
+.admin-theme-preview.theme-wow-glass .admin-theme-preview__progress,
+.admin-theme-preview.theme-wow-glass .admin-theme-preview__cta {
   background: linear-gradient(90deg, #5ff2ff, #87fbff);
+  color: #02273a;
+}
+
+.admin-theme-preview.theme-wow-glass .admin-theme-preview__lesson {
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.admin-theme-preview.theme-wow-glass .admin-theme-preview__lesson-title,
+.admin-theme-preview.theme-wow-glass .admin-theme-preview__lesson-subtitle {
+  background: rgba(209, 250, 255, 0.8);
 }
 
 .admin-card__header {
