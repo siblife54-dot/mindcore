@@ -1584,6 +1584,19 @@ body[data-page="admin"] {
   width: 100%;
 }
 
+.admin-connection-result {
+  margin: 0;
+  white-space: pre-line;
+}
+
+.admin-connection-result.is-error {
+  color: #ff8f8f;
+}
+
+.admin-connection-result.is-success {
+  color: #7cf3ac;
+}
+
 @media (max-width: 820px) {
   .admin-top-tabs { padding: 8px; }
 }

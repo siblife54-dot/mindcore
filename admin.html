@@ -172,15 +172,23 @@
           <article class="admin-card admin-connection-card">
             <div class="admin-connection-head">
               <h3>Telegram Mini App</h3>
-              <span class="admin-connection-status is-ready">Готово к подключению</span>
+              <span id="telegramConnectionBadge" class="admin-connection-status">Не подключен</span>
             </div>
             <label class="admin-connection-url">
-              WebApp URL
-              <input id="telegramWebAppUrl" type="text" readonly />
+              Bot Token
+              <input id="telegramBotToken" type="password" autocomplete="off" placeholder="123456789:AA..." />
             </label>
-            <button id="copyTelegramLinkBtn" class="btn btn-primary" type="button">Скопировать ссылку</button>
-            <p id="copyTelegramLinkStatus" class="admin-hint" hidden>Ссылка скопирована</p>
-            <p class="admin-hint">Эту ссылку можно добавить в кнопку Telegram-бота, закреп в канале или меню Mini App.</p>
+            <p class="admin-hint">Токен можно получить в @BotFather. Мы используем его только для подключения кнопки и не сохраняем.</p>
+            <label class="admin-connection-url">
+              Название кнопки
+              <input id="telegramButtonTitle" type="text" value="Открыть курс" />
+            </label>
+            <label class="admin-connection-url">
+              WebApp URL
+              <input id="telegramWebAppUrl" type="text" placeholder="https://..." />
+            </label>
+            <button id="connectTelegramBtn" class="btn btn-primary" type="button">Подключить Telegram</button>
+            <p id="telegramConnectionStatus" class="admin-connection-result" hidden></p>
           </article>
 
           <article class="admin-card admin-connection-card">

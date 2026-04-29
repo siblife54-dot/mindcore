@@ -81,15 +81,136 @@
 
   function getTelegramWebAppUrl() {
     var config = getConfig();
-    var value = String(config.webAppUrl || config.publicWebAppUrl || "").trim();
-    if (value) return value;
-    return "URL будет доступен после публикации WebApp";
+    return String(config.webAppUrl || config.publicWebAppUrl || "").trim();
+  }
+
+  function setTelegramStatus(message, isError) {
+    var node = document.getElementById("telegramConnectionStatus");
+    if (!node) return;
+    node.textContent = message || "";
+    node.hidden = !message;
+    node.classList.toggle("is-error", Boolean(isError));
+    node.classList.toggle("is-success", Boolean(message) && !isError);
+  }
+
+  function renderTelegramConnectedState(integration) {
+    var badge = document.getElementById("telegramConnectionBadge");
+    if (badge) {
+      badge.textContent = "Подключен";
+      badge.classList.add("is-ready");
+    }
+    setTelegramStatus([
+      "✅ Telegram подключен",
+      "Бот: @" + (integration.telegram_bot_username || "—"),
+      "Кнопка: " + (integration.telegram_button_title || "—"),
+      "Ссылка: " + (integration.telegram_webapp_url || "—")
+    ].join("\n"), false);
   }
 
   function renderConnectionScreen() {
     var input = document.getElementById("telegramWebAppUrl");
-    if (!input) return;
-    input.value = getTelegramWebAppUrl();
+    var buttonTitleInput = document.getElementById("telegramButtonTitle");
+    var badge = document.getElementById("telegramConnectionBadge");
+    if (input && !input.value) input.value = getTelegramWebAppUrl();
+    if (buttonTitleInput && !buttonTitleInput.value.trim()) buttonTitleInput.value = "Открыть курс";
+    if (badge) {
+      badge.textContent = "Не подключен";
+      badge.classList.remove("is-ready");
+    }
+    setTelegramStatus("", false);
+  }
+
+  async function loadTelegramIntegration() {
+    var client = getClient();
+    var config = getConfig();
+    if (!client) return;
+
+    var result = await client
+      .from("course_integrations")
+      .select("telegram_connected,telegram_bot_username,telegram_button_title,telegram_webapp_url")
+      .eq("course_id", config.courseId)
+      .maybeSingle();
+
+    if (result.error) {
+      console.error(result.error);
+      return;
+    }
+
+    var data = result.data;
+    if (!data || !data.telegram_connected) return;
+
+    var webAppInput = document.getElementById("telegramWebAppUrl");
+    if (webAppInput && data.telegram_webapp_url) webAppInput.value = data.telegram_webapp_url;
+
+    var buttonTitleInput = document.getElementById("telegramButtonTitle");
+    if (buttonTitleInput && data.telegram_button_title) buttonTitleInput.value = data.telegram_button_title;
+
+    renderTelegramConnectedState(data);
+  }
+
+  async function connectTelegram() {
+    var client = getClient();
+    var config = getConfig();
+    if (!client) throw new Error("Supabase client not initialized");
+
+    var tokenInput = document.getElementById("telegramBotToken");
+    var titleInput = document.getElementById("telegramButtonTitle");
+    var urlInput = document.getElementById("telegramWebAppUrl");
+    var connectBtn = document.getElementById("connectTelegramBtn");
+
+    var botToken = String((tokenInput && tokenInput.value) || "").trim();
+    var buttonTitle = String((titleInput && titleInput.value) || "").trim() || "Открыть курс";
+    var webappUrl = String((urlInput && urlInput.value) || "").trim();
+
+    if (!botToken) {
+      setTelegramStatus("Введите Bot Token", true);
+      return;
+    }
+    if (!webappUrl) {
+      setTelegramStatus("Введите WebApp URL", true);
+      return;
+    }
+
+    if (connectBtn) {
+      connectBtn.disabled = true;
+      connectBtn.textContent = "Подключаем...";
+    }
+    setTelegramStatus("", false);
+
+    try {
+      var response = await client.functions.invoke("connect-telegram", {
+        body: {
+          course_id: config.courseId,
+          bot_token: botToken,
+          button_title: buttonTitle,
+          webapp_url: webappUrl
+        }
+      });
+
+      if (response.error) {
+        throw new Error(response.error.message || "Ошибка подключения Telegram");
+      }
+
+      var payload = response.data || {};
+      if (!payload.ok) {
+        throw new Error(payload.error || payload.message || "Ошибка подключения Telegram");
+      }
+
+      if (tokenInput) tokenInput.value = "";
+      renderTelegramConnectedState({
+        telegram_bot_username: payload.username,
+        telegram_button_title: buttonTitle,
+        telegram_webapp_url: webappUrl
+      });
+    } catch (error) {
+      var message = error && error.message ? error.message : "Ошибка подключения Telegram";
+      setTelegramStatus(message, true);
+    } finally {
+      if (connectBtn) {
+        connectBtn.disabled = false;
+        connectBtn.textContent = "Подключить Telegram";
+      }
+    }
   }
   function generateLessonId() {
     var randomSuffix = Math.random().toString(36).slice(2, 6);
@@ -2275,37 +2396,10 @@
         setActiveAdminTab(btn.getAttribute("data-admin-tab"));
       });
     });
-
-    var copyTelegramLinkBtn = document.getElementById("copyTelegramLinkBtn");
-    if (copyTelegramLinkBtn) {
-      copyTelegramLinkBtn.addEventListener("click", function () {
-        var linkValue = (document.getElementById("telegramWebAppUrl") || {}).value || "";
-        if (!linkValue || linkValue === "URL будет доступен после публикации WebApp") return;
-        var status = document.getElementById("copyTelegramLinkStatus");
-
-        var onCopied = function () {
-          if (!status) return;
-          status.hidden = false;
-          window.setTimeout(function () { status.hidden = true; }, 1600);
-        };
-
-        if (navigator.clipboard && navigator.clipboard.writeText) {
-          navigator.clipboard.writeText(linkValue).then(onCopied).catch(function () {});
-          return;
-        }
-
-        var helper = document.createElement("textarea");
-        helper.value = linkValue;
-        helper.setAttribute("readonly", "readonly");
-        helper.style.position = "absolute";
-        helper.style.left = "-9999px";
-        document.body.appendChild(helper);
-        helper.select();
-        try {
-          document.execCommand("copy");
-          onCopied();
-        } catch (error) {}
-        document.body.removeChild(helper);
+    var connectTelegramBtn = document.getElementById("connectTelegramBtn");
+    if (connectTelegramBtn) {
+      connectTelegramBtn.addEventListener("click", function () {
+        void connectTelegram();
       });
     }
 
@@ -2765,6 +2859,7 @@
     bindEvents();
     setActiveAdminTab(getDefaultAdminTab());
     renderConnectionScreen();
+    await loadTelegramIntegration();
     state.selectedThemeId = await fetchCourseThemeId();
     state.savedThemeId = state.selectedThemeId;
     renderThemeCards();
