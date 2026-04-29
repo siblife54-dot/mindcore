@@ -23,7 +23,14 @@
     </aside>
 
     <main class="admin-main">
-      <section class="admin-card admin-theme-card">
+      <nav class="admin-top-tabs" aria-label="Разделы админки">
+        <button class="admin-top-tab is-active" type="button" data-admin-tab="content">Наполнение</button>
+        <button class="admin-top-tab" type="button" data-admin-tab="appearance">Внешний вид</button>
+        <button class="admin-top-tab" type="button" data-admin-tab="connections">Подключение</button>
+      </nav>
+
+      <section class="admin-tab-panel" data-admin-panel="appearance" hidden>
+        <section class="admin-card admin-theme-card">
         <div class="admin-card__header admin-card__header--compact">
           <div>
             <p class="admin-card__eyebrow">Настройки курса</p>
@@ -32,7 +39,9 @@
         </div>
         <div id="themeCards" class="admin-theme-grid"></div>
       </section>
+      </section>
 
+      <section class="admin-tab-panel" data-admin-panel="content">
       <div id="editorEmpty" class="admin-empty">Выберите урок слева</div>
 
       <div id="editorPanel" class="admin-builder" hidden>
@@ -145,6 +154,41 @@
           </div>
         </aside>
       </div>
+      </section>
+
+      <section class="admin-tab-panel" data-admin-panel="connections" hidden>
+        <div class="admin-connections-grid">
+          <article class="admin-card admin-connection-card">
+            <div class="admin-connection-head">
+              <h3>Telegram Mini App</h3>
+              <span class="admin-connection-status is-ready">Готово к подключению</span>
+            </div>
+            <label class="admin-connection-url">
+              WebApp URL
+              <input id="telegramWebAppUrl" type="text" readonly />
+            </label>
+            <button id="copyTelegramLinkBtn" class="btn btn-primary" type="button">Скопировать ссылку</button>
+            <p id="copyTelegramLinkStatus" class="admin-hint" hidden>Ссылка скопирована</p>
+            <p class="admin-hint">Эту ссылку можно добавить в кнопку Telegram-бота, закреп в канале или меню Mini App.</p>
+          </article>
+
+          <article class="admin-card admin-connection-card">
+            <div class="admin-connection-head">
+              <h3>VK Mini App</h3>
+              <span class="admin-connection-status">Скоро</span>
+            </div>
+            <p class="admin-hint">Подключение VK Mini App будет доступно позже.</p>
+          </article>
+
+          <article class="admin-card admin-connection-card">
+            <div class="admin-connection-head">
+              <h3>MAX Mini App</h3>
+              <span class="admin-connection-status">Скоро</span>
+            </div>
+            <p class="admin-hint">Подключение MAX Mini App будет доступно позже.</p>
+          </article>
+        </div>
+      </section>
     </main>
   </div>
 

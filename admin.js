@@ -21,7 +21,8 @@
       draggedLessonId: null,
       originalOrder: null,
       dropHappened: false
-    }
+    },
+    activeAdminTab: "content"
   };
   var tooltipState = {
     activeTrigger: null,
@@ -46,6 +47,49 @@
     { id: "wow_glass", name: "Wow Glass", description: "Премиальный glass-стиль с живым свечением" }
   ];
 
+
+
+  function getDefaultAdminTab() {
+    try {
+      var stored = window.localStorage.getItem("admin_active_tab");
+      if (stored === "appearance" || stored === "content" || stored === "connections") {
+        return stored;
+      }
+    } catch (error) {}
+    return "content";
+  }
+
+  function setActiveAdminTab(tabId) {
+    var nextTab = (tabId === "appearance" || tabId === "connections") ? tabId : "content";
+    state.activeAdminTab = nextTab;
+
+    document.querySelectorAll(".admin-top-tab").forEach(function (btn) {
+      var isActive = btn.getAttribute("data-admin-tab") === nextTab;
+      btn.classList.toggle("is-active", isActive);
+    });
+
+    document.querySelectorAll(".admin-tab-panel").forEach(function (panel) {
+      var isActive = panel.getAttribute("data-admin-panel") === nextTab;
+      panel.hidden = !isActive;
+    });
+
+    try {
+      window.localStorage.setItem("admin_active_tab", nextTab);
+    } catch (error) {}
+  }
+
+  function getTelegramWebAppUrl() {
+    var config = getConfig();
+    var value = String(config.webAppUrl || config.publicWebAppUrl || "").trim();
+    if (value) return value;
+    return "URL будет доступен после публикации WebApp";
+  }
+
+  function renderConnectionScreen() {
+    var input = document.getElementById("telegramWebAppUrl");
+    if (!input) return;
+    input.value = getTelegramWebAppUrl();
+  }
   function generateLessonId() {
     var randomSuffix = Math.random().toString(36).slice(2, 6);
     return "lesson_" + Date.now() + "_" + randomSuffix;
@@ -2171,6 +2215,45 @@
   }
 
   function bindEvents() {
+    document.querySelectorAll(".admin-top-tab").forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        setActiveAdminTab(btn.getAttribute("data-admin-tab"));
+      });
+    });
+
+    var copyTelegramLinkBtn = document.getElementById("copyTelegramLinkBtn");
+    if (copyTelegramLinkBtn) {
+      copyTelegramLinkBtn.addEventListener("click", function () {
+        var linkValue = (document.getElementById("telegramWebAppUrl") || {}).value || "";
+        if (!linkValue || linkValue === "URL будет доступен после публикации WebApp") return;
+        var status = document.getElementById("copyTelegramLinkStatus");
+
+        var onCopied = function () {
+          if (!status) return;
+          status.hidden = false;
+          window.setTimeout(function () { status.hidden = true; }, 1600);
+        };
+
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(linkValue).then(onCopied).catch(function () {});
+          return;
+        }
+
+        var helper = document.createElement("textarea");
+        helper.value = linkValue;
+        helper.setAttribute("readonly", "readonly");
+        helper.style.position = "absolute";
+        helper.style.left = "-9999px";
+        document.body.appendChild(helper);
+        helper.select();
+        try {
+          document.execCommand("copy");
+          onCopied();
+        } catch (error) {}
+        document.body.removeChild(helper);
+      });
+    }
+
     var themeCards = document.getElementById("themeCards");
     if (themeCards) {
       themeCards.addEventListener("click", function (event) {
@@ -2621,6 +2704,8 @@
 
     initTooltips();
     bindEvents();
+    setActiveAdminTab(getDefaultAdminTab());
+    renderConnectionScreen();
     state.selectedThemeId = await fetchCourseThemeId();
     renderThemeCards();
 
