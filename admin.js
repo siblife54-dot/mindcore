@@ -164,11 +164,21 @@
       var isActive = state.selectedThemeId === theme.id;
       return [
         '<article class="admin-theme-item' + (isActive ? ' is-active' : '') + '" data-theme-id="' + theme.id + '">',
-        '<div class="admin-theme-preview ' + WEBAPP_THEME_IDS[theme.id] + '"><span></span><span></span><span></span></div>',
+        '<div class="admin-theme-preview ' + WEBAPP_THEME_IDS[theme.id] + '">',
+          '<div class="admin-theme-preview__screen">',
+            '<div class="admin-theme-preview__header"></div>',
+            '<div class="admin-theme-preview__progress-track"><span class="admin-theme-preview__progress"></span></div>',
+            '<div class="admin-theme-preview__lesson">',
+              '<div class="admin-theme-preview__lesson-title"></div>',
+              '<div class="admin-theme-preview__lesson-subtitle"></div>',
+            '</div>',
+            '<div class="admin-theme-preview__cta">Открыть</div>',
+          '</div>',
+        '</div>',
         '<h3>' + escapeHtml(theme.name) + '</h3>',
         '<p>' + escapeHtml(theme.description) + '</p>',
         isActive
-          ? '<div class="admin-theme-status">Выбран</div>'
+          ? '<div class="admin-theme-status">Выбрано</div>'
           : '<button class="btn btn-primary admin-theme-choose-btn" type="button" data-theme-id="' + theme.id + '">Выбрать</button>',
         '</article>'
       ].join("");
