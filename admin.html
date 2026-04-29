@@ -24,12 +24,12 @@
 
     <main class="admin-main">
       <nav class="admin-top-tabs" aria-label="Разделы админки">
-        <button class="admin-top-tab is-active" type="button" data-admin-tab="content">Наполнение</button>
-        <button class="admin-top-tab" type="button" data-admin-tab="appearance">Внешний вид</button>
+        <button class="admin-top-tab is-active" type="button" data-admin-tab="appearance">Внешний вид</button>
+        <button class="admin-top-tab" type="button" data-admin-tab="content">Наполнение</button>
         <button class="admin-top-tab" type="button" data-admin-tab="connections">Подключение</button>
       </nav>
 
-      <section class="admin-tab-panel" data-admin-panel="appearance" hidden>
+      <section class="admin-tab-panel" data-admin-panel="appearance">
         <section class="admin-card admin-theme-card">
         <div class="admin-card__header admin-card__header--compact admin-card__header--theme">
           <div>
@@ -52,7 +52,7 @@
       </section>
       </section>
 
-      <section class="admin-tab-panel" data-admin-panel="content">
+      <section class="admin-tab-panel" data-admin-panel="content" hidden>
       <div id="editorEmpty" class="admin-empty">Выберите урок слева</div>
 
       <div id="editorPanel" class="admin-builder" hidden>

@@ -57,11 +57,11 @@
         return stored;
       }
     } catch (error) {}
-    return "content";
+    return "appearance";
   }
 
   function setActiveAdminTab(tabId) {
-    var nextTab = (tabId === "appearance" || tabId === "connections") ? tabId : "content";
+    var nextTab = (tabId === "content" || tabId === "connections") ? tabId : "appearance";
     state.activeAdminTab = nextTab;
 
     document.querySelectorAll(".admin-top-tab").forEach(function (btn) {
