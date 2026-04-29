@@ -32,6 +32,13 @@ body.theme-light-clean {
   --accent: #2563EB;
   --accent-rgb: 37, 99, 235;
   --border: rgba(15, 23, 42, 0.10);
+  --button-bg: #2563EB;
+  --button-text: #FFFFFF;
+  --button-border: rgba(37, 99, 235, 0.35);
+  --badge-bg: rgba(37, 99, 235, 0.12);
+  --badge-text: #1D4ED8;
+  --module-text: #64748B;
+  --card-border-strong: rgba(37, 99, 235, 0.30);
 }
 
 body.theme-fitness-power {
@@ -54,6 +61,13 @@ body.theme-soft-women {
   --accent: #E8799A;
   --accent-rgb: 232, 121, 154;
   --border: rgba(232, 121, 154, 0.22);
+  --button-bg: #DB5F87;
+  --button-text: #FFFFFF;
+  --button-border: rgba(219, 95, 135, 0.35);
+  --badge-bg: rgba(219, 95, 135, 0.12);
+  --badge-text: #BE426E;
+  --module-text: #8A5A50;
+  --card-border-strong: rgba(219, 95, 135, 0.28);
 }
 
 body.theme-business-black {
@@ -176,7 +190,7 @@ a { color: inherit; }
 .lesson-card {
   width: 100%;
   border-radius: var(--radius-md);
-  border: 1px solid color-mix(in srgb, var(--accent) 25%, var(--border));
+  border: 1px solid var(--card-border-strong, color-mix(in srgb, var(--accent) 25%, var(--border)));
   background: linear-gradient(180deg, rgba(255,255,255,.03), rgba(255,255,255,.01));
   box-shadow: 0 10px 26px rgba(0, 0, 0, 0.32), 0 0 0 1px rgba(var(--accent-rgb), 0.08) inset;
   overflow: hidden;
@@ -222,7 +236,7 @@ a { color: inherit; }
 }
 
 .lesson-day {
-  color: #d8def0;
+  color: var(--module-text, #d8def0);
 }
 
 .lesson-indicators {
@@ -238,8 +252,8 @@ a { color: inherit; }
 }
 
 .status.done {
-  color: #f2eaff;
-  background: rgba(var(--accent-rgb), 0.2);
+  color: var(--badge-text, #f2eaff);
+  background: var(--badge-bg, rgba(var(--accent-rgb), 0.2));
 }
 
 .status.locked {
@@ -267,10 +281,10 @@ a { color: inherit; }
 }
 
 .btn {
-  border: 1px solid rgba(var(--accent-rgb), 0.35);
+  border: 1px solid var(--button-border, rgba(var(--accent-rgb), 0.35));
   border-radius: 12px;
-  background: linear-gradient(180deg, rgba(var(--accent-rgb), 0.28), rgba(var(--accent-rgb), 0.18));
-  color: #f7f3ff;
+  background: var(--button-bg, rgba(var(--accent-rgb), 0.18));
+  color: var(--button-text, var(--text));
   padding: 9px 14px;
   font-size: 13px;
   font-weight: 600;
@@ -285,8 +299,9 @@ a { color: inherit; }
 }
 
 .btn-primary {
-  background: linear-gradient(180deg, var(--accent), color-mix(in srgb, var(--accent) 82%, black));
-  border-color: transparent;
+  background: var(--button-bg, linear-gradient(180deg, var(--accent), color-mix(in srgb, var(--accent) 82%, black)));
+  color: var(--button-text, var(--text));
+  border-color: var(--button-border, transparent);
 }
 
 
