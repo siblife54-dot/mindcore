@@ -28,6 +28,11 @@
     return window.APP_CONFIG || {};
   }
 
+  function getActiveCourseId() {
+    var params = new URLSearchParams(window.location.search);
+    return params.get("course") || getConfig().courseId;
+  }
+
   function normalizeThemeId(themeId) {
     var value = String(themeId || "").trim();
     if (WEBAPP_THEME_IDS[value]) return value;
@@ -55,7 +60,7 @@
     var result = await client
       .from("course_settings")
       .select("theme_id")
-      .eq("course_id", config.courseId)
+      .eq("course_id", getActiveCourseId())
       .maybeSingle();
 
     if (result.error) {
@@ -222,7 +227,7 @@
     var result = await client
       .from("lessons")
       .select("*")
-      .eq("course_id", config.courseId)
+      .eq("course_id", getActiveCourseId())
       .order("day_number", { ascending: true });
 
     if (result.error) {
@@ -369,7 +374,7 @@
 
     var lines = [
       "DEBUG MODE",
-      "courseId: " + (config.courseId || "(пусто)"),
+      "courseId: " + (getActiveCourseId() || "(пусто)"),
       "total lessons loaded: " + lessons.length,
       "storage." + STORAGE_KEY + ": " + String(rawStorage),
       "storage." + LEGACY_STORAGE_KEY + " raw value: " + String(rawLegacy),
@@ -438,7 +443,7 @@
       return /питан/i.test(lesson.title || "");
     });
     if (!nutritionLesson) return null;
-    return "./lesson.html?id=" + encodeURIComponent(nutritionLesson.lesson_id);
+    return "./lesson.html?id=" + encodeURIComponent(nutritionLesson.lesson_id) + "&course=" + encodeURIComponent(getActiveCourseId());
   }
 
   async function renderNutritionCard() {
@@ -527,7 +532,7 @@
         '<div class="lesson-actions">',
         (locked
           ? '<button class="btn btn-open" type="button" disabled>Открыть</button>'
-          : '<a class="btn btn-open" href="./lesson.html?id=' + encodeURIComponent(lesson.lesson_id) + '">Открыть</a>'),
+          : '<a class="btn btn-open" href="./lesson.html?id=' + encodeURIComponent(lesson.lesson_id) + '&course=' + encodeURIComponent(getActiveCourseId()) + '">Открыть</a>'),
         '</div>',
         '</div>',
         '</article>'
@@ -933,6 +938,7 @@
   }
 
   async function init() {
+    console.log("activeCourseId:", getActiveCourseId());
     var config = getConfig();
     var themeId = "dark_premium";
     try {

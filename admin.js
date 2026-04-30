@@ -95,9 +95,7 @@
   }
 
   function getTelegramWebAppUrl() {
-    var config = getConfig();
-    var configUrl = String(config.webAppUrl || config.publicWebAppUrl || "").trim();
-    return configUrl || getCurrentWebAppUrl();
+    return window.location.origin + window.location.pathname + "?course=" + encodeURIComponent(getActiveCourseId());
   }
 
   function setTelegramStatus(message, isError) {
@@ -144,7 +142,7 @@
     var result = await client
       .from("course_integrations")
       .select("telegram_connected,telegram_bot_username,telegram_button_title,telegram_webapp_url")
-      .eq("course_id", config.courseId)
+      .eq("course_id", getActiveCourseId())
       .maybeSingle();
 
     if (result.error) {
@@ -232,7 +230,7 @@
     try {
       var response = await client.functions.invoke("connect-telegram", {
         body: {
-          course_id: config.courseId,
+          course_id: getActiveCourseId(),
           bot_token: botToken,
           button_title: buttonTitle,
           webapp_url: webappUrl
@@ -319,6 +317,11 @@
 
   function getConfig() {
     return window.APP_CONFIG || {};
+  }
+
+  function getActiveCourseId() {
+    var params = new URLSearchParams(window.location.search);
+    return params.get("course") || getConfig().courseId;
   }
 
   function getClient() {
@@ -409,7 +412,7 @@
     var result = await client
       .from("course_settings")
       .select("theme_id")
-      .eq("course_id", config.courseId)
+      .eq("course_id", getActiveCourseId())
       .maybeSingle();
 
     if (result.error) {
@@ -425,7 +428,7 @@
     var createResult = await client
       .from("course_settings")
       .upsert({
-        course_id: config.courseId,
+        course_id: getActiveCourseId(),
         theme_id: "dark_premium"
       }, { onConflict: "course_id" })
       .select("theme_id")
@@ -448,7 +451,7 @@
     var result = await client
       .from("course_settings")
       .upsert({
-        course_id: config.courseId,
+        course_id: getActiveCourseId(),
         theme_id: normalized
       }, { onConflict: "course_id" })
       .select("theme_id")
@@ -474,7 +477,7 @@
     var result = await client
       .from("lessons")
       .select("*")
-      .eq("course_id", config.courseId)
+      .eq("course_id", getActiveCourseId())
       .order("day_number", { ascending: true });
 
     if (result.error) {
@@ -1360,7 +1363,7 @@
     var config = getConfig();
     if (!client) throw new Error("Supabase client not initialized");
 
-    var folderCourseId = config.courseId || state.selectedLesson.course_id || "course";
+    var folderCourseId = getActiveCourseId() || state.selectedLesson.course_id || "course";
     var folderLessonId = state.selectedLesson.lesson_id || String(state.selectedLesson.id);
     var safeName = sanitizeFileName(file.name || "preview-image");
     var filePath = folderCourseId + "/" + folderLessonId + "/" + Date.now() + "-" + safeName;
@@ -1397,7 +1400,7 @@
     var config = getConfig();
     if (!client) throw new Error("Supabase client not initialized");
 
-    var folderCourseId = config.courseId || state.selectedLesson.course_id || "course";
+    var folderCourseId = getActiveCourseId() || state.selectedLesson.course_id || "course";
     var folderLessonId = state.selectedLesson.lesson_id || String(state.selectedLesson.id);
     var safeName = sanitizeFileName(file.name || "lesson-image");
     var filePath = folderCourseId + "/" + folderLessonId + "/" + String(blockId) + "/" + Date.now() + "_" + safeName;
@@ -1702,7 +1705,7 @@
     var result = await client
       .from("lessons")
       .insert({
-        course_id: config.courseId,
+        course_id: getActiveCourseId(),
         lesson_id: generateLessonId(),
         day_number: nextDay,
         lesson_label: "",
@@ -2906,7 +2909,8 @@
   }
 
   async function init() {
-    document.getElementById("adminCourseLabel").textContent = getConfig().courseId || "Без course_id";
+    console.log("activeCourseId:", getActiveCourseId());
+    document.getElementById("adminCourseLabel").textContent = getActiveCourseId() || "Без course_id";
 
     initTooltips();
     bindEvents();
