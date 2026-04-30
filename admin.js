@@ -79,9 +79,25 @@
     } catch (error) {}
   }
 
+  function getCurrentWebAppUrl() {
+    var origin = window.location.origin || "";
+    var pathname = window.location.pathname || "/";
+
+    var basePath = pathname;
+    if (/\.[^/]+$/.test(basePath)) {
+      basePath = basePath.replace(/[^/]*$/, "");
+    }
+    if (!basePath.endsWith("/")) {
+      basePath += "/";
+    }
+
+    return origin + basePath;
+  }
+
   function getTelegramWebAppUrl() {
     var config = getConfig();
-    return String(config.webAppUrl || config.publicWebAppUrl || "").trim();
+    var configUrl = String(config.webAppUrl || config.publicWebAppUrl || "").trim();
+    return configUrl || getCurrentWebAppUrl();
   }
 
   function setTelegramStatus(message, isError) {
