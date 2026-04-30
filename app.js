@@ -750,6 +750,12 @@
       return;
     }
 
+    var courseId = getActiveCourseId();
+    var backHref = "./index.html?course=" + encodeURIComponent(courseId);
+    document.querySelectorAll('.top-back, .lesson-footer a.btn[href*="index.html"]').forEach(function (link) {
+      link.setAttribute("href", backHref);
+    });
+
     stateBox.hidden = true;
     main.hidden = false;
 
