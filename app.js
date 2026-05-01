@@ -756,9 +756,20 @@
     }
 
     var backHref = getIndexUrlWithCourse();
-    document.querySelectorAll('.top-back, .lesson-footer a.btn[href*="index.html"]').forEach(function (link) {
+    document.querySelectorAll('.top-back').forEach(function (link) {
       link.setAttribute("href", backHref);
     });
+
+    var lessonBackBtn = document.getElementById("lessonBackBtn");
+    if (lessonBackBtn) {
+      if (lessonBackBtn.tagName === "A") {
+        lessonBackBtn.setAttribute("href", backHref);
+      } else {
+        lessonBackBtn.addEventListener("click", function () {
+          window.location.href = backHref;
+        });
+      }
+    }
 
     stateBox.hidden = true;
     main.hidden = false;
