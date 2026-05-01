@@ -38,6 +38,29 @@
     return "./index.html?course=" + encodeURIComponent(courseId);
   }
 
+  function wireLessonBackLinks() {
+    var backUrl = getIndexUrlWithCourse();
+    var selectors = [
+      'a[href="index.html"]',
+      'a[href="./index.html"]',
+      ".top-back",
+      ".lesson-back",
+      ".lesson-back-btn",
+      '[data-back-to-dashboard]'
+    ];
+    document.querySelectorAll(selectors.join(", ")).forEach(function (element) {
+      if (element.tagName === "A") {
+        element.href = backUrl;
+        return;
+      }
+      if (element.tagName === "BUTTON") {
+        element.onclick = function () {
+          window.location.href = backUrl;
+        };
+      }
+    });
+  }
+
   function normalizeThemeId(themeId) {
     var value = String(themeId || "").trim();
     if (WEBAPP_THEME_IDS[value]) return value;
@@ -755,21 +778,7 @@
       return;
     }
 
-    var backHref = getIndexUrlWithCourse();
-    document.querySelectorAll('.top-back').forEach(function (link) {
-      link.setAttribute("href", backHref);
-    });
-
-    var lessonBackBtn = document.getElementById("lessonBackBtn");
-    if (lessonBackBtn) {
-      if (lessonBackBtn.tagName === "A") {
-        lessonBackBtn.setAttribute("href", backHref);
-      } else {
-        lessonBackBtn.addEventListener("click", function () {
-          window.location.href = backHref;
-        });
-      }
-    }
+    wireLessonBackLinks();
 
     stateBox.hidden = true;
     main.hidden = false;
