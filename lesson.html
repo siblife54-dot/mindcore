@@ -8,7 +8,7 @@
   <link rel="stylesheet" href="./nutrition.css" />
 </head>
 <body class="lesson-page" data-page="lesson">
-  <a href="./index.html" class="top-back">← Назад в кабинет</a>
+  <a href="./index.html" class="top-back" data-back-to-dashboard="true">← Назад в кабинет</a>
   <div class="header-brand" id="brandName">Бренд</div>
 
   <div id="lessonState" class="state skeleton">Загрузка урока...</div>
@@ -38,7 +38,7 @@
 
     <div class="row-actions" style="margin-top: 16px;">
       <button id="completeBtn" class="btn btn-primary" type="button">Отметить как пройдено</button>
-      <a id="lessonBackBtn" href="./index.html" class="btn" style="text-decoration:none;display:inline-flex;align-items:center;">Назад в кабинет</a>
+      <a id="lessonBackBtn" href="./index.html" class="btn lesson-back-btn" data-back-to-dashboard="true" style="text-decoration:none;display:inline-flex;align-items:center;">Назад в кабинет</a>
     </div>
   </main>
 
