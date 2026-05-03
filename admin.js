@@ -3217,9 +3217,25 @@
     try {
       bindAuthGateSubmit();
       var client = getClient();
+      var sessionResult = await client.auth.getSession();
+      var sessionError = sessionResult && sessionResult.error;
+      if (sessionError) throw sessionError;
+      var session = sessionResult && sessionResult.data && sessionResult.data.session;
+      if (!session) {
+        showAuthGate();
+        return;
+      }
+
       var userResult = await client.auth.getUser();
       var userError = userResult && userResult.error;
-      if (userError) throw userError;
+      if (userError) {
+        var userErrorMessage = String((userError && userError.message) || "").toLowerCase();
+        if (userErrorMessage.indexOf("auth session missing") !== -1 || userErrorMessage.indexOf("session missing") !== -1 || userErrorMessage.indexOf("missing session") !== -1) {
+          showAuthGate();
+          return;
+        }
+        throw userError;
+      }
       var user = userResult && userResult.data && userResult.data.user;
       if (!user) {
         showAuthGate();
