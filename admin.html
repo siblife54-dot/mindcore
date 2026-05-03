@@ -9,6 +9,16 @@
   <link href="https://cdn.jsdelivr.net/npm/quill@1.3.7/dist/quill.snow.css" rel="stylesheet">
 </head>
 <body data-page="admin">
+  <section id="coursesDashboard" class="admin-courses-dashboard" hidden>
+    <div class="admin-courses-dashboard__inner">
+      <p class="admin-card__eyebrow">Mindcore SaaS</p>
+      <h1>Мои курсы</h1>
+      <p class="admin-courses-dashboard__subtitle">Создавайте и настраивайте курсы для Telegram Mini App</p>
+      <button id="createCourseBtn" class="btn btn-primary" type="button">+ Создать курс</button>
+      <div id="coursesList" class="admin-courses-list"></div>
+    </div>
+  </section>
+
   <div class="admin-layout">
     <aside class="admin-sidebar">
       <div class="admin-sidebar__header-glass">

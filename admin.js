@@ -31,6 +31,7 @@
   };
   var ALLOWED_PREVIEW_MIME_TYPES = ["image/jpeg", "image/png", "image/webp"];
   var MAX_PREVIEW_FILE_SIZE = 5 * 1024 * 1024;
+  var DEMO_ACCOUNT_ID = 1;
   var WEBAPP_THEME_IDS = {
     dark_premium: "theme-dark-premium",
     light_clean: "theme-light-clean",
@@ -326,6 +327,157 @@
 
   function getClient() {
     return window.getSupabaseClient();
+  }
+
+  function hasCourseInUrl() {
+    var params = new URLSearchParams(window.location.search);
+    return Boolean(params.get("course"));
+  }
+
+  function slugifyCourseName(value) {
+    var normalized = String(value || "")
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "");
+    if (normalized) return normalized;
+    return "course_" + Date.now();
+  }
+
+  function getBasePath() {
+    var pathname = window.location.pathname || "/admin.html";
+    var basePath = pathname.replace(/[^/]*$/, "");
+    return basePath || "/";
+  }
+
+  function buildCourseAdminUrl(courseId) {
+    return getBasePath() + "admin.html?course=" + encodeURIComponent(courseId);
+  }
+
+  function buildStudentCourseUrl(courseId) {
+    return (window.location.origin || "") + getBasePath() + "index.html?course=" + encodeURIComponent(courseId);
+  }
+
+  async function fetchMyCourses() {
+    var client = getClient();
+    var result = await client
+      .from("courses")
+      .select("*")
+      .eq("account_id", DEMO_ACCOUNT_ID)
+      .order("created_at", { ascending: false });
+    if (result.error) throw result.error;
+    return result.data || [];
+  }
+
+  function resolveCoursePrimaryId(course) {
+    return course && (course.course_id || course.id);
+  }
+
+  function renderMyCourses(courses) {
+    var list = document.getElementById("coursesList");
+    if (!list) return;
+    if (!courses.length) {
+      list.innerHTML = '<div class="admin-empty">Курсов пока нет. Создайте первый курс.</div>';
+      return;
+    }
+    list.innerHTML = courses.map(function (course) {
+      var primaryId = resolveCoursePrimaryId(course);
+      var slugOrId = course.slug || primaryId || "—";
+      return [
+        '<article class="admin-course-card">',
+        '<h3>' + escapeHtml(course.title || "Без названия") + '</h3>',
+        '<p class="admin-course-card__meta">slug/id: ' + escapeHtml(String(slugOrId)) + ' • status: ' + escapeHtml(String(course.status || "active")) + '</p>',
+        '<div class="admin-course-card__actions">',
+        '<a class="btn btn-primary" href="' + buildCourseAdminUrl(primaryId) + '">Открыть</a>',
+        '<button class="admin-btn-ghost js-copy-student-link" type="button" data-course-id="' + escapeAttr(String(primaryId)) + '">Скопировать ссылку ученика</button>',
+        '</div>',
+        '</article>'
+      ].join("");
+    }).join("");
+  }
+
+  async function createCourseFromPrompt() {
+    var client = getClient();
+    var title = window.prompt("Название курса");
+    if (!title || !title.trim()) return;
+    var slugInput = window.prompt("Slug (необязательно)") || "";
+    var slug = slugifyCourseName(slugInput.trim() || title.trim());
+    var courseId = slug;
+    // TODO: enforce tariff course limits by account.tariff later
+    var insertResult = await client
+      .from("courses")
+      .insert({
+        account_id: DEMO_ACCOUNT_ID,
+        course_id: courseId,
+        slug: slug,
+        title: title.trim(),
+        status: "active"
+      })
+      .select("*")
+      .single();
+    if (insertResult.error) throw insertResult.error;
+    var courseRow = insertResult.data || {};
+    var actualCourseId = resolveCoursePrimaryId(courseRow) || courseId;
+
+    var settingsResult = await client
+      .from("course_settings")
+      .upsert({
+        course_id: actualCourseId,
+        theme_id: "dark_premium",
+        brand_name: title.trim()
+      }, { onConflict: "course_id" });
+    if (settingsResult.error) throw settingsResult.error;
+
+    var lessonResult = await client
+      .from("lessons")
+      .insert({
+        lesson_id: "lesson_" + Date.now(),
+        course_id: actualCourseId,
+        title: "Новый урок",
+        subtitle: "",
+        day_number: 1
+      });
+    if (lessonResult.error) throw lessonResult.error;
+
+    window.location.href = buildCourseAdminUrl(actualCourseId);
+  }
+
+  async function initCoursesDashboard() {
+    var dashboard = document.getElementById("coursesDashboard");
+    var layout = document.querySelector(".admin-layout");
+    if (dashboard) dashboard.hidden = false;
+    if (layout) layout.hidden = true;
+    var courses = await fetchMyCourses();
+    renderMyCourses(courses);
+
+    var createBtn = document.getElementById("createCourseBtn");
+    if (createBtn) {
+      createBtn.addEventListener("click", async function () {
+        try {
+          await createCourseFromPrompt();
+        } catch (error) {
+          alert(error.message || "Ошибка создания курса");
+        }
+      });
+    }
+
+    var list = document.getElementById("coursesList");
+    if (list) {
+      list.addEventListener("click", function (event) {
+        var button = event.target.closest(".js-copy-student-link");
+        if (!button) return;
+        var courseId = button.getAttribute("data-course-id");
+        if (!courseId) return;
+        var url = buildStudentCourseUrl(courseId);
+        navigator.clipboard.writeText(url).then(function () {
+          button.textContent = "Ссылка скопирована";
+          setTimeout(function () {
+            button.textContent = "Скопировать ссылку ученика";
+          }, 1200);
+        }).catch(function () {
+          window.prompt("Скопируйте ссылку:", url);
+        });
+      });
+    }
   }
 
   function normalizeThemeId(themeId) {
@@ -2909,6 +3061,10 @@
   }
 
   async function init() {
+    if (!hasCourseInUrl()) {
+      await initCoursesDashboard();
+      return;
+    }
     console.log("activeCourseId:", getActiveCourseId());
     document.getElementById("adminCourseLabel").textContent = getActiveCourseId() || "Без course_id";
 
