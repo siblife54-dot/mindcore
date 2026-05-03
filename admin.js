@@ -31,7 +31,7 @@
   };
   var ALLOWED_PREVIEW_MIME_TYPES = ["image/jpeg", "image/png", "image/webp"];
   var MAX_PREVIEW_FILE_SIZE = 5 * 1024 * 1024;
-  var DEMO_ACCOUNT_ID = 1;
+  var currentAccountId = null;
   var WEBAPP_THEME_IDS = {
     dark_premium: "theme-dark-premium",
     light_clean: "theme-light-clean",
@@ -329,6 +329,11 @@
     return window.getSupabaseClient();
   }
 
+  function getCurrentAccountId() {
+    if (!currentAccountId) throw new Error("Аккаунт не инициализирован");
+    return currentAccountId;
+  }
+
   function hasCourseInUrl() {
     var params = new URLSearchParams(window.location.search);
     return Boolean(params.get("course"));
@@ -374,7 +379,7 @@
     var result = await client
       .from("courses")
       .select("*")
-      .eq("account_id", DEMO_ACCOUNT_ID)
+      .eq("account_id", getCurrentAccountId())
       .order("created_at", { ascending: false });
     if (result.error) throw result.error;
     return result.data || [];
@@ -416,7 +421,7 @@
     var insertResult = await client
       .from("courses")
       .insert({
-        account_id: DEMO_ACCOUNT_ID,
+        account_id: getCurrentAccountId(),
         course_id: courseId,
         title: title.trim(),
         status: "active"
@@ -468,6 +473,87 @@
       });
     }
 
+  }
+
+  function showAuthGate() {
+    var authGate = document.getElementById("adminAuthGate");
+    var dashboard = document.getElementById("coursesDashboard");
+    var layout = document.querySelector(".admin-layout");
+    if (authGate) authGate.hidden = false;
+    if (dashboard) dashboard.hidden = true;
+    if (layout) layout.hidden = true;
+  }
+
+  function bindAuthGateSubmit() {
+    var submitBtn = document.getElementById("authEmailSubmitBtn");
+    var emailInput = document.getElementById("authEmailInput");
+    var statusText = document.getElementById("authEmailStatusText");
+    if (!submitBtn || !emailInput) return;
+    submitBtn.addEventListener("click", async function () {
+      var client = getClient();
+      var email = String(emailInput.value || "").trim();
+      if (!email) return;
+      submitBtn.disabled = true;
+      if (statusText) statusText.hidden = true;
+      try {
+        var result = await client.auth.signInWithOtp({ email: email });
+        if (result.error) throw result.error;
+        if (statusText) {
+          statusText.hidden = false;
+          statusText.textContent = "Проверьте почту, мы отправили ссылку для входа";
+        }
+      } catch (error) {
+        if (statusText) {
+          statusText.hidden = false;
+          statusText.textContent = error.message || "Ошибка входа";
+        }
+      } finally {
+        submitBtn.disabled = false;
+      }
+    });
+  }
+
+  async function ensureCurrentAccount(user) {
+    var client = getClient();
+    var existing = await client.from("accounts").select("*").eq("auth_user_id", user.id).limit(1).maybeSingle();
+    if (existing.error) throw existing.error;
+    if (existing.data) return existing.data;
+
+    var payload = { auth_user_id: user.id, email: user.email };
+    var withTariff = Object.assign({}, payload, { tariff: "trial", subscription_status: "trial" });
+    var created = await client.from("accounts").insert(withTariff).select("*").single();
+    if (created.error) {
+      var msg = String(created.error.message || "").toLowerCase();
+      var withSubscription = Object.assign({}, payload, { subscription_status: "trial" });
+      if (msg.includes("tariff")) {
+        created = await client.from("accounts").insert(withSubscription).select("*").single();
+      }
+      if (created.error) {
+        var msg2 = String(created.error.message || "").toLowerCase();
+        if (msg2.includes("subscription_status")) {
+          created = await client.from("accounts").insert(payload).select("*").single();
+        }
+      }
+    }
+    if (created.error) throw created.error;
+    return created.data;
+  }
+
+  async function verifyCourseAccess() {
+    if (!hasCourseInUrl()) return;
+    var client = getClient();
+    var courseId = getActiveCourseId();
+    var bySlug = await client.from("courses").select("account_id").eq("course_id", courseId).maybeSingle();
+    if (bySlug.error) throw bySlug.error;
+    var course = bySlug.data;
+    if (!course) {
+      var byId = await client.from("courses").select("account_id").eq("id", courseId).maybeSingle();
+      if (byId.error) throw byId.error;
+      course = byId.data;
+    }
+    if (!course || Number(course.account_id) !== Number(getCurrentAccountId())) {
+      throw new Error("У вас нет доступа к этому курсу");
+    }
   }
 
   function normalizeThemeId(themeId) {
@@ -3051,6 +3137,28 @@
   }
 
   async function init() {
+    bindAuthGateSubmit();
+    var client = getClient();
+    var userResult = await client.auth.getUser();
+    if (userResult.error) throw userResult.error;
+    var user = userResult.data && userResult.data.user;
+    if (!user) {
+      showAuthGate();
+      return;
+    }
+
+    var account = await ensureCurrentAccount(user);
+    currentAccountId = account.id;
+    await verifyCourseAccess();
+
+    var logoutBtn = document.getElementById("logoutBtn");
+    if (logoutBtn) {
+      logoutBtn.addEventListener("click", async function () {
+        await client.auth.signOut();
+        window.location.href = "admin.html";
+      });
+    }
+
     if (!hasCourseInUrl()) {
       await initCoursesDashboard();
       return;
