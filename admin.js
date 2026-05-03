@@ -455,10 +455,7 @@
   }
 
   async function initCoursesDashboard() {
-    var dashboard = document.getElementById("coursesDashboard");
-    var layout = document.querySelector(".admin-layout");
-    if (dashboard) dashboard.hidden = false;
-    if (layout) layout.hidden = true;
+    showCoursesDashboard();
     var courses = await fetchMyCourses();
     renderMyCourses(courses);
 
@@ -475,13 +472,52 @@
 
   }
 
-  function showAuthGate() {
+  function hideAllAdminScreens() {
     var authGate = document.getElementById("adminAuthGate");
     var dashboard = document.getElementById("coursesDashboard");
     var layout = document.querySelector(".admin-layout");
-    if (authGate) authGate.hidden = false;
+    if (authGate) authGate.hidden = true;
     if (dashboard) dashboard.hidden = true;
     if (layout) layout.hidden = true;
+  }
+
+  function showAuthGate() {
+    hideAllAdminScreens();
+    var authGate = document.getElementById("adminAuthGate");
+    if (authGate) authGate.hidden = false;
+  }
+
+  function showCoursesDashboard() {
+    hideAllAdminScreens();
+    var dashboard = document.getElementById("coursesDashboard");
+    if (dashboard) dashboard.hidden = false;
+  }
+
+  function showCourseEditor() {
+    hideAllAdminScreens();
+    var layout = document.querySelector(".admin-layout");
+    if (layout) layout.hidden = false;
+  }
+
+  function showAdminError(message) {
+    hideAllAdminScreens();
+    var root = document.body;
+    if (!root) return;
+
+    var existing = document.getElementById("adminErrorScreen");
+    if (existing) existing.remove();
+
+    var section = document.createElement("section");
+    section.id = "adminErrorScreen";
+    section.className = "admin-courses-dashboard";
+    section.innerHTML = [
+      '<div class="admin-courses-dashboard__inner">',
+      "<h1>Не удалось загрузить кабинет</h1>",
+      '<p class="admin-hint">' + escapeHtml(message || "Ошибка загрузки админки") + "</p>",
+      '<a class="btn btn-primary" href="admin.html">Вернуться в кабинет</a>',
+      "</div>"
+    ].join("");
+    root.appendChild(section);
   }
 
   function bindAuthGateSubmit() {
@@ -3136,33 +3172,18 @@
     return escapeHtml(value).replace(/`/g, "&#096;");
   }
 
-  async function init() {
-    bindAuthGateSubmit();
-    var client = getClient();
-    var userResult = await client.auth.getUser();
-    if (userResult.error) throw userResult.error;
-    var user = userResult.data && userResult.data.user;
-    if (!user) {
-      showAuthGate();
-      return;
-    }
-
-    var account = await ensureCurrentAccount(user);
-    currentAccountId = account.id;
-    await verifyCourseAccess();
-
+  function bindLogout() {
     var logoutBtn = document.getElementById("logoutBtn");
+    var client = getClient();
     if (logoutBtn) {
       logoutBtn.addEventListener("click", async function () {
         await client.auth.signOut();
         window.location.href = "admin.html";
       });
     }
+  }
 
-    if (!hasCourseInUrl()) {
-      await initCoursesDashboard();
-      return;
-    }
+  async function initCourseEditor() {
     console.log("activeCourseId:", getActiveCourseId());
     document.getElementById("adminCourseLabel").textContent = getActiveCourseId() || "Курс не выбран";
 
@@ -3191,10 +3212,38 @@
     }
   }
 
-  init().catch(function (error) {
-    console.error(error);
-    var empty = document.getElementById("editorEmpty");
-    empty.hidden = false;
-    empty.textContent = error.message || "Ошибка загрузки админки";
-  });
+  async function init() {
+    hideAllAdminScreens();
+    try {
+      bindAuthGateSubmit();
+      var client = getClient();
+      var userResult = await client.auth.getUser();
+      var userError = userResult && userResult.error;
+      if (userError) throw userError;
+      var user = userResult && userResult.data && userResult.data.user;
+      if (!user) {
+        showAuthGate();
+        return;
+      }
+
+      var account = await ensureCurrentAccount(user);
+      currentAccountId = account.id;
+
+      bindLogout();
+
+      if (!hasCourseInUrl()) {
+        await initCoursesDashboard();
+        return;
+      }
+
+      await verifyCourseAccess();
+      showCourseEditor();
+      await initCourseEditor();
+    } catch (error) {
+      console.error(error);
+      showAdminError((error && error.message) || "Ошибка загрузки админки");
+    }
+  }
+
+  init();
 })();
