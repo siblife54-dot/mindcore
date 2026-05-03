@@ -1670,3 +1670,11 @@ body[data-page="admin"] {
 @media (max-width: 820px) {
   .admin-top-tabs { padding: 8px; }
 }
+
+[hidden],
+.admin-layout[hidden],
+.admin-courses-dashboard[hidden],
+#adminAuthGate[hidden],
+#coursesDashboard[hidden] {
+  display: none !important;
+}
