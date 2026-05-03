@@ -532,7 +532,12 @@
       submitBtn.disabled = true;
       if (statusText) statusText.hidden = true;
       try {
-        var result = await client.auth.signInWithOtp({ email: email });
+        var result = await client.auth.signInWithOtp({
+          email: email,
+          options: {
+            emailRedirectTo: window.location.origin + window.location.pathname,
+          },
+        });
         if (result.error) throw result.error;
         if (statusText) {
           statusText.hidden = false;
