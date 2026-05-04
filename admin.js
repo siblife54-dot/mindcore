@@ -3184,10 +3184,21 @@
     return escapeHtml(value).replace(/`/g, "&#096;");
   }
 
+  function isDebugMode() {
+    return new URLSearchParams(window.location.search).get("debug") === "1";
+  }
+
   function bindResetCabinet() {
     var resetBtn = document.getElementById("logoutBtn");
     if (!resetBtn) return;
+
+    if (!isDebugMode()) {
+      resetBtn.hidden = true;
+      return;
+    }
+
     resetBtn.textContent = "Сбросить кабинет";
+    resetBtn.hidden = false;
     resetBtn.addEventListener("click", function () {
       clearLocalAccountId();
       window.location.href = "admin.html";
@@ -3196,7 +3207,15 @@
 
   async function initCourseEditor() {
     console.log("activeCourseId:", getActiveCourseId());
-    document.getElementById("adminCourseLabel").textContent = getActiveCourseId() || "Курс не выбран";
+    var adminCourseLabel = document.getElementById("adminCourseLabel");
+    if (adminCourseLabel) {
+      if (isDebugMode()) {
+        adminCourseLabel.hidden = false;
+        adminCourseLabel.textContent = getActiveCourseId() || "Курс не выбран";
+      } else {
+        adminCourseLabel.hidden = true;
+      }
+    }
 
     initTooltips();
     bindEvents();
