@@ -30,7 +30,14 @@
       <p class="admin-card__eyebrow">Mindcore SaaS</p>
       <h1>Мои курсы</h1>
       <p class="admin-courses-dashboard__subtitle">Создавайте и настраивайте курсы для Telegram Mini App</p>
+      <p id="tariffBadge" class="admin-hint"></p>
       <button id="createCourseBtn" class="btn btn-primary" type="button">+ Создать курс</button>
+      <div id="coursesPaywall" class="admin-card" hidden>
+        <p><strong>Вы достигли лимита текущего тарифа</strong></p>
+        <p>Чтобы создавать больше курсов и уроков, активируйте более высокий тариф.</p>
+        <!-- TODO: replace your_username with real Telegram username. -->
+        <a class="btn btn-primary" href="https://t.me/your_username" target="_blank" rel="noopener">Активировать доступ</a>
+      </div>
       <div id="coursesList" class="admin-courses-list"></div>
     </div>
   </section>
