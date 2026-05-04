@@ -32,6 +32,12 @@
   var ALLOWED_PREVIEW_MIME_TYPES = ["image/jpeg", "image/png", "image/webp"];
   var MAX_PREVIEW_FILE_SIZE = 5 * 1024 * 1024;
   var currentAccountId = null;
+  var currentAccount = null;
+  var TARIFF_LIMITS = {
+    trial: { label: "Пробный", courses: 1, lessonsPerCourse: 3 },
+    basic: { label: "Basic", courses: 2, lessonsPerCourse: 30 },
+    pro: { label: "Pro", courses: 5, lessonsPerCourse: 100 }
+  };
   var WEBAPP_THEME_IDS = {
     dark_premium: "theme-dark-premium",
     light_clean: "theme-light-clean",
@@ -389,6 +395,29 @@
     return course && (course.course_id || course.id);
   }
 
+  function getCurrentTariffLimits() {
+    var tariffKey = String((currentAccount && currentAccount.tariff) || "").toLowerCase();
+    return TARIFF_LIMITS[tariffKey] || TARIFF_LIMITS.trial;
+  }
+
+  function getActivateAccessUrl() {
+    // TODO: replace your_username with real Telegram username.
+    return "https://t.me/your_username";
+  }
+
+  function renderCoursesTariffBadge() {
+    var badge = document.getElementById("tariffBadge");
+    if (!badge) return;
+    var limits = getCurrentTariffLimits();
+    badge.textContent = "Тариф: " + limits.label;
+  }
+
+  function renderCoursesPaywall(courseLimitReached) {
+    var block = document.getElementById("coursesPaywall");
+    if (!block) return;
+    block.hidden = !courseLimitReached;
+  }
+
   function renderMyCourses(courses) {
     var list = document.getElementById("coursesList");
     if (!list) return;
@@ -414,10 +443,16 @@
 
   async function createCourseFromPrompt() {
     var client = getClient();
+    var limits = getCurrentTariffLimits();
+    var existingCourses = await fetchMyCourses();
+    if (existingCourses.length >= limits.courses) {
+      alert("Вы достигли лимита текущего тарифа\nНа тарифе " + limits.label + " доступно: " + limits.courses + " курс(ов).");
+      window.open(getActivateAccessUrl(), "_blank", "noopener");
+      return;
+    }
     var title = window.prompt("Название курса");
     if (!title || !title.trim()) return;
     var courseId = generateCourseId(title.trim());
-    // TODO: enforce tariff course limits by account.tariff later
     var insertResult = await client
       .from("courses")
       .insert({
@@ -458,9 +493,15 @@
     showCoursesDashboard();
     var courses = await fetchMyCourses();
     renderMyCourses(courses);
+    renderCoursesTariffBadge();
+
+    var limits = getCurrentTariffLimits();
+    var courseLimitReached = courses.length >= limits.courses;
+    renderCoursesPaywall(courseLimitReached);
 
     var createBtn = document.getElementById("createCourseBtn");
     if (createBtn) {
+      createBtn.disabled = courseLimitReached;
       createBtn.addEventListener("click", async function () {
         try {
           await createCourseFromPrompt();
@@ -2002,6 +2043,14 @@
     var client = getClient();
     var config = getConfig();
     if (!client) return;
+    var limits = getCurrentTariffLimits();
+    if (state.lessons.length >= limits.lessonsPerCourse) {
+      var shouldOpen = window.confirm(
+        "На тарифе " + limits.label + " доступно до " + limits.lessonsPerCourse + " уроков в курсе. Активируйте более высокий тариф, чтобы добавить больше.\n\nОткрыть страницу активации?"
+      );
+      if (shouldOpen) window.open(getActivateAccessUrl(), "_blank", "noopener");
+      return;
+    }
 
     var nextDay = state.lessons.length
       ? Math.max.apply(null, state.lessons.map(function (lesson) { return lesson.day_number || 0; })) + 1
@@ -3274,6 +3323,7 @@
         return;
       }
       currentAccountId = account.id;
+      currentAccount = account;
       bindLogout();
 
       if (!hasCourseInUrl()) {
