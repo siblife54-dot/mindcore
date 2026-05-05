@@ -28,6 +28,15 @@ serve(async (req) => {
     );
   }
 
+  const telegramId = Number(telegram_id);
+
+  if (!Number.isFinite(telegramId)) {
+    return Response.json(
+      { ok: false, error: "telegram_id must be a number" },
+      { status: 400, headers: corsHeaders },
+    );
+  }
+
   const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
   const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
@@ -36,7 +45,7 @@ serve(async (req) => {
   const { data: existingAccount, error: existingError } = await supabase
     .from("accounts")
     .select("id,login,password")
-    .eq("issued_to_telegram_id", String(telegram_id))
+    .eq("issued_to_telegram_id", telegramId)
     .limit(1)
     .maybeSingle();
 
@@ -86,7 +95,7 @@ serve(async (req) => {
     .from("accounts")
     .update({
       is_issued: true,
-      issued_to_telegram_id: String(telegram_id),
+      issued_to_telegram_id: telegramId,
       issued_to_username: username ?? null,
       issued_at: new Date().toISOString(),
     })
