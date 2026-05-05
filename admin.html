@@ -10,8 +10,9 @@
 </head>
 <body data-page="admin">
   <section id="adminAuthGate" class="admin-courses-dashboard" hidden>
-    <div class="admin-courses-dashboard__inner">
+    <div class="admin-courses-dashboard__inner admin-auth-card">
       <h1>Вход в кабинет</h1>
+      <p class="admin-courses-dashboard__subtitle">Mindcore — кабинет для создания курса внутри Telegram Mini App.</p>
       <label>
         Логин
         <input id="authLoginInput" type="text" placeholder="Введите логин" />
@@ -27,12 +28,15 @@
 
   <section id="coursesDashboard" class="admin-courses-dashboard" hidden>
     <div class="admin-courses-dashboard__inner">
+      <div class="admin-screen-topbar">
+        <button class="admin-btn-ghost js-logout-btn" type="button">Выйти</button>
+      </div>
       <p class="admin-card__eyebrow">Mindcore SaaS</p>
       <h1>Мои курсы</h1>
       <p class="admin-courses-dashboard__subtitle">Создавайте и настраивайте курсы для Telegram Mini App</p>
       <div class="admin-courses-dashboard__controls">
         <p id="tariffBadge" class="admin-hint"></p>
-        <button id="createCourseBtn" class="btn btn-primary" type="button">+ Создать курс</button>
+        <button id="createCourseBtn" class="btn btn-primary admin-create-course-btn" type="button">+ Создать курс</button>
       </div>
       <div id="tariffLimitNotice" class="admin-paywall-card" hidden></div>
       <div id="coursesList" class="admin-courses-list"></div>
@@ -46,7 +50,6 @@
           <h1>Админ-панель</h1>
           <p id="adminCourseLabel">Загрузка...</p>
         </div>
-        <button id="logoutBtn" class="admin-btn-ghost" type="button">Выйти</button>
         <button id="addLessonBtn" class="btn btn-primary admin-sidebar__add-lesson" type="button">+ Новый урок</button>
       </div>
 
@@ -56,6 +59,7 @@
     <main class="admin-main">
       <div class="admin-main-header">
         <a id="backToCoursesLink" class="admin-back-link" href="admin.html">← Все курсы</a>
+        <button class="admin-btn-ghost js-logout-btn" type="button">Выйти</button>
       </div>
       <nav class="admin-top-tabs" aria-label="Разделы админки">
         <button class="admin-top-tab is-active" type="button" data-admin-tab="appearance">Внешний вид</button>
@@ -216,10 +220,6 @@
             <label class="admin-connection-url">
               Название кнопки
               <input id="telegramButtonTitle" type="text" value="Открыть курс" />
-            </label>
-            <label class="admin-connection-url">
-              WebApp URL
-              <input id="telegramWebAppUrl" type="text" placeholder="https://..." />
             </label>
             <button id="connectTelegramBtn" class="btn btn-primary" type="button">Подключить Telegram</button>
             <p id="telegramConnectionStatus" class="admin-connection-result" hidden></p>
