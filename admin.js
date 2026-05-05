@@ -54,6 +54,7 @@
     { id: "business_black", name: "Business Black", description: "Графит/чёрный/золото" },
     { id: "wow_glass", name: "Wow Glass", description: "Премиальный glass-стиль с живым свечением" }
   ];
+  var TARIFF_CONTACT_URL = "https://t.me/your_username";
 
 
 
@@ -440,9 +441,16 @@
             "<strong>Вы достигли лимита тарифа</strong>",
             "<div>На вашем тарифе доступно курсов: " + limit.courses + ".</div>",
             "<div>Чтобы расширить лимит, активируйте более высокий тариф.</div>",
-            '<a class="btn btn-primary" href="https://t.me/your_username" target="_blank" rel="noopener noreferrer">Активировать доступ</a>'
+            '<a class="btn btn-primary" href="' + TARIFF_CONTACT_URL + '" target="_blank" rel="noopener noreferrer">Активировать доступ</a>'
           ].join("")
         : "";
+    }
+  }
+
+  function showTariffLimitMessage(message) {
+    var answer = window.confirm(message + "\n\nНаписать в Telegram для активации доступа?");
+    if (answer) {
+      window.open(TARIFF_CONTACT_URL, "_blank", "noopener,noreferrer");
     }
   }
 
@@ -491,6 +499,9 @@
       });
     if (lessonResult.error) throw lessonResult.error;
 
+    try {
+      window.localStorage.setItem("admin_active_tab", "appearance");
+    } catch (error) {}
     window.location.href = buildCourseAdminUrl(actualCourseId);
   }
 
@@ -2048,7 +2059,9 @@
     if (!client) return;
     var limit = getCurrentTariffLimit();
     if (state.lessons.length >= limit.lessonsPerCourse) {
-      alert("На вашем тарифе доступно уроков в курсе: " + limit.lessonsPerCourse + ". Активируйте более высокий тариф.");
+      showTariffLimitMessage(
+        "Вы достигли лимита пробного тарифа\nНа пробном тарифе доступно " + limit.lessonsPerCourse + " урока в курсе. Чтобы добавить больше уроков и полноценно запустить курс — активируйте доступ."
+      );
       return;
     }
 
