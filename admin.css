@@ -23,6 +23,7 @@ body[data-page="admin"] {
   margin-top: 14px;
   display: grid;
   gap: 12px;
+  justify-items: start;
 }
 
 .admin-courses-dashboard__controls .admin-hint {
@@ -220,6 +221,39 @@ body[data-page="admin"] {
 
 .admin-main-header {
   margin-bottom: 10px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+.admin-screen-topbar {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 16px;
+}
+
+.admin-create-course-btn {
+  width: auto;
+}
+
+.admin-auth-card {
+  max-width: 460px;
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  background: linear-gradient(180deg, rgba(18, 36, 58, 0.96), rgba(18, 36, 58, 0.72));
+  padding: 24px;
+  display: grid;
+  gap: 12px;
+}
+
+.admin-auth-card h1 {
+  margin: 0;
+}
+
+.admin-auth-card label {
+  display: grid;
+  gap: 8px;
 }
 
 .admin-back-link {

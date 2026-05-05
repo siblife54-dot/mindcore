@@ -218,17 +218,12 @@
 
     var botToken = String((tokenInput && tokenInput.value) || "").trim();
     var buttonTitle = String((titleInput && titleInput.value) || "").trim() || "Открыть курс";
-    var webappUrl = String((urlInput && urlInput.value) || "").trim();
+    var webappUrl = String((urlInput && urlInput.value) || "").trim() || getTelegramWebAppUrl();
 
     if (!botToken) {
       setTelegramStatus("Введите Bot Token", true);
       return;
     }
-    if (!webappUrl) {
-      setTelegramStatus("Введите WebApp URL", true);
-      return;
-    }
-
     if (connectBtn) {
       connectBtn.disabled = true;
       connectBtn.textContent = "Подключаем...";
@@ -3280,12 +3275,13 @@
   }
 
   function bindLogout() {
-    var logoutBtn = document.getElementById("logoutBtn");
-    if (!logoutBtn) return;
-    logoutBtn.hidden = false;
-    logoutBtn.addEventListener("click", function () {
-      clearStoredAuth();
-      window.location.href = "admin.html";
+    var logoutButtons = document.querySelectorAll(".js-logout-btn");
+    if (!logoutButtons.length) return;
+    logoutButtons.forEach(function (button) {
+      button.addEventListener("click", function () {
+        clearStoredAuth();
+        window.location.href = "admin.html";
+      });
     });
   }
 
