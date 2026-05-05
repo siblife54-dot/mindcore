@@ -19,10 +19,39 @@ body[data-page="admin"] {
   color: var(--muted);
 }
 
+.admin-courses-dashboard__controls {
+  margin-top: 14px;
+  display: grid;
+  gap: 12px;
+}
+
+.admin-courses-dashboard__controls .admin-hint {
+  margin: 0;
+}
+
 .admin-courses-list {
   margin-top: 20px;
   display: grid;
   gap: 12px;
+}
+
+.admin-paywall-card {
+  margin-top: 14px;
+  border: 1px solid color-mix(in srgb, var(--accent) 38%, var(--border));
+  border-radius: 16px;
+  background: linear-gradient(180deg, rgba(139, 92, 246, 0.14), rgba(18, 36, 58, 0.82));
+  padding: 14px;
+  display: grid;
+  gap: 8px;
+}
+
+.admin-paywall-card strong {
+  font-size: 16px;
+}
+
+.admin-paywall-card .btn {
+  width: fit-content;
+  margin-top: 4px;
 }
 
 .admin-course-card {
