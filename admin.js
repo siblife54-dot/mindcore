@@ -32,6 +32,12 @@
   var ALLOWED_PREVIEW_MIME_TYPES = ["image/jpeg", "image/png", "image/webp"];
   var MAX_PREVIEW_FILE_SIZE = 5 * 1024 * 1024;
   var currentAccountId = null;
+  var currentAccount = null;
+  var TARIFF_LIMITS = {
+    trial: { label: "Пробный", courses: 1, lessonsPerCourse: 3 },
+    basic: { label: "Basic", courses: 2, lessonsPerCourse: 30 },
+    pro: { label: "Pro", courses: 5, lessonsPerCourse: 100 }
+  };
   var WEBAPP_THEME_IDS = {
     dark_premium: "theme-dark-premium",
     light_clean: "theme-light-clean",
@@ -334,6 +340,11 @@
     return currentAccountId;
   }
 
+  function getCurrentTariffLimit() {
+    var tariff = currentAccount && currentAccount.tariff ? currentAccount.tariff : "trial";
+    return TARIFF_LIMITS[tariff] || TARIFF_LIMITS.trial;
+  }
+
   function hasCourseInUrl() {
     var params = new URLSearchParams(window.location.search);
     return Boolean(params.get("course"));
@@ -412,8 +423,37 @@
     }).join("");
   }
 
+  function renderTariffLimitState(courses) {
+    var list = Array.isArray(courses) ? courses : [];
+    var limit = getCurrentTariffLimit();
+    var badge = document.getElementById("tariffBadge");
+    var createBtn = document.getElementById("createCourseBtn");
+    var notice = document.getElementById("tariffLimitNotice");
+    var isLimitReached = list.length >= limit.courses;
+
+    if (badge) badge.textContent = "Тариф: " + limit.label;
+    if (createBtn) createBtn.disabled = isLimitReached;
+    if (notice) {
+      notice.hidden = !isLimitReached;
+      notice.innerHTML = isLimitReached
+        ? [
+            "<strong>Вы достигли лимита тарифа</strong>",
+            "<div>На вашем тарифе доступно курсов: " + limit.courses + ".</div>",
+            "<div>Чтобы расширить лимит, активируйте более высокий тариф.</div>",
+            '<a class="btn btn-primary" href="https://t.me/your_username" target="_blank" rel="noopener noreferrer">Активировать доступ</a>'
+          ].join("")
+        : "";
+    }
+  }
+
   async function createCourseFromPrompt() {
     var client = getClient();
+    var limit = getCurrentTariffLimit();
+    var courses = await fetchMyCourses();
+    if (courses.length >= limit.courses) {
+      alert("На вашем тарифе доступно курсов: " + limit.courses + ". Активируйте более высокий тариф.");
+      return;
+    }
     var title = window.prompt("Название курса");
     if (!title || !title.trim()) return;
     var courseId = generateCourseId(title.trim());
@@ -457,6 +497,7 @@
   async function initCoursesDashboard() {
     showCoursesDashboard();
     var courses = await fetchMyCourses();
+    renderTariffLimitState(courses);
     renderMyCourses(courses);
 
     var createBtn = document.getElementById("createCourseBtn");
@@ -560,7 +601,7 @@
     var client = getClient();
     var storedId = getStoredLocalAccountId();
     if (!storedId) return null;
-    var existing = await client.from("accounts").select("id,login").eq("id", storedId).maybeSingle();
+    var existing = await client.from("accounts").select("*").eq("id", storedId).maybeSingle();
     if (existing.error) throw existing.error;
     if (existing.data && existing.data.id) return existing.data;
     clearStoredAuth();
@@ -601,6 +642,9 @@
         }
         storeLocalAccountId(account.id);
         storeLocalAccountLogin(account.login || login);
+        currentAccount = account;
+        console.log("currentAccount:", currentAccount);
+        console.log("currentTariffLimit:", getCurrentTariffLimit());
         window.location.href = "admin.html" + window.location.search;
       } catch (error) {
         setAuthStatus((error && error.message) || "Ошибка входа", true);
@@ -2002,6 +2046,11 @@
     var client = getClient();
     var config = getConfig();
     if (!client) return;
+    var limit = getCurrentTariffLimit();
+    if (state.lessons.length >= limit.lessonsPerCourse) {
+      alert("На вашем тарифе доступно уроков в курсе: " + limit.lessonsPerCourse + ". Активируйте более высокий тариф.");
+      return;
+    }
 
     var nextDay = state.lessons.length
       ? Math.max.apply(null, state.lessons.map(function (lesson) { return lesson.day_number || 0; })) + 1
@@ -3274,6 +3323,9 @@
         return;
       }
       currentAccountId = account.id;
+      currentAccount = account;
+      console.log("currentAccount:", currentAccount);
+      console.log("currentTariffLimit:", getCurrentTariffLimit());
       bindLogout();
 
       if (!hasCourseInUrl()) {
