@@ -54,7 +54,7 @@
     { id: "business_black", name: "Business Black", description: "Графит/чёрный/золото" },
     { id: "wow_glass", name: "Wow Glass", description: "Премиальный glass-стиль с живым свечением" }
   ];
-  var TARIFF_CONTACT_URL = "https://t.me/your_username";
+  var ACTIVATION_BOT_URL = "https://t.me/mindcore_miniapp_bot?start=activate";
 
 
 
@@ -436,7 +436,7 @@
             "<strong>Вы достигли лимита тарифа</strong>",
             "<div>На вашем тарифе доступно курсов: " + limit.courses + ".</div>",
             "<div>Чтобы расширить лимит, активируйте более высокий тариф.</div>",
-            '<a class="btn btn-primary" href="' + TARIFF_CONTACT_URL + '" target="_blank" rel="noopener noreferrer">Активировать доступ</a>'
+            '<a class="btn btn-primary" href="' + ACTIVATION_BOT_URL + '" target="_blank" rel="noopener noreferrer">Активировать доступ</a>'
           ].join("")
         : "";
     }
@@ -445,7 +445,7 @@
   function showTariffLimitMessage(message) {
     var answer = window.confirm(message + "\n\nНаписать в Telegram для активации доступа?");
     if (answer) {
-      window.open(TARIFF_CONTACT_URL, "_blank", "noopener,noreferrer");
+      window.open(ACTIVATION_BOT_URL, "_blank", "noopener,noreferrer");
     }
   }
 
