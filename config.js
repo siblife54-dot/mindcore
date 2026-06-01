@@ -27,14 +27,14 @@ window.APP_THEME_PRESETS = [
     description: "Нежный розово-зелёный стиль с акцентом матча",
     className: "theme-matcha-aesthetic",
     previewTokens: {
-      bg: "#FFF8F1",
-      card: "#FFFFFF",
-      card2: "#F7EDE3",
-      text: "#3A2A22",
-      muted: "#8A6F63",
-      accent: "#E8759A",
-      accent2: "#B2CF81",
-      border: "rgba(232, 117, 154, 0.24)"
+      bg: "#FFFDF9",
+      card: "#FFF8F5",
+      card2: "#FFF3EE",
+      text: "#3B2D2A",
+      muted: "#8F746D",
+      accent: "#FF7FA8",
+      accent2: "#A8D672",
+      border: "rgba(255, 127, 168, 0.24)"
     }
   }
 ];
