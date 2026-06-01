@@ -19,5 +19,22 @@ window.APP_THEME_PRESETS = [
   { id: "fitness_power", name: "Fitness Power", description: "Тёмный зелёный фитнес-стиль" },
   { id: "soft_women", name: "Soft Women", description: "Светлый нюд/розовый стиль" },
   { id: "business_black", name: "Business Black", description: "Графит/чёрный/золото" },
-  { id: "wow_glass", name: "Wow Glass", description: "Премиальный glass-стиль с живым свечением" }
+  { id: "wow_glass", name: "Wow Glass", description: "Премиальный glass-стиль с живым свечением" },
+  {
+    id: "matcha_aesthetic",
+    title: "Matcha Aesthetic",
+    name: "Matcha Aesthetic",
+    description: "Нежный розово-зелёный стиль с акцентом матча",
+    className: "theme-matcha-aesthetic",
+    previewTokens: {
+      bg: "#FFF8F1",
+      card: "#FFFFFF",
+      card2: "#F7EDE3",
+      text: "#3A2A22",
+      muted: "#8A6F63",
+      accent: "#E8759A",
+      accent2: "#B2CF81",
+      border: "rgba(232, 117, 154, 0.24)"
+    }
+  }
 ];
