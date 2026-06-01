@@ -58,7 +58,7 @@
     { id: "soft_women", name: "Soft Women", description: "Светлый нюд/розовый стиль" },
     { id: "business_black", name: "Business Black", description: "Графит/чёрный/золото" },
     { id: "wow_glass", name: "Wow Glass", description: "Премиальный glass-стиль с живым свечением" },
-    { id: "matcha_aesthetic", title: "Matcha Aesthetic", name: "Matcha Aesthetic", description: "Нежный розово-зелёный стиль с акцентом матча", className: "theme-matcha-aesthetic", previewTokens: { bg: "#FFFDF9", card: "#FFF8F5", card2: "#FFF3EE", text: "#3B2D2A", muted: "#8F746D", accent: "#FF7FA8", accent2: "#A8D672", border: "rgba(255, 127, 168, 0.24)" } }
+    { id: "matcha_aesthetic", title: "Matcha Aesthetic", name: "Matcha Aesthetic", description: "Нежный розово-зелёный стиль с акцентом матча", className: "theme-matcha-aesthetic", previewTokens: { bg: "#FFFDF8", card: "#FFFFFF", card2: "#FFF4F7", text: "#332522", muted: "#8C6F66", accent: "#FF5F93", accent2: "#9FD267", border: "rgba(255, 95, 147, 0.22)" } }
   ];
   var ACTIVATION_BOT_URL = "https://t.me/mindcore_miniapp_bot?start=activate";
   var currentPreviewTheme = null;

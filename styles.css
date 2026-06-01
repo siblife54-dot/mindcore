@@ -1177,60 +1177,102 @@ body::-webkit-scrollbar {
 .designer-xp-toast.is-visible { opacity: 1; transform: translateY(0); }
 
 body.theme-matcha-aesthetic {
-  --bg: #FFFDF9;
-  --card: #FFF8F5;
-  --card-2: #FFF3EE;
-  --text: #3B2D2A;
-  --muted: #8F746D;
-  --accent: #FF7FA8;
-  --accent-rgb: 255, 127, 168;
-  --accent-secondary: #A8D672;
-  --border: rgba(255, 127, 168, 0.24);
-  --button-bg: linear-gradient(135deg, #FF8FB6, #FF6FA3);
+  --bg: #FFFDF8;
+  --card: #FFFFFF;
+  --card-2: #FFF4F7;
+  --text: #332522;
+  --muted: #8C6F66;
+  --accent: #FF5F93;
+  --accent-rgb: 255, 95, 147;
+  --accent-secondary: #9FD267;
+  --accent-secondary-rgb: 159, 210, 103;
+  --border: rgba(255, 95, 147, 0.22);
+  --button-bg: #FF5F93;
   --button-text: #FFFFFF;
-  --button-border: rgba(255, 127, 168, 0.35);
-  --badge-bg: rgba(168, 214, 114, 0.22);
-  --badge-text: #668B3B;
-  --module-text: #8F746D;
-  --card-border-strong: rgba(255, 127, 168, 0.30);
+  --button-border: rgba(255, 95, 147, 0.35);
+  --badge-bg: rgba(159, 210, 103, 0.18);
+  --badge-text: #5F8F2D;
+  --module-text: #9A746A;
+  --card-border-strong: rgba(255, 95, 147, 0.32);
   background:
-    radial-gradient(circle at 14% 8%, rgba(255, 143, 182, 0.20), transparent 28%),
-    radial-gradient(circle at 86% 18%, rgba(168, 214, 114, 0.22), transparent 30%),
-    radial-gradient(circle at 52% 88%, rgba(255, 127, 168, 0.10), transparent 34%),
-    linear-gradient(180deg, #FFFDF9 0%, #FFF8F5 52%, #FFF3EE 100%);
+    radial-gradient(circle at 12% 8%, rgba(255, 95, 147, 0.22), transparent 26%),
+    radial-gradient(circle at 88% 16%, rgba(159, 210, 103, 0.24), transparent 28%),
+    radial-gradient(circle at 50% 92%, rgba(255, 190, 210, 0.20), transparent 32%),
+    linear-gradient(180deg, #FFFDF8 0%, #FFF4F7 46%, #F8FBEF 100%);
+  background-attachment: fixed;
   color: var(--text);
 }
 
-body.theme-matcha-aesthetic .lesson-card,
+body.theme-matcha-aesthetic::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 18% 22%, rgba(255, 95, 147, 0.10), transparent 12%),
+    radial-gradient(circle at 82% 28%, rgba(159, 210, 103, 0.12), transparent 13%);
+  z-index: 0;
+}
+
+body.theme-matcha-aesthetic > * {
+  position: relative;
+  z-index: 1;
+}
+
+body.theme-matcha-aesthetic .card,
 body.theme-matcha-aesthetic .course-card,
 body.theme-matcha-aesthetic .student-card,
+body.theme-matcha-aesthetic .profile-card,
+body.theme-matcha-aesthetic .progress-card,
 body.theme-matcha-aesthetic .app-card {
-  background: linear-gradient(145deg, rgba(255, 248, 245, 0.94), rgba(255, 243, 238, 0.88));
-  border: 1px solid rgba(255, 127, 168, 0.20);
+  background: linear-gradient(145deg, rgba(255,255,255,0.96), rgba(255,244,247,0.88));
+  border: 1px solid rgba(255, 95, 147, 0.22);
   box-shadow:
-    0 18px 45px rgba(92, 58, 46, 0.12),
-    inset 0 1px 0 rgba(255,255,255,0.75);
+    0 18px 45px rgba(97, 55, 45, 0.14),
+    0 0 0 1px rgba(255,255,255,0.65) inset,
+    inset 0 1px 0 rgba(255,255,255,0.92);
+}
+
+body.theme-matcha-aesthetic .lesson-card {
+  background:
+    radial-gradient(circle at 8% 8%, rgba(255, 95, 147, 0.14), transparent 26%),
+    radial-gradient(circle at 92% 18%, rgba(159, 210, 103, 0.16), transparent 28%),
+    linear-gradient(145deg, rgba(255,255,255,0.96), rgba(255,244,247,0.88));
+  border: 1px solid rgba(255, 95, 147, 0.22);
+  box-shadow:
+    0 18px 45px rgba(97, 55, 45, 0.14),
+    0 0 0 1px rgba(255,255,255,0.65) inset,
+    inset 0 1px 0 rgba(255,255,255,0.92);
 }
 
 body.theme-matcha-aesthetic button,
 body.theme-matcha-aesthetic .btn,
-body.theme-matcha-aesthetic .lesson-button {
-  background: linear-gradient(135deg, #FF8FB6, #FF6FA3);
+body.theme-matcha-aesthetic .lesson-button,
+body.theme-matcha-aesthetic .primary-button {
+  background: linear-gradient(135deg, #FF77A5 0%, #FF4F88 100%);
   color: #FFFFFF;
-  border-color: rgba(255, 127, 168, 0.35);
-  box-shadow: 0 10px 24px rgba(255, 127, 168, 0.24);
+  border-color: rgba(255, 95, 147, 0.38);
+  box-shadow:
+    0 12px 28px rgba(255, 95, 147, 0.28),
+    inset 0 1px 0 rgba(255,255,255,0.35);
+}
+
+body.theme-matcha-aesthetic .progress-bar,
+body.theme-matcha-aesthetic .progress-track {
+  background: rgba(255, 95, 147, 0.10);
 }
 
 body.theme-matcha-aesthetic .progress-fill,
 body.theme-matcha-aesthetic .progress-bar-fill {
-  background: linear-gradient(90deg, #FF8FB6, #A8D672);
+  background: linear-gradient(90deg, #FF5F93 0%, #FFB15F 48%, #9FD267 100%);
+  box-shadow: 0 8px 22px rgba(159, 210, 103, 0.20);
 }
 
 body.theme-matcha-aesthetic .badge,
 body.theme-matcha-aesthetic .status-badge,
 body.theme-matcha-aesthetic .lesson-status,
 body.theme-matcha-aesthetic .status.done {
-  background: rgba(168, 214, 114, 0.22);
-  color: #668B3B;
-  border: 1px solid rgba(168, 214, 114, 0.28);
+  background: rgba(159, 210, 103, 0.20);
+  color: #5F8F2D;
+  border: 1px solid rgba(159, 210, 103, 0.30);
 }
