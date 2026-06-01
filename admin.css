@@ -2205,42 +2205,71 @@ body[data-page="admin"] {
 
 .admin-theme-preview.theme-matcha-aesthetic {
   background:
-    radial-gradient(circle at 14% 8%, rgba(232, 117, 154, 0.18), transparent 38%),
-    radial-gradient(circle at 86% 18%, rgba(178, 207, 129, 0.22), transparent 42%),
-    linear-gradient(180deg, #FFF8F1 0%, #F8EDE4 55%, #F3E2D8 100%);
-  box-shadow: 0 14px 30px rgba(92, 58, 46, 0.14);
+    radial-gradient(circle at 14% 8%, rgba(255, 95, 147, 0.28), transparent 38%),
+    radial-gradient(circle at 86% 18%, rgba(159, 210, 103, 0.32), transparent 42%),
+    radial-gradient(circle at 50% 94%, rgba(255, 190, 210, 0.24), transparent 46%),
+    linear-gradient(180deg, #FFFDF8 0%, #FFF4F7 52%, #F8FBEF 100%);
+  box-shadow: 0 16px 34px rgba(97, 55, 45, 0.18);
 }
 
 .admin-theme-preview.theme-matcha-aesthetic .admin-theme-preview__screen {
-  background: rgba(255, 255, 255, 0.72);
-  border-color: rgba(232, 117, 154, 0.18);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.78);
+  background: linear-gradient(145deg, rgba(255, 255, 255, 0.90), rgba(255, 244, 247, 0.78));
+  border-color: rgba(255, 95, 147, 0.30);
+  box-shadow:
+    0 12px 26px rgba(97, 55, 45, 0.14),
+    inset 0 1px 0 rgba(255, 255, 255, 0.92);
 }
 
 .admin-theme-preview.theme-matcha-aesthetic .admin-theme-preview__header {
-  background: rgba(138, 111, 99, 0.42);
+  background: rgba(140, 111, 102, 0.52);
 }
 
 .admin-theme-preview.theme-matcha-aesthetic .admin-theme-preview__progress-track {
-  background: rgba(178, 207, 129, 0.22);
+  background: rgba(255, 95, 147, 0.12);
 }
 
 .admin-theme-preview.theme-matcha-aesthetic .admin-theme-preview__progress {
-  background: #B2CF81;
+  background: linear-gradient(90deg, #FF5F93 0%, #FFB15F 48%, #9FD267 100%);
+  box-shadow: 0 4px 10px rgba(159, 210, 103, 0.28);
 }
 
 .admin-theme-preview.theme-matcha-aesthetic .admin-theme-preview__cta {
-  background: linear-gradient(135deg, #F19AB3, #E8759A);
-  box-shadow: 0 8px 18px rgba(232, 117, 154, 0.22);
+  background: linear-gradient(135deg, #FF77A5 0%, #FF4F88 100%);
+  box-shadow:
+    0 8px 18px rgba(255, 95, 147, 0.30),
+    inset 0 1px 0 rgba(255, 255, 255, 0.35);
 }
 
 .admin-theme-preview.theme-matcha-aesthetic .admin-theme-preview__lesson {
-  background: linear-gradient(145deg, rgba(255, 255, 255, 0.92), rgba(255, 246, 240, 0.86));
-  border: 1px solid rgba(232, 117, 154, 0.20);
-  box-shadow: 0 10px 22px rgba(92, 58, 46, 0.10);
+  position: relative;
+  background:
+    radial-gradient(circle at 8% 8%, rgba(255, 95, 147, 0.16), transparent 30%),
+    radial-gradient(circle at 92% 18%, rgba(159, 210, 103, 0.20), transparent 32%),
+    linear-gradient(145deg, rgba(255, 255, 255, 0.96), rgba(255, 244, 247, 0.88));
+  border: 1px solid rgba(255, 95, 147, 0.26);
+  box-shadow:
+    0 10px 22px rgba(97, 55, 45, 0.14),
+    inset 0 1px 0 rgba(255, 255, 255, 0.92);
+}
+
+.admin-theme-preview.theme-matcha-aesthetic .admin-theme-preview__lesson::after {
+  content: "✓";
+  position: absolute;
+  right: 7px;
+  bottom: 7px;
+  display: grid;
+  width: 15px;
+  height: 15px;
+  place-items: center;
+  border: 1px solid rgba(159, 210, 103, 0.36);
+  border-radius: 999px;
+  background: rgba(159, 210, 103, 0.24);
+  color: #5F8F2D;
+  font-size: 10px;
+  font-weight: 800;
 }
 
 .admin-theme-preview.theme-matcha-aesthetic .admin-theme-preview__lesson-title,
 .admin-theme-preview.theme-matcha-aesthetic .admin-theme-preview__lesson-subtitle {
-  background: rgba(138, 111, 99, 0.42);
+  background: rgba(140, 111, 102, 0.52);
 }
