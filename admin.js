@@ -48,7 +48,8 @@
     fitness_power: "theme-fitness-power",
     soft_women: "theme-soft-women",
     business_black: "theme-business-black",
-    wow_glass: "theme-wow-glass"
+    wow_glass: "theme-wow-glass",
+    matcha_aesthetic: "theme-matcha-aesthetic"
   };
   var WEBAPP_THEMES = Array.isArray(window.APP_THEME_PRESETS) && window.APP_THEME_PRESETS.length ? window.APP_THEME_PRESETS.slice() : [
     { id: "dark_premium", name: "Dark Premium", description: "Тёмно-синий фон с фиолетовым акцентом" },
@@ -56,7 +57,8 @@
     { id: "fitness_power", name: "Fitness Power", description: "Тёмный зелёный фитнес-стиль" },
     { id: "soft_women", name: "Soft Women", description: "Светлый нюд/розовый стиль" },
     { id: "business_black", name: "Business Black", description: "Графит/чёрный/золото" },
-    { id: "wow_glass", name: "Wow Glass", description: "Премиальный glass-стиль с живым свечением" }
+    { id: "wow_glass", name: "Wow Glass", description: "Премиальный glass-стиль с живым свечением" },
+    { id: "matcha_aesthetic", title: "Matcha Aesthetic", name: "Matcha Aesthetic", description: "Нежный розово-зелёный стиль с акцентом матча", className: "theme-matcha-aesthetic", previewTokens: { bg: "#FFF8F1", card: "#FFFFFF", card2: "#F7EDE3", text: "#3A2A22", muted: "#8A6F63", accent: "#E8759A", accent2: "#B2CF81", border: "rgba(232, 117, 154, 0.24)" } }
   ];
   var ACTIVATION_BOT_URL = "https://t.me/mindcore_miniapp_bot?start=activate";
   var currentPreviewTheme = null;
@@ -926,7 +928,7 @@ function getDefaultAdminTab() {
       var isActive = state.selectedThemeId === theme.id;
       return [
         '<article class="admin-theme-item' + (isActive ? ' is-active' : '') + '" data-theme-id="' + theme.id + '">',
-        '<div class="admin-theme-preview ' + WEBAPP_THEME_IDS[theme.id] + '">',
+        '<div class="admin-theme-preview ' + (theme.className || WEBAPP_THEME_IDS[theme.id]) + '">',
           '<div class="admin-theme-preview__screen">',
             '<div class="admin-theme-preview__header"></div>',
             '<div class="admin-theme-preview__progress-track"><span class="admin-theme-preview__progress"></span></div>',
