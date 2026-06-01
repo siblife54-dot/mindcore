@@ -1259,13 +1259,13 @@ body.theme-matcha-aesthetic .primary-button {
 
 body.theme-matcha-aesthetic .progress-bar,
 body.theme-matcha-aesthetic .progress-track {
-  background: rgba(255, 95, 147, 0.10);
+  background: rgba(255, 95, 147, 0.12);
 }
 
 body.theme-matcha-aesthetic .progress-fill,
 body.theme-matcha-aesthetic .progress-bar-fill {
-  background: linear-gradient(90deg, #FF5F93 0%, #FFB15F 48%, #9FD267 100%);
-  box-shadow: 0 8px 22px rgba(159, 210, 103, 0.20);
+  background: linear-gradient(90deg, #FF5F93 0%, #F78FB0 52%, #9FD267 100%);
+  box-shadow: 0 6px 16px rgba(255, 95, 147, 0.24);
 }
 
 body.theme-matcha-aesthetic .badge,
