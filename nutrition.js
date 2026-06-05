@@ -28,27 +28,51 @@
       return storage && storage.type ? storage.type : "local";
     }
 
+    async function loadLegacyPlan() {
+      if (!storage || typeof storage.getItem !== "function") return null;
+      var raw = await storage.getItem(STORAGE_KEY);
+      if (!raw) return null;
+      var parsed = JSON.parse(raw);
+      return parsed && typeof parsed === "object" ? parsed : null;
+    }
+
+    function getCalculatorInputs(plan) {
+      plan = plan || {};
+      return {
+        age: plan.age,
+        height: plan.height,
+        weight: plan.weight,
+        sex: plan.sex,
+        activity: plan.activity,
+        goal: plan.goal
+      };
+    }
+
     async function loadPlan() {
       try {
-        var raw = await storage.getItem(STORAGE_KEY);
         debug.storageUsed = getStorageType();
-        if (!raw) {
+
+        if (storage && typeof storage.loadAppState === "function") {
+          var state = await storage.loadAppState();
+          if (state && state.kbju && Object.keys(state.kbju).length) {
+            debug.exists = true;
+            debug.updatedAt = state.kbju.updatedAt || state.updatedAt || "";
+            debug.loadedSuccessfully = true;
+            return Object.assign({}, state.calculatorInputs || {}, state.kbju || {});
+          }
+        }
+
+        var legacy = await loadLegacyPlan();
+        if (!legacy) {
           debug.exists = false;
           debug.loadedSuccessfully = true;
           return null;
         }
 
-        var parsed = JSON.parse(raw);
-        if (!parsed || typeof parsed !== "object") {
-          debug.exists = false;
-          debug.loadedSuccessfully = false;
-          return null;
-        }
-
         debug.exists = true;
-        debug.updatedAt = parsed.updatedAt || "";
+        debug.updatedAt = legacy.updatedAt || "";
         debug.loadedSuccessfully = true;
-        return parsed;
+        return legacy;
       } catch (error) {
         debug.loadedSuccessfully = false;
         return null;
@@ -56,7 +80,14 @@
     }
 
     async function savePlan(plan) {
-      await storage.setItem(STORAGE_KEY, JSON.stringify(plan));
+      if (storage && typeof storage.updateAppState === "function") {
+        await storage.updateAppState({
+          kbju: plan,
+          calculatorInputs: getCalculatorInputs(plan)
+        });
+      } else if (storage && typeof storage.setItem === "function") {
+        await storage.setItem(STORAGE_KEY, JSON.stringify(plan));
+      }
       debug.exists = true;
       debug.storageUsed = getStorageType();
       debug.updatedAt = plan.updatedAt;
