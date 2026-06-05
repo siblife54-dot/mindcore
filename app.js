@@ -1,6 +1,7 @@
 (function () {
   "use strict";
 
+  var APP_STATE_KEY = "course_app_state_v1";
   var STORAGE_KEY = "course_completed_lessons_v1";
   var LEGACY_STORAGE_KEY = "completedLessons";
   var DEBUG_IMG_STATUS = {};
@@ -14,9 +15,13 @@
   var DESIGNER_XP_TOAST_KEY = "designer_xp_last_gain_v1";
   var LAST_LESSONS = [];
   var STORAGE_DEBUG = {
+    platform: "browser",
     telegramDetected: false,
     cloudAvailable: false,
+    vkBridgeDetected: false,
+    maxBridgeDetected: false,
     activeStorage: "local",
+    migratedLegacyToState: false,
     migratedLocalToCloud: false
   };
   var WEBAPP_THEME_IDS = {
@@ -351,7 +356,48 @@
     }
   }
 
+  async function loadAppState() {
+    if (APP_STORAGE && typeof APP_STORAGE.loadAppState === "function") {
+      return APP_STORAGE.loadAppState();
+    }
+
+    var raw = APP_STORAGE ? await APP_STORAGE.getItem(APP_STATE_KEY) : null;
+    var platform = globalThis.CourseAppPlatform || {};
+    if (platform.normalizeAppState) {
+      try {
+        return platform.normalizeAppState(raw ? JSON.parse(raw) : null);
+      } catch (error) {
+        return platform.normalizeAppState(null);
+      }
+    }
+
+    return { completedLessons: [], kbju: {}, calculatorInputs: {}, lastOpenedLesson: null, updatedAt: "" };
+  }
+
+  async function saveAppState(state) {
+    if (APP_STORAGE && typeof APP_STORAGE.saveAppState === "function") {
+      return APP_STORAGE.saveAppState(state);
+    }
+
+    var next = Object.assign({ completedLessons: [], kbju: {}, calculatorInputs: {}, lastOpenedLesson: null }, state || {});
+    next.updatedAt = next.updatedAt || new Date().toISOString();
+    await APP_STORAGE.setItem(APP_STATE_KEY, JSON.stringify(next));
+    return next;
+  }
+
+  async function updateAppState(partialState) {
+    if (APP_STORAGE && typeof APP_STORAGE.updateAppState === "function") {
+      return APP_STORAGE.updateAppState(partialState);
+    }
+
+    var current = await loadAppState();
+    return saveAppState(Object.assign({}, current, partialState || {}, { updatedAt: new Date().toISOString() }));
+  }
+
   async function loadCompleted() {
+    var state = await loadAppState();
+    if (Array.isArray(state.completedLessons) && state.completedLessons.length) return state.completedLessons;
+
     var rawPrimary = await APP_STORAGE.getItem(STORAGE_KEY);
     var primary = parseCompletedRaw(rawPrimary);
     if (primary.length) return primary;
@@ -361,10 +407,8 @@
   }
 
   async function saveCompleted(ids) {
-    var clean = Array.from(new Set(ids));
-    var serialized = JSON.stringify(clean);
-    await APP_STORAGE.setItem(STORAGE_KEY, serialized);
-    await APP_STORAGE.setItem(LEGACY_STORAGE_KEY, serialized);
+    var clean = Array.from(new Set(ids.filter(Boolean)));
+    await updateAppState({ completedLessons: clean });
   }
 
   async function markCompleted(id) {
@@ -378,54 +422,113 @@
   async function initStorage() {
     var platform = globalThis.CourseAppPlatform || {};
     var detectTelegramWebApp = platform.detectTelegramWebApp || function () { return false; };
+    var detectPlatform = platform.detectPlatform || function () { return "browser"; };
     var getAppStorage = platform.getAppStorage;
 
+    STORAGE_DEBUG.platform = detectPlatform();
     STORAGE_DEBUG.telegramDetected = Boolean(detectTelegramWebApp());
     STORAGE_DEBUG.cloudAvailable = Boolean(globalThis.Telegram && globalThis.Telegram.WebApp && globalThis.Telegram.WebApp.CloudStorage);
+    STORAGE_DEBUG.vkBridgeDetected = Boolean(globalThis.vkBridge || globalThis.VKBridge);
+    STORAGE_DEBUG.maxBridgeDetected = Boolean(globalThis.WebApp);
 
     if (typeof getAppStorage !== "function") {
       APP_STORAGE = {
         type: "local",
         cloudFailed: false,
-        getItem: function (key) { return Promise.resolve(localStorage.getItem(key)); },
-        setItem: function (key, value) { localStorage.setItem(key, value); return Promise.resolve(); },
-        removeItem: function (key) { localStorage.removeItem(key); return Promise.resolve(); }
+        appStateKey: APP_STATE_KEY,
+        getItem: function (key) { try { return Promise.resolve(localStorage.getItem(key)); } catch (e) { return Promise.resolve(null); } },
+        setItem: function (key, value) { try { localStorage.setItem(key, value); } catch (e) { console.warn("localStorage set failed:", e); } return Promise.resolve(); },
+        removeItem: function (key) { try { localStorage.removeItem(key); } catch (e) { console.warn("localStorage remove failed:", e); } return Promise.resolve(); },
+        loadAppState: async function () {
+          try { return JSON.parse(localStorage.getItem(APP_STATE_KEY)) || { completedLessons: [], kbju: {}, calculatorInputs: {}, lastOpenedLesson: null, updatedAt: "" }; }
+          catch (e) { return { completedLessons: [], kbju: {}, calculatorInputs: {}, lastOpenedLesson: null, updatedAt: "" }; }
+        },
+        saveAppState: async function (state) { await this.setItem(APP_STATE_KEY, JSON.stringify(state)); return state; },
+        updateAppState: async function (partialState) { var current = await this.loadAppState(); var next = Object.assign({}, current, partialState || {}, { updatedAt: new Date().toISOString() }); await this.saveAppState(next); return next; }
       };
       STORAGE_DEBUG.activeStorage = "local";
-      return;
+    } else {
+      APP_STORAGE = await getAppStorage({ appStateKey: APP_STATE_KEY, storageKey: STORAGE_KEY });
+      STORAGE_DEBUG.activeStorage = APP_STORAGE.type || "local";
     }
 
-    APP_STORAGE = await getAppStorage({ storageKey: STORAGE_KEY });
-    STORAGE_DEBUG.activeStorage = APP_STORAGE.type || "local";
-
-    if (STORAGE_DEBUG.activeStorage === "cloud") {
-      var cloudRaw = await APP_STORAGE.getItem(STORAGE_KEY);
-      var legacyRaw = localStorage.getItem(STORAGE_KEY) || localStorage.getItem(LEGACY_STORAGE_KEY);
-      if (!cloudRaw && legacyRaw) {
-        await APP_STORAGE.setItem(STORAGE_KEY, legacyRaw);
-        await APP_STORAGE.setItem(LEGACY_STORAGE_KEY, legacyRaw);
-        STORAGE_DEBUG.migratedLocalToCloud = true;
-      }
-    }
-
+    await migrateLegacyState();
     STORAGE_DEBUG.activeStorage = APP_STORAGE.type || STORAGE_DEBUG.activeStorage;
   }
 
-  function getProfile() {
+  async function migrateLegacyState() {
+    var state = await loadAppState();
+    var changed = false;
+
+    if (!state.completedLessons.length) {
+      var rawPrimary = await APP_STORAGE.getItem(STORAGE_KEY);
+      var rawLegacy = await APP_STORAGE.getItem(LEGACY_STORAGE_KEY);
+      var completed = parseCompletedRaw(rawPrimary);
+      if (!completed.length) completed = parseCompletedRaw(rawLegacy);
+      if (!completed.length) {
+        try { completed = parseCompletedRaw(localStorage.getItem(STORAGE_KEY) || localStorage.getItem(LEGACY_STORAGE_KEY)); }
+        catch (e) { completed = []; }
+      }
+      if (completed.length) {
+        state.completedLessons = completed;
+        changed = true;
+      }
+    }
+
+    if (!state.kbju || !Object.keys(state.kbju).length) {
+      var rawNutrition = await APP_STORAGE.getItem("nutrition_calculator_v1");
+      if (!rawNutrition) {
+        try { rawNutrition = localStorage.getItem("nutrition_calculator_v1"); } catch (e) { rawNutrition = null; }
+      }
+      if (rawNutrition) {
+        try {
+          var plan = JSON.parse(rawNutrition);
+          if (plan && typeof plan === "object") {
+            state.kbju = plan;
+            state.calculatorInputs = {
+              age: plan.age, height: plan.height, weight: plan.weight, sex: plan.sex, activity: plan.activity, goal: plan.goal
+            };
+            changed = true;
+          }
+        } catch (e) {
+          // ignore malformed legacy nutrition payload
+        }
+      }
+    }
+
+    if (changed) {
+      state.updatedAt = new Date().toISOString();
+      await saveAppState(state);
+      STORAGE_DEBUG.migratedLegacyToState = true;
+      if (STORAGE_DEBUG.activeStorage !== "local") STORAGE_DEBUG.migratedLocalToCloud = true;
+    }
+  }
+
+  async function getProfile() {
     var platform = globalThis.CourseAppPlatform || {};
-    if (typeof platform.getTelegramUserProfile === "function") {
-      var profile = platform.getTelegramUserProfile();
-      if (profile && (profile.fullName || profile.firstName || profile.username)) {
-        return profile;
+    if (typeof platform.getUserProfile === "function") {
+      var profile = await platform.getUserProfile();
+      if (profile && (profile.firstName || profile.lastName || profile.username || profile.photoUrl || profile.userId)) {
+        var fullName = [profile.firstName, profile.lastName].filter(Boolean).join(" ").trim();
+        return Object.assign({}, profile, {
+          id: profile.userId,
+          fullName: fullName,
+          avatarUrl: profile.photoUrl || "",
+          hasAvatar: Boolean(profile.photoUrl),
+          isTelegram: profile.platform === "telegram"
+        });
       }
     }
 
     return {
+      platform: (platform.detectPlatform && platform.detectPlatform()) || "browser",
+      userId: null,
       id: null,
       firstName: "Студент",
       lastName: "",
       fullName: "Студент",
       username: "",
+      photoUrl: "",
       avatarUrl: "",
       hasAvatar: false,
       isTelegram: false
@@ -631,6 +734,7 @@
     panel.id = "debugPanel";
     panel.className = "debug-panel";
 
+    var rawAppState = await APP_STORAGE.getItem(APP_STATE_KEY);
     var rawStorage = await APP_STORAGE.getItem(STORAGE_KEY);
     var rawLegacy = await APP_STORAGE.getItem(LEGACY_STORAGE_KEY);
 
@@ -638,20 +742,26 @@
       "DEBUG MODE",
       "courseId: " + (getActiveCourseId() || "(пусто)"),
       "total lessons loaded: " + lessons.length,
+      "storage." + APP_STATE_KEY + ": " + String(rawAppState),
       "storage." + STORAGE_KEY + ": " + String(rawStorage),
       "storage." + LEGACY_STORAGE_KEY + " raw value: " + String(rawLegacy),
       "parsed completedLessons array: " + JSON.stringify(completed),
       "maxCompletedDayNumber: " + model.maxCompletedDayNumber,
       "unlockThreshold: " + model.threshold,
+      "Platform: " + STORAGE_DEBUG.platform,
       "Telegram WebApp detected: " + (STORAGE_DEBUG.telegramDetected ? "yes" : "no"),
       "CloudStorage available: " + (STORAGE_DEBUG.cloudAvailable ? "yes" : "no"),
+      "MAX WebApp detected: " + (STORAGE_DEBUG.maxBridgeDetected ? "yes" : "no"),
+      "VK Bridge detected: " + (STORAGE_DEBUG.vkBridgeDetected ? "yes" : "no"),
       "Active storage: " + STORAGE_DEBUG.activeStorage,
-      "Telegram user id: " + String(APP_PROFILE && APP_PROFILE.id),
+      "User platform: " + String(APP_PROFILE && APP_PROFILE.platform),
+      "User id: " + String(APP_PROFILE && APP_PROFILE.id),
       "first_name: " + String(APP_PROFILE && APP_PROFILE.firstName),
       "last_name: " + String(APP_PROFILE && APP_PROFILE.lastName),
       "username: " + String(APP_PROFILE && APP_PROFILE.username),
       "avatar available: " + ((APP_PROFILE && APP_PROFILE.hasAvatar) ? "yes" : "no"),
-      "migrated local -> cloud: " + (STORAGE_DEBUG.migratedLocalToCloud ? "yes" : "no"),
+      "migrated legacy -> appState: " + (STORAGE_DEBUG.migratedLegacyToState ? "yes" : "no"),
+      "migrated local -> remote storage: " + (STORAGE_DEBUG.migratedLocalToCloud ? "yes" : "no"),
       ""
     ];
 
@@ -1092,6 +1202,8 @@
     stateBox.hidden = true;
     main.hidden = false;
 
+    await updateAppState({ lastOpenedLesson: lesson.lesson_id });
+
     document.getElementById("lessonDay").textContent = getLessonDisplayLabel(lesson);
     document.getElementById("lessonTitle").textContent = lesson.title;
     document.getElementById("lessonSubtitle").textContent = lesson.subtitle || "";
@@ -1298,9 +1410,12 @@
       if (previewThemeId) themeId = previewThemeId;
     }
     applyTheme(config, themeId);
+    if (globalThis.CourseAppPlatform && typeof globalThis.CourseAppPlatform.whenReady === "function") {
+      await globalThis.CourseAppPlatform.whenReady({ telegramTimeoutMs: 1800 });
+    }
     initTelegramViewport();
     await initStorage();
-    APP_PROFILE = getProfile();
+    APP_PROFILE = await getProfile();
     if (isNutritionCalculatorEnabled(COURSE_SETTINGS)
       && globalThis.NutritionCalculator
       && typeof globalThis.NutritionCalculator.create === "function") {
