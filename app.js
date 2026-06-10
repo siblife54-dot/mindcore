@@ -11,6 +11,7 @@
   var COURSE_SETTINGS = null;
   var COURSE_ACCESS = null;
   var NUTRITION = null;
+  var EVA_CALCULATOR = null;
   var EMOTION_STORAGE_KEY = "emotion_navigator_state";
   var DESIGNER_XP_TOAST_KEY = "designer_xp_last_gain_v1";
   var LAST_LESSONS = [];
@@ -137,7 +138,7 @@
 
     var result = await client
       .from("course_settings")
-      .select("theme_id, addon_nutrition_calculator, addon_emotion_navigator, addon_designer_xp")
+      .select("theme_id, addon_nutrition_calculator, addon_eva_calculator, addon_emotion_navigator, addon_designer_xp")
       .eq("course_id", getActiveCourseId())
       .maybeSingle();
 
@@ -146,6 +147,7 @@
       return {
         theme_id: "dark_premium",
         addon_nutrition_calculator: false,
+        addon_eva_calculator: false,
         addon_emotion_navigator: false,
         addon_designer_xp: false
       };
@@ -154,6 +156,7 @@
     return {
       theme_id: normalizeThemeId(result.data && result.data.theme_id),
       addon_nutrition_calculator: Boolean(result.data && result.data.addon_nutrition_calculator === true),
+      addon_eva_calculator: Boolean(result.data && result.data.addon_eva_calculator === true),
       addon_emotion_navigator: Boolean(result.data && result.data.addon_emotion_navigator === true),
       addon_designer_xp: Boolean(result.data && result.data.addon_designer_xp === true)
     };
@@ -203,6 +206,10 @@
 
   function isNutritionCalculatorEnabled(courseSettings) {
     return Boolean(courseSettings && courseSettings.addon_nutrition_calculator === true);
+  }
+
+  function isEvaCalculatorEnabled(courseSettings) {
+    return Boolean(courseSettings && courseSettings.addon_eva_calculator === true);
   }
 
 
@@ -880,36 +887,69 @@
     var section = document.getElementById("nutritionSection");
     var host = document.getElementById("nutritionCardHost");
     var profileHint = document.getElementById("profileNutritionHint");
-    if (!isNutritionCalculatorEnabled(COURSE_SETTINGS)) {
+    var nutritionEnabled = isNutritionCalculatorEnabled(COURSE_SETTINGS);
+    var evaEnabled = isEvaCalculatorEnabled(COURSE_SETTINGS);
+
+    if (!nutritionEnabled && !evaEnabled) {
       if (section) section.hidden = true;
       if (host) host.innerHTML = "";
       if (profileHint) profileHint.textContent = "";
       return;
     }
+
     if (section) section.hidden = false;
-    if (!host || !NUTRITION) return;
+    if (!host) return;
 
-    var plan = await NUTRITION.loadPlan();
+    var plan = nutritionEnabled && NUTRITION ? await NUTRITION.loadPlan() : null;
+    var evaPlan = evaEnabled && EVA_CALCULATOR ? await EVA_CALCULATOR.loadPlan() : null;
     var hasPlan = Boolean(plan && plan.calories);
+    var hasEvaPlan = Boolean(evaPlan && evaPlan.calories);
+    var cards = [];
 
-    host.innerHTML = [
-      '<section class="card nutrition-card">',
-      '<h3>Ваш план питания</h3>',
-      (hasPlan
-        ? '<p><strong>' + plan.calories + ' ккал/день</strong></p><p>Б ' + plan.protein + ' · Ж ' + plan.fats + ' · У ' + plan.carbs + '</p><p>Цель: ' + NUTRITION.formatGoal(plan.goal) + '</p>'
-        : '<p>Рассчитай свою норму калорий и БЖУ, чтобы пройти курс с понятной отправной точкой.</p>'),
-      '<button type="button" class="btn btn-primary" id="nutritionOpenBtn">' + (hasPlan ? 'Пересчитать' : 'Рассчитать КБЖУ') + '</button>',
-      '</section>'
-    ].join('');
+    if (nutritionEnabled && NUTRITION) {
+      cards.push([
+        '<section class="card nutrition-card">',
+        '<h3>Ваш план питания</h3>',
+        (hasPlan
+          ? '<p><strong>' + plan.calories + ' ккал/день</strong></p><p>Б ' + plan.protein + ' · Ж ' + plan.fats + ' · У ' + plan.carbs + '</p><p>Цель: ' + NUTRITION.formatGoal(plan.goal) + '</p>'
+          : '<p>Рассчитай свою норму калорий и БЖУ, чтобы пройти курс с понятной отправной точкой.</p>'),
+        '<button type="button" class="btn btn-primary" id="nutritionOpenBtn">' + (hasPlan ? 'Пересчитать' : 'Рассчитать КБЖУ') + '</button>',
+        '</section>'
+      ].join(''));
+    }
+
+    if (evaEnabled && EVA_CALCULATOR) {
+      cards.push([
+        '<section class="card nutrition-card">',
+        '<h3>Калькулятор КБЖУ</h3>',
+        '<p>Расчёт под цель: похудение, skinny fat или набор мышечной массы.</p>',
+        (hasEvaPlan
+          ? '<p><strong>' + evaPlan.calories + ' ккал/день</strong></p><p>Б ' + evaPlan.protein + ' · Ж ' + evaPlan.fats + ' · У ' + evaPlan.carbs + '</p><p>Цель: ' + EVA_CALCULATOR.formatGoal(evaPlan.goal) + '</p>'
+          : '<p>Заполни вес, рост, возраст и цель — рассчитаем поддержку, калорийность и макросы.</p>'),
+        '<button type="button" class="btn btn-primary" id="evaCalculatorOpenBtn">' + (hasEvaPlan ? 'Пересчитать' : 'Рассчитать КБЖУ') + '</button>',
+        '</section>'
+      ].join(''));
+    }
+
+    host.innerHTML = cards.join('');
 
     if (profileHint) {
-      profileHint.textContent = hasPlan ? ('КБЖУ: ' + plan.calories + ' ккал') : '';
+      if (hasPlan) profileHint.textContent = 'КБЖУ: ' + plan.calories + ' ккал';
+      else if (hasEvaPlan) profileHint.textContent = 'КБЖУ: ' + evaPlan.calories + ' ккал';
+      else profileHint.textContent = '';
     }
 
     var openBtn = document.getElementById("nutritionOpenBtn");
     if (openBtn) {
       openBtn.addEventListener("click", function () {
         NUTRITION.open(plan || null);
+      });
+    }
+
+    var evaOpenBtn = document.getElementById("evaCalculatorOpenBtn");
+    if (evaOpenBtn) {
+      evaOpenBtn.addEventListener("click", function () {
+        EVA_CALCULATOR.open(evaPlan || null);
       });
     }
   }
@@ -1396,7 +1436,7 @@
     console.log("activeCourseId:", getActiveCourseId());
     var config = getConfig();
     var themeId = "dark_premium";
-    var courseSettings = { theme_id: "dark_premium", addon_nutrition_calculator: false, addon_emotion_navigator: false, addon_designer_xp: false };
+    var courseSettings = { theme_id: "dark_premium", addon_nutrition_calculator: false, addon_eva_calculator: false, addon_emotion_navigator: false, addon_designer_xp: false };
     try {
       courseSettings = await fetchCourseSettings(config);
       themeId = courseSettings.theme_id;
@@ -1430,6 +1470,21 @@
       });
     } else {
       NUTRITION = null;
+    }
+
+    if (isEvaCalculatorEnabled(COURSE_SETTINGS)
+      && globalThis.NutritionCalculator
+      && typeof globalThis.NutritionCalculator.createEva === "function") {
+      EVA_CALCULATOR = globalThis.NutritionCalculator.createEva({
+        storage: APP_STORAGE,
+        onPlanSaved: function () {
+          if (document.body.getAttribute("data-page") === "dashboard") {
+            void renderNutritionCard();
+          }
+        }
+      });
+    } else {
+      EVA_CALCULATOR = null;
     }
 
     var page = document.body.getAttribute("data-page");
@@ -1477,7 +1532,7 @@ document.addEventListener("click", function (e) {
 
     try {
       var themeId = "dark_premium";
-      var courseSettings = { theme_id: "dark_premium", addon_nutrition_calculator: false, addon_emotion_navigator: false, addon_designer_xp: false };
+      var courseSettings = { theme_id: "dark_premium", addon_nutrition_calculator: false, addon_eva_calculator: false, addon_emotion_navigator: false, addon_designer_xp: false };
       try {
         courseSettings = await fetchCourseSettings(config);
         themeId = courseSettings.theme_id;
@@ -1504,6 +1559,24 @@ document.addEventListener("click", function (e) {
 
       if (!isNutritionCalculatorEnabled(COURSE_SETTINGS)) {
         NUTRITION = null;
+      }
+
+      if (isEvaCalculatorEnabled(COURSE_SETTINGS)
+        && !EVA_CALCULATOR
+        && globalThis.NutritionCalculator
+        && typeof globalThis.NutritionCalculator.createEva === "function") {
+        EVA_CALCULATOR = globalThis.NutritionCalculator.createEva({
+          storage: APP_STORAGE,
+          onPlanSaved: function () {
+            if (document.body.getAttribute("data-page") === "dashboard") {
+              void renderNutritionCard();
+            }
+          }
+        });
+      }
+
+      if (!isEvaCalculatorEnabled(COURSE_SETTINGS)) {
+        EVA_CALCULATOR = null;
       }
 
       themeId = (previewThemeOverride && (previewThemeOverride.id || previewThemeOverride.theme_id || previewThemeOverride.slug))
