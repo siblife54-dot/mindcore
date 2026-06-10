@@ -1,3 +1,8 @@
+#nutritionCardHost {
+  display: grid;
+  gap: 10px;
+}
+
 .nutrition-card {
   padding: 14px;
 }
