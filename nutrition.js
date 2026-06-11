@@ -351,9 +351,10 @@
 
       root.hidden = false;
       root.classList.remove("is-open");
-      requestAnimationFrame(function () {
-        root.classList.add("is-open");
-      });
+      // Force the closed state to apply before opening so the shared bottom-sheet
+      // animation and visible state work reliably in Telegram WebView.
+      root.offsetHeight;
+      root.classList.add("is-open");
       document.body.classList.add("modal-open", "calculator-modal-open");
     }
 
@@ -390,6 +391,9 @@
       };
 
       sheet.addEventListener("transitionend", onTransitionEnd);
+      setTimeout(function () {
+        if (!root.classList.contains("is-open") && !root.hidden) finishClose();
+      }, 260);
     }
 
     document.addEventListener("click", function (event) {
@@ -736,9 +740,11 @@
 
       root.hidden = false;
       root.classList.remove("is-open");
-      requestAnimationFrame(function () {
-        root.classList.add("is-open");
-      });
+      // Use the same already-proven bottom-sheet opening sequence as the
+      // nutrition calculator: render content, reveal the shared modal root,
+      // then add the shared open class after layout has seen the closed state.
+      root.offsetHeight;
+      root.classList.add("is-open");
       document.body.classList.add("modal-open", "calculator-modal-open");
     }
 
@@ -775,6 +781,9 @@
       };
 
       sheet.addEventListener("transitionend", onTransitionEnd);
+      setTimeout(function () {
+        if (!root.classList.contains("is-open") && !root.hidden) finishClose();
+      }, 260);
     }
 
     document.addEventListener("click", function (event) {
