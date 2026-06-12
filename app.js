@@ -920,8 +920,8 @@
 
     if (evaEnabled && EVA_CALCULATOR) {
       cards.push([
-        '<section class="card nutrition-card">',
-        '<h3>Калькулятор КБЖУ</h3>',
+        '<section class="card eva-calculator-card">',
+        '<h3>Калькулятор Евы</h3>',
         '<p>Расчёт под цель: похудение, skinny fat или набор мышечной массы.</p>',
         (hasEvaPlan
           ? '<p><strong>' + evaPlan.calories + ' ккал/день</strong></p><p>Б ' + evaPlan.protein + ' · Ж ' + evaPlan.fats + ' · У ' + evaPlan.carbs + '</p><p>Цель: ' + EVA_CALCULATOR.formatGoal(evaPlan.goal) + '</p>'
@@ -1473,9 +1473,9 @@
     }
 
     if (isEvaCalculatorEnabled(COURSE_SETTINGS)
-      && globalThis.NutritionCalculator
-      && typeof globalThis.NutritionCalculator.createEva === "function") {
-      EVA_CALCULATOR = globalThis.NutritionCalculator.createEva({
+      && globalThis.EvaCalculator
+      && typeof globalThis.EvaCalculator.create === "function") {
+      EVA_CALCULATOR = globalThis.EvaCalculator.create({
         storage: APP_STORAGE,
         onPlanSaved: function () {
           if (document.body.getAttribute("data-page") === "dashboard") {
@@ -1563,9 +1563,9 @@ document.addEventListener("click", function (e) {
 
       if (isEvaCalculatorEnabled(COURSE_SETTINGS)
         && !EVA_CALCULATOR
-        && globalThis.NutritionCalculator
-        && typeof globalThis.NutritionCalculator.createEva === "function") {
-        EVA_CALCULATOR = globalThis.NutritionCalculator.createEva({
+        && globalThis.EvaCalculator
+        && typeof globalThis.EvaCalculator.create === "function") {
+        EVA_CALCULATOR = globalThis.EvaCalculator.create({
           storage: APP_STORAGE,
           onPlanSaved: function () {
             if (document.body.getAttribute("data-page") === "dashboard") {
