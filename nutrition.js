@@ -351,8 +351,8 @@
 
       root.hidden = false;
       root.classList.remove("is-open");
-      // Apply the shared bottom-sheet open state to the modal root after
-      // content is rendered so backdrop and sheet are revealed together.
+      // Force the closed state to apply before opening so the shared bottom-sheet
+      // animation and visible state work reliably in Telegram WebView.
       root.offsetHeight;
       root.classList.add("is-open");
       document.body.classList.add("modal-open", "calculator-modal-open");
@@ -740,8 +740,9 @@
 
       root.hidden = false;
       root.classList.remove("is-open");
-      // Use the same bottom-sheet opening sequence as the nutrition calculator:
-      // render content, reveal the shared modal root, then add the shared open class.
+      // Use the same already-proven bottom-sheet opening sequence as the
+      // nutrition calculator: render content, reveal the shared modal root,
+      // then add the shared open class after layout has seen the closed state.
       root.offsetHeight;
       root.classList.add("is-open");
       document.body.classList.add("modal-open", "calculator-modal-open");
