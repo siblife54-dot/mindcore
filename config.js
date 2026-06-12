@@ -45,13 +45,13 @@ window.APP_THEME_PRESETS = [
     className: "theme-emerald-gold",
     badge: "Premium",
     previewTokens: {
-      bg: "#062B2A",
-      card: "rgba(7, 54, 50, 0.82)",
-      card2: "rgba(9, 72, 65, 0.72)",
+      bg: "#043C3A",
+      card: "rgba(4, 64, 60, 0.84)",
+      card2: "rgba(5, 82, 76, 0.76)",
       text: "#F8F1D9",
       muted: "#B8C7B0",
       accent: "#D4A017",
-      accent2: "#047857",
+      accent2: "#00A878",
       border: "rgba(212, 160, 23, 0.28)"
     }
   }
