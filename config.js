@@ -36,5 +36,23 @@ window.APP_THEME_PRESETS = [
       accent2: "#9FD267",
       border: "rgba(255, 95, 147, 0.22)"
     }
+  },
+  {
+    id: "emerald_gold",
+    title: "Emerald Gold",
+    name: "Emerald Gold",
+    description: "Глубокий изумрудный стиль с золотым премиум-акцентом",
+    className: "theme-emerald-gold",
+    badge: "Premium",
+    previewTokens: {
+      bg: "#062B2A",
+      card: "rgba(7, 54, 50, 0.82)",
+      card2: "rgba(9, 72, 65, 0.72)",
+      text: "#F8F1D9",
+      muted: "#B8C7B0",
+      accent: "#D4A017",
+      accent2: "#047857",
+      border: "rgba(212, 160, 23, 0.28)"
+    }
   }
 ];
