@@ -1276,3 +1276,106 @@ body.theme-matcha-aesthetic .status.done {
   color: #5F8F2D;
   border: 1px solid rgba(159, 210, 103, 0.30);
 }
+
+.theme-emerald-gold {
+  --bg: #062B2A;
+  --card: rgba(7, 54, 50, 0.82);
+  --card-2: rgba(9, 72, 65, 0.72);
+  --text: #F8F1D9;
+  --muted: #B8C7B0;
+  --accent: #D4A017;
+  --accent-rgb: 212, 160, 23;
+  --accent-secondary: #047857;
+  --accent-secondary-rgb: 4, 120, 87;
+  --border: rgba(212, 160, 23, 0.28);
+  --button-bg: #D4A017;
+  --button-text: #102B25;
+  --button-border: rgba(212, 160, 23, 0.42);
+  --badge-bg: rgba(212, 160, 23, 0.14);
+  --badge-text: #F3C85A;
+  --module-text: #C9B982;
+  --card-border-strong: rgba(212, 160, 23, 0.34);
+}
+
+body.theme-emerald-gold {
+  background:
+    radial-gradient(circle at 18% 12%, rgba(4, 120, 87, 0.34), transparent 30%),
+    radial-gradient(circle at 82% 18%, rgba(212, 160, 23, 0.14), transparent 28%),
+    radial-gradient(circle at 48% 92%, rgba(4, 120, 87, 0.22), transparent 34%),
+    linear-gradient(180deg, #031918 0%, #062B2A 45%, #041F1D 100%);
+  color: var(--text);
+  background-attachment: fixed;
+}
+
+body.theme-emerald-gold::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(90deg, transparent, rgba(212, 160, 23, 0.08), transparent),
+    radial-gradient(circle at 50% 18%, rgba(212, 160, 23, 0.08), transparent 22%);
+  z-index: 0;
+}
+
+body.theme-emerald-gold > * {
+  position: relative;
+  z-index: 1;
+}
+
+body.theme-emerald-gold .card,
+body.theme-emerald-gold .lesson-card,
+body.theme-emerald-gold .lesson-block,
+body.theme-emerald-gold .course-card,
+body.theme-emerald-gold .student-card,
+body.theme-emerald-gold .profile-card,
+body.theme-emerald-gold .progress-card,
+body.theme-emerald-gold .app-card,
+body.theme-emerald-gold .video-link-card,
+body.theme-emerald-gold .attachments,
+body.theme-emerald-gold .state,
+body.theme-emerald-gold .debug-panel {
+  background:
+    radial-gradient(circle at 12% 8%, rgba(212, 160, 23, 0.10), transparent 26%),
+    linear-gradient(145deg, rgba(7, 54, 50, 0.90), rgba(3, 31, 29, 0.86));
+  border: 1px solid rgba(212, 160, 23, 0.24);
+  box-shadow:
+    0 20px 50px rgba(0, 0, 0, 0.34),
+    0 0 0 1px rgba(255, 245, 210, 0.05) inset,
+    inset 0 1px 0 rgba(255, 245, 210, 0.08);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+}
+
+body.theme-emerald-gold button,
+body.theme-emerald-gold .btn,
+body.theme-emerald-gold .lesson-button,
+body.theme-emerald-gold .primary-button {
+  background: linear-gradient(135deg, #F3C85A 0%, #D4A017 52%, #A97410 100%);
+  color: #102B25;
+  border-color: rgba(243, 200, 90, 0.42);
+  box-shadow:
+    0 12px 28px rgba(212, 160, 23, 0.24),
+    inset 0 1px 0 rgba(255, 245, 210, 0.45);
+}
+
+body.theme-emerald-gold .progress-fill,
+body.theme-emerald-gold .progress-bar-fill {
+  background: linear-gradient(90deg, #F3C85A 0%, #D4A017 100%);
+  box-shadow: 0 8px 22px rgba(212, 160, 23, 0.24);
+}
+
+body.theme-emerald-gold .progress-track,
+body.theme-emerald-gold .progress-bar {
+  background: rgba(248, 241, 217, 0.12);
+}
+
+body.theme-emerald-gold .badge,
+body.theme-emerald-gold .status-badge,
+body.theme-emerald-gold .lesson-status,
+body.theme-emerald-gold .status.done,
+body.theme-emerald-gold .status.locked {
+  background: rgba(212, 160, 23, 0.14);
+  color: #F3C85A;
+  border: 1px solid rgba(212, 160, 23, 0.28);
+}

@@ -49,7 +49,8 @@
     soft_women: "theme-soft-women",
     business_black: "theme-business-black",
     wow_glass: "theme-wow-glass",
-    matcha_aesthetic: "theme-matcha-aesthetic"
+    matcha_aesthetic: "theme-matcha-aesthetic",
+    emerald_gold: "theme-emerald-gold"
   };
   var WEBAPP_THEMES = Array.isArray(window.APP_THEME_PRESETS) && window.APP_THEME_PRESETS.length ? window.APP_THEME_PRESETS.slice() : [
     { id: "dark_premium", name: "Dark Premium", description: "Тёмно-синий фон с фиолетовым акцентом" },
@@ -58,7 +59,8 @@
     { id: "soft_women", name: "Soft Women", description: "Светлый нюд/розовый стиль" },
     { id: "business_black", name: "Business Black", description: "Графит/чёрный/золото" },
     { id: "wow_glass", name: "Wow Glass", description: "Премиальный glass-стиль с живым свечением" },
-    { id: "matcha_aesthetic", title: "Matcha Aesthetic", name: "Matcha Aesthetic", description: "Нежный розово-зелёный стиль с акцентом матча", className: "theme-matcha-aesthetic", previewTokens: { bg: "#FFFDF8", card: "#FFFFFF", card2: "#FFF4F7", text: "#332522", muted: "#8C6F66", accent: "#FF5F93", accent2: "#9FD267", border: "rgba(255, 95, 147, 0.22)" } }
+    { id: "matcha_aesthetic", title: "Matcha Aesthetic", name: "Matcha Aesthetic", description: "Нежный розово-зелёный стиль с акцентом матча", className: "theme-matcha-aesthetic", previewTokens: { bg: "#FFFDF8", card: "#FFFFFF", card2: "#FFF4F7", text: "#332522", muted: "#8C6F66", accent: "#FF5F93", accent2: "#9FD267", border: "rgba(255, 95, 147, 0.22)" } },
+    { id: "emerald_gold", title: "Emerald Gold", name: "Emerald Gold", description: "Глубокий изумрудный стиль с золотым премиум-акцентом", className: "theme-emerald-gold", badge: "Premium", previewTokens: { bg: "#062B2A", card: "rgba(7, 54, 50, 0.82)", card2: "rgba(9, 72, 65, 0.72)", text: "#F8F1D9", muted: "#B8C7B0", accent: "#D4A017", accent2: "#047857", border: "rgba(212, 160, 23, 0.28)" } }
   ];
   var ACTIVATION_BOT_URL = "https://t.me/mindcore_miniapp_bot?start=activate";
   var currentPreviewTheme = null;
@@ -939,7 +941,7 @@ function getDefaultAdminTab() {
             '<div class="admin-theme-preview__cta">Открыть</div>',
           '</div>',
         '</div>',
-        '<h3>' + escapeHtml(theme.name) + '</h3>',
+        '<div class="admin-theme-title-row"><h3>' + escapeHtml(theme.name) + '</h3>' + (theme.badge ? '<span class="admin-theme-badge">' + escapeHtml(theme.badge) + '</span>' : '') + '</div>',
         '<p>' + escapeHtml(theme.description) + '</p>',
         isActive
           ? '<div class="admin-theme-status">Выбрано</div>'

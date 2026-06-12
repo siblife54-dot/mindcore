@@ -32,7 +32,8 @@
     soft_women: "theme-soft-women",
     business_black: "theme-business-black",
     wow_glass: "theme-wow-glass",
-    matcha_aesthetic: "theme-matcha-aesthetic"
+    matcha_aesthetic: "theme-matcha-aesthetic",
+    emerald_gold: "theme-emerald-gold"
   };
   var WEBAPP_THEMES = Array.isArray(window.APP_THEME_PRESETS) && window.APP_THEME_PRESETS.length
     ? window.APP_THEME_PRESETS.slice()
