@@ -130,6 +130,7 @@
     function createModalMarkup() {
       var root = document.createElement("div");
       root.className = "eva-calculator-modal";
+      root.hidden = true;
       root.innerHTML = [
         '<div class="eva-calculator-backdrop" data-eva-calculator-close="1"></div>',
         '<div class="eva-calculator-sheet" role="dialog" aria-modal="true" aria-label="Калькулятор КБЖУ Евы">',
@@ -329,6 +330,7 @@
       clearResultRevealTimeout();
       renderForm(initialData || { goal: "loss" });
 
+      root.hidden = false;
       root.classList.remove("is-open");
       root.offsetHeight;
       root.classList.add("is-open");
@@ -340,15 +342,33 @@
       if (!root.classList.contains("is-open")) return;
       clearResultRevealTimeout();
       root.classList.remove("is-open");
+      root.hidden = true;
       document.body.classList.remove("eva-calculator-open");
     }
 
+    async function openFromTrigger() {
+      var plan = await loadPlan();
+      open(plan || null);
+    }
+
     document.addEventListener("click", function (event) {
-      if (!modalRoot || !modalRoot.classList.contains("is-open")) return;
-      if (event.target && event.target.getAttribute("data-eva-calculator-close") === "1") {
+      var target = event.target;
+      if (!target || typeof target.closest !== "function") return;
+
+      var openButton = target.closest("[data-eva-calculator-open], #evaCalculatorOpenBtn");
+      if (openButton) {
+        event.preventDefault();
+        event.stopPropagation();
+        void openFromTrigger();
+        return;
+      }
+
+      var closeButton = target.closest("[data-eva-calculator-close]");
+      if (closeButton) {
+        event.preventDefault();
         close();
       }
-    });
+    }, true);
 
     return {
       loadPlan: loadPlan,
