@@ -33,6 +33,10 @@
   display: flex;
 }
 
+.eva-calculator-modal[hidden] {
+  display: none !important;
+}
+
 .eva-calculator-backdrop {
   position: absolute;
   inset: 0;

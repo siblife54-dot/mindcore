@@ -927,7 +927,7 @@
         (hasEvaPlan
           ? '<p><strong>' + evaPlan.calories + ' ккал/день</strong></p><p>Б ' + evaPlan.protein + ' · Ж ' + evaPlan.fats + ' · У ' + evaPlan.carbs + '</p><p>Цель: ' + EVA_CALCULATOR.formatGoal(evaPlan.goal) + '</p>'
           : '<p>Заполни вес, рост, возраст и цель — рассчитаем поддержку, калорийность и макросы.</p>'),
-        '<button type="button" class="btn btn-primary" id="evaCalculatorOpenBtn">' + (hasEvaPlan ? 'Пересчитать' : 'Рассчитать КБЖУ') + '</button>',
+        '<button type="button" class="btn btn-primary" id="evaCalculatorOpenBtn" data-eva-calculator-open>' + (hasEvaPlan ? 'Пересчитать' : 'Рассчитать КБЖУ') + '</button>',
         '</section>'
       ].join(''));
     }
@@ -947,12 +947,6 @@
       });
     }
 
-    var evaOpenBtn = document.getElementById("evaCalculatorOpenBtn");
-    if (evaOpenBtn) {
-      evaOpenBtn.addEventListener("click", function () {
-        EVA_CALCULATOR.open(evaPlan || null);
-      });
-    }
   }
 
   async function renderDashboard(lessons, config) {
