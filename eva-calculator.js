@@ -127,27 +127,27 @@
       };
     }
 
-    function createModalMarkup() {
-      var root = document.createElement("div");
-      root.className = "eva-calculator-modal";
-      root.hidden = true;
-      root.innerHTML = [
+    function createEvaCalculatorModal() {
+      var modal = document.createElement("div");
+      modal.className = "eva-calculator-modal";
+      modal.hidden = true;
+      modal.innerHTML = [
         '<div class="eva-calculator-backdrop" data-eva-calculator-close="1"></div>',
         '<div class="eva-calculator-sheet" role="dialog" aria-modal="true" aria-label="Калькулятор КБЖУ Евы">',
         '<button class="eva-calculator-close" type="button" data-eva-calculator-close="1" aria-label="Закрыть">×</button>',
         '<div class="eva-calculator-content"></div>',
         '</div>'
       ].join("");
-      document.body.appendChild(root);
-      return root;
+      document.body.appendChild(modal);
+      return modal;
     }
 
-    var modalRoot = null;
     var resultRevealTimeout = null;
 
     function ensureEvaCalculatorModal() {
-      if (!modalRoot) modalRoot = createModalMarkup();
-      return modalRoot;
+      var modal = document.querySelector(".eva-calculator-modal");
+      if (modal) return modal;
+      return createEvaCalculatorModal();
     }
 
     function getModal() {
@@ -329,38 +329,34 @@
       ].join("");
     }
 
-    function open(initialData) {
-      var root = ensureEvaCalculatorModal();
-      if (!root) {
-        console.error("Eva calculator modal was not created");
+    function openEvaCalculator(initialData) {
+      var modal = ensureEvaCalculatorModal();
+      var sheet = modal ? modal.querySelector(".eva-calculator-sheet") : null;
+
+      if (!modal || !sheet) {
+        console.error("Eva calculator modal/sheet not found");
+        document.body.classList.remove("eva-calculator-open");
         return;
       }
 
       clearResultRevealTimeout();
       renderForm(initialData || { goal: "loss" });
 
-      var sheet = root.querySelector(".eva-calculator-sheet");
-      if (!sheet) {
-        console.error("Eva calculator sheet was not created");
-        return;
-      }
-
-      root.classList.remove("is-open");
-      root.hidden = false;
+      modal.hidden = false;
 
       requestAnimationFrame(function () {
-        root.classList.add("is-open");
+        modal.classList.add("is-open");
         document.body.classList.add("eva-calculator-open");
       });
     }
 
-    function close() {
-      var root = document.querySelector(".eva-calculator-modal");
+    function closeEvaCalculator() {
+      var modal = document.querySelector(".eva-calculator-modal");
       clearResultRevealTimeout();
 
-      if (root) {
-        root.classList.remove("is-open");
-        root.hidden = true;
+      if (modal) {
+        modal.classList.remove("is-open");
+        modal.hidden = true;
       }
 
       document.body.classList.remove("eva-calculator-open");
@@ -368,14 +364,16 @@
 
     async function openFromTrigger() {
       var plan = await loadPlan();
-      open(plan || null);
+      openEvaCalculator(plan || null);
     }
+
+    document.body.classList.remove("eva-calculator-open");
 
     document.addEventListener("click", function (event) {
       var target = event.target;
       if (!target || typeof target.closest !== "function") return;
 
-      var openButton = target.closest("[data-eva-calculator-open], #evaCalculatorOpenBtn");
+      var openButton = target.closest("[data-eva-calculator-open]");
       if (openButton) {
         event.preventDefault();
         void openFromTrigger();
@@ -385,21 +383,15 @@
       var closeButton = target.closest("[data-eva-calculator-close]");
       if (closeButton) {
         event.preventDefault();
-        close();
+        closeEvaCalculator();
         return;
-      }
-
-      var backdrop = target.closest(".eva-calculator-backdrop");
-      if (backdrop) {
-        event.preventDefault();
-        close();
       }
     });
 
     return {
       loadPlan: loadPlan,
-      open: open,
-      close: close,
+      open: openEvaCalculator,
+      close: closeEvaCalculator,
       getDebugInfo: getDebugInfo,
       formatGoal: formatGoal
     };
