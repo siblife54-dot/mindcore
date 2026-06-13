@@ -145,9 +145,13 @@
     var modalRoot = null;
     var resultRevealTimeout = null;
 
-    function getModal() {
+    function ensureEvaCalculatorModal() {
       if (!modalRoot) modalRoot = createModalMarkup();
       return modalRoot;
+    }
+
+    function getModal() {
+      return ensureEvaCalculatorModal();
     }
 
     function renderGoalHints() {
@@ -326,23 +330,39 @@
     }
 
     function open(initialData) {
-      var root = getModal();
+      var root = ensureEvaCalculatorModal();
+      if (!root) {
+        console.error("Eva calculator modal was not created");
+        return;
+      }
+
       clearResultRevealTimeout();
       renderForm(initialData || { goal: "loss" });
 
-      root.hidden = false;
+      var sheet = root.querySelector(".eva-calculator-sheet");
+      if (!sheet) {
+        console.error("Eva calculator sheet was not created");
+        return;
+      }
+
       root.classList.remove("is-open");
-      root.offsetHeight;
-      root.classList.add("is-open");
-      document.body.classList.add("eva-calculator-open");
+      root.hidden = false;
+
+      requestAnimationFrame(function () {
+        root.classList.add("is-open");
+        document.body.classList.add("eva-calculator-open");
+      });
     }
 
     function close() {
-      var root = getModal();
-      if (!root.classList.contains("is-open")) return;
+      var root = document.querySelector(".eva-calculator-modal");
       clearResultRevealTimeout();
-      root.classList.remove("is-open");
-      root.hidden = true;
+
+      if (root) {
+        root.classList.remove("is-open");
+        root.hidden = true;
+      }
+
       document.body.classList.remove("eva-calculator-open");
     }
 
@@ -358,7 +378,6 @@
       var openButton = target.closest("[data-eva-calculator-open], #evaCalculatorOpenBtn");
       if (openButton) {
         event.preventDefault();
-        event.stopPropagation();
         void openFromTrigger();
         return;
       }
@@ -367,8 +386,15 @@
       if (closeButton) {
         event.preventDefault();
         close();
+        return;
       }
-    }, true);
+
+      var backdrop = target.closest(".eva-calculator-backdrop");
+      if (backdrop) {
+        event.preventDefault();
+        close();
+      }
+    });
 
     return {
       loadPlan: loadPlan,
