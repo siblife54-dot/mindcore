@@ -2,6 +2,14 @@
   "use strict";
 
   var EVA_STORAGE_KEY = "eva_calculator_result_v1";
+  var EVA_DEBUG_LABEL = "EVA DEBUG 2026-06-13";
+
+  console.log(EVA_DEBUG_LABEL + ": file loaded");
+
+  function logEvaDebug(message) {
+    var args = Array.prototype.slice.call(arguments, 1);
+    console.log.apply(console, [EVA_DEBUG_LABEL + ": " + message].concat(args));
+  }
 
   function toNumber(value) {
     var num = Number(value);
@@ -329,7 +337,17 @@
       ].join("");
     }
 
+    function logOpenDiagnostics(modal, sheet) {
+      logEvaDebug("modal element", modal);
+      logEvaDebug("sheet element", sheet);
+      logEvaDebug("classList modal", modal ? String(modal.className) : null);
+      logEvaDebug("hidden modal", modal ? modal.hidden : null);
+      logEvaDebug("computed display modal", modal ? getComputedStyle(modal).display : null);
+      logEvaDebug("computed display sheet", sheet ? getComputedStyle(sheet).display : null);
+    }
+
     function openEvaCalculator(initialData) {
+      logEvaDebug("open function called");
       var modal = ensureEvaCalculatorModal();
       var sheet = modal ? modal.querySelector(".eva-calculator-sheet") : null;
 
@@ -343,11 +361,11 @@
       renderForm(initialData || { goal: "loss" });
 
       modal.hidden = false;
-
-      requestAnimationFrame(function () {
-        modal.classList.add("is-open");
-        document.body.classList.add("eva-calculator-open");
-      });
+      modal.removeAttribute("hidden");
+      modal.classList.add("is-open");
+      document.body.classList.add("eva-calculator-open");
+      logEvaDebug("body locked");
+      logOpenDiagnostics(modal, sheet);
     }
 
     function closeEvaCalculator() {
@@ -375,6 +393,7 @@
 
       var openButton = target.closest("[data-eva-calculator-open]");
       if (openButton) {
+        logEvaDebug("button clicked", openButton);
         event.preventDefault();
         void openFromTrigger();
         return;
