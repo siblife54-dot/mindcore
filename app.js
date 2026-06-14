@@ -11,7 +11,6 @@
   var COURSE_SETTINGS = null;
   var COURSE_ACCESS = null;
   var NUTRITION = null;
-  var EVA_CALCULATOR = null;
   var EMOTION_STORAGE_KEY = "emotion_navigator_state";
   var DESIGNER_XP_TOAST_KEY = "designer_xp_last_gain_v1";
   var LAST_LESSONS = [];
@@ -209,9 +208,6 @@
     return Boolean(courseSettings && courseSettings.addon_nutrition_calculator === true);
   }
 
-  function isEvaCalculatorEnabled(courseSettings) {
-    return Boolean(courseSettings && courseSettings.addon_eva_calculator === true);
-  }
 
 
   function isEmotionNavigatorEnabled(courseSettings) {
@@ -889,9 +885,8 @@
     var host = document.getElementById("nutritionCardHost");
     var profileHint = document.getElementById("profileNutritionHint");
     var nutritionEnabled = isNutritionCalculatorEnabled(COURSE_SETTINGS);
-    var evaEnabled = isEvaCalculatorEnabled(COURSE_SETTINGS);
 
-    if (!nutritionEnabled && !evaEnabled) {
+    if (!nutritionEnabled) {
       if (section) section.hidden = true;
       if (host) host.innerHTML = "";
       if (profileHint) profileHint.textContent = "";
@@ -902,9 +897,7 @@
     if (!host) return;
 
     var plan = nutritionEnabled && NUTRITION ? await NUTRITION.loadPlan() : null;
-    var evaPlan = evaEnabled && EVA_CALCULATOR ? await EVA_CALCULATOR.loadPlan() : null;
     var hasPlan = Boolean(plan && plan.calories);
-    var hasEvaPlan = Boolean(evaPlan && evaPlan.calories);
     var cards = [];
 
     if (nutritionEnabled && NUTRITION) {
@@ -919,24 +912,11 @@
       ].join(''));
     }
 
-    if (evaEnabled && EVA_CALCULATOR) {
-      cards.push([
-        '<section class="card eva-calculator-card">',
-        '<h3>Калькулятор Евы</h3>',
-        '<p>Расчёт под цель: похудение, skinny fat или набор мышечной массы.</p>',
-        (hasEvaPlan
-          ? '<p><strong>' + evaPlan.calories + ' ккал/день</strong></p><p>Б ' + evaPlan.protein + ' · Ж ' + evaPlan.fats + ' · У ' + evaPlan.carbs + '</p><p>Цель: ' + EVA_CALCULATOR.formatGoal(evaPlan.goal) + '</p>'
-          : '<p>Заполни вес, рост, возраст и цель — рассчитаем поддержку, калорийность и макросы.</p>'),
-        '<button type="button" class="btn btn-primary" id="evaCalculatorOpenBtn" data-eva-calculator-open>' + (hasEvaPlan ? 'Пересчитать' : 'Рассчитать КБЖУ') + '</button>',
-        '</section>'
-      ].join(''));
-    }
 
     host.innerHTML = cards.join('');
 
     if (profileHint) {
       if (hasPlan) profileHint.textContent = 'КБЖУ: ' + plan.calories + ' ккал';
-      else if (hasEvaPlan) profileHint.textContent = 'КБЖУ: ' + evaPlan.calories + ' ккал';
       else profileHint.textContent = '';
     }
 
@@ -1467,20 +1447,6 @@
       NUTRITION = null;
     }
 
-    if (isEvaCalculatorEnabled(COURSE_SETTINGS)
-      && globalThis.EvaCalculator
-      && typeof globalThis.EvaCalculator.create === "function") {
-      EVA_CALCULATOR = globalThis.EvaCalculator.create({
-        storage: APP_STORAGE,
-        onPlanSaved: function () {
-          if (document.body.getAttribute("data-page") === "dashboard") {
-            void renderNutritionCard();
-          }
-        }
-      });
-    } else {
-      EVA_CALCULATOR = null;
-    }
 
     var page = document.body.getAttribute("data-page");
     if (page === "dashboard") {
@@ -1556,23 +1522,6 @@ document.addEventListener("click", function (e) {
         NUTRITION = null;
       }
 
-      if (isEvaCalculatorEnabled(COURSE_SETTINGS)
-        && !EVA_CALCULATOR
-        && globalThis.EvaCalculator
-        && typeof globalThis.EvaCalculator.create === "function") {
-        EVA_CALCULATOR = globalThis.EvaCalculator.create({
-          storage: APP_STORAGE,
-          onPlanSaved: function () {
-            if (document.body.getAttribute("data-page") === "dashboard") {
-              void renderNutritionCard();
-            }
-          }
-        });
-      }
-
-      if (!isEvaCalculatorEnabled(COURSE_SETTINGS)) {
-        EVA_CALCULATOR = null;
-      }
 
       themeId = (previewThemeOverride && (previewThemeOverride.id || previewThemeOverride.theme_id || previewThemeOverride.slug))
         ? normalizeThemeId(previewThemeOverride.id || previewThemeOverride.theme_id || previewThemeOverride.slug)
