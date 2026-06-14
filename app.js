@@ -208,6 +208,10 @@
     return Boolean(courseSettings && courseSettings.addon_nutrition_calculator === true);
   }
 
+  function isEvaCalculatorEnabled(courseSettings) {
+    return Boolean(courseSettings && courseSettings.addon_eva_calculator === true);
+  }
+
 
 
   function isEmotionNavigatorEnabled(courseSettings) {
@@ -885,10 +889,14 @@
     var host = document.getElementById("nutritionCardHost");
     var profileHint = document.getElementById("profileNutritionHint");
     var nutritionEnabled = isNutritionCalculatorEnabled(COURSE_SETTINGS);
+    var evaEnabled = isEvaCalculatorEnabled(COURSE_SETTINGS);
 
-    if (!nutritionEnabled) {
+    if (!nutritionEnabled && !evaEnabled) {
       if (section) section.hidden = true;
       if (host) host.innerHTML = "";
+      if (globalThis.EvaCalculator && typeof globalThis.EvaCalculator.renderCard === "function") {
+        globalThis.EvaCalculator.renderCard(false);
+      }
       if (profileHint) profileHint.textContent = "";
       return;
     }
@@ -925,6 +933,10 @@
       openBtn.addEventListener("click", function () {
         NUTRITION.open(plan || null);
       });
+    }
+
+    if (globalThis.EvaCalculator && typeof globalThis.EvaCalculator.renderCard === "function") {
+      globalThis.EvaCalculator.renderCard(evaEnabled);
     }
 
   }
