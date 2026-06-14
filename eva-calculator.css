@@ -1,0 +1,140 @@
+.eva-calculator-card {
+  padding: 14px;
+}
+
+.eva-calculator-card h3 {
+  margin: 0 0 8px;
+  font-size: 17px;
+}
+
+.eva-calculator-card p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.eva-calculator-card .btn {
+  margin-top: 12px;
+}
+
+.eva-calculator-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 99999;
+  display: none;
+  align-items: flex-end;
+  justify-content: center;
+  padding: 16px 16px 0;
+  box-sizing: border-box;
+}
+
+.eva-calculator-modal.is-open {
+  display: flex;
+}
+
+.eva-calculator-backdrop {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  background: rgba(6, 12, 24, 0.74);
+}
+
+.eva-calculator-sheet {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  max-width: 520px;
+  max-height: calc(100dvh - 16px);
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  box-sizing: border-box;
+  border-radius: 20px 20px 0 0;
+  border: 1px solid var(--border);
+  background: var(--card);
+  box-shadow: var(--shadow);
+  padding: 18px 14px 16px;
+}
+
+body.eva-calculator-open {
+  overflow: hidden;
+}
+
+.eva-calculator-close {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: auto;
+  margin-bottom: 4px;
+  border: 0;
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text);
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  font-size: 20px;
+}
+
+.eva-calculator-title {
+  margin: 0 0 8px;
+  font-size: 22px;
+}
+
+.eva-calculator-text {
+  margin: 0 0 14px;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.eva-calculator-form {
+  display: grid;
+  gap: 10px;
+}
+
+.eva-calculator-field {
+  display: grid;
+  gap: 6px;
+  font-size: 13px;
+}
+
+.eva-calculator-field input,
+.eva-calculator-field select {
+  width: 100%;
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 10px 12px;
+  font-size: 15px;
+  box-sizing: border-box;
+}
+
+.eva-calculator-field small {
+  color: #ffb4bf;
+}
+
+.eva-calculator-submit {
+  margin-top: 8px;
+  width: 100%;
+}
+
+.eva-calculator-result {
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 12px;
+  margin-top: 12px;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.eva-calculator-result p {
+  margin: 0 0 6px;
+  color: var(--text);
+}
+
+.eva-calculator-result p:last-child {
+  margin-bottom: 0;
+}
