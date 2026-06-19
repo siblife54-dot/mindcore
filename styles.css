@@ -290,6 +290,34 @@ a { color: inherit; }
   margin-top: 2px;
 }
 
+.lesson-group-header {
+  width: 100%;
+  margin: 12px 0 2px;
+  padding: 14px 16px;
+  border: 1px solid var(--card-border-strong, color-mix(in srgb, var(--accent) 24%, var(--border)));
+  border-radius: var(--radius-md);
+  background: linear-gradient(135deg, rgba(var(--accent-rgb), 0.16), rgba(255, 255, 255, 0.03));
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.18), 0 0 0 1px rgba(var(--accent-rgb), 0.05) inset;
+}
+
+.lesson-group-header__label {
+  display: block;
+  margin-bottom: 4px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  line-height: 1.2;
+  text-transform: uppercase;
+}
+
+.lesson-group-header h2 {
+  margin: 0;
+  color: var(--text);
+  font-size: 20px;
+  line-height: 1.25;
+}
+
 .lesson-card {
   width: 100%;
   border-radius: var(--radius-md);
