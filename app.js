@@ -138,7 +138,7 @@
 
     var result = await client
       .from("course_settings")
-      .select("theme_id, addon_nutrition_calculator, addon_eva_calculator, addon_emotion_navigator, addon_designer_xp")
+      .select("theme_id, course_structure, addon_nutrition_calculator, addon_eva_calculator, addon_emotion_navigator, addon_designer_xp")
       .eq("course_id", getActiveCourseId())
       .maybeSingle();
 
@@ -148,6 +148,7 @@
         theme_id: "dark_premium",
         addon_nutrition_calculator: false,
         addon_eva_calculator: false,
+        course_structure: "classic",
         addon_emotion_navigator: false,
         addon_designer_xp: false
       };
@@ -155,6 +156,7 @@
 
     return {
       theme_id: normalizeThemeId(result.data && result.data.theme_id),
+      course_structure: (result.data && result.data.course_structure === "grouped") ? "grouped" : "classic",
       addon_nutrition_calculator: Boolean(result.data && result.data.addon_nutrition_calculator === true),
       addon_eva_calculator: Boolean(result.data && result.data.addon_eva_calculator === true),
       addon_emotion_navigator: Boolean(result.data && result.data.addon_emotion_navigator === true),
@@ -552,6 +554,7 @@
       lesson_id: raw.lesson_id,
       day_number: Number(raw.day_number || 0),
       lesson_label: raw.lesson_label || "",
+      group_title: raw.group_title || "",
       is_locked: isLocked,
       title: raw.title || "Без названия",
       subtitle: raw.subtitle || "",
@@ -981,7 +984,7 @@
 
     stateBox.hidden = true;
 
-    list.innerHTML = lessons.map(function (lesson) {
+    function renderLessonCard(lesson) {
       var done = completed.includes(lesson.lesson_id);
       var accessible = Boolean(accessModel.map[lesson.lesson_id]);
       var locked = isPreviewMode() ? false : !accessible;
@@ -1009,7 +1012,31 @@
         '</div>',
         '</article>'
       ].join("");
-    }).join("");
+    }
+
+    if (COURSE_SETTINGS && COURSE_SETTINGS.course_structure === "grouped") {
+      var lastGroupTitle = "";
+
+      list.innerHTML = lessons.map(function (lesson) {
+        var groupTitle = String(lesson.group_title || "").trim();
+        var groupHeader = "";
+
+        if (groupTitle && groupTitle !== lastGroupTitle) {
+          groupHeader = [
+            '<div class="lesson-group-header">',
+            '<span class="lesson-group-header__label">Неделя</span>',
+            '<h2>' + escapeHtml(groupTitle) + '</h2>',
+            '</div>'
+          ].join("");
+        }
+
+        if (groupTitle) lastGroupTitle = groupTitle;
+
+        return groupHeader + renderLessonCard(lesson);
+      }).join("");
+    } else {
+      list.innerHTML = lessons.map(renderLessonCard).join("");
+    }
 
     if (isDebugMode()) {
       var previewImages = list.querySelectorAll(".lesson-preview img[data-lesson-id]");
