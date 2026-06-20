@@ -567,6 +567,28 @@
     };
   }
 
+  function getLessonGroupHeaderParts(groupTitle, groupIndex) {
+    var title = String(groupTitle || "").trim();
+    var fallbackIndex = Number(groupIndex || 0) || 1;
+    var kind = /модул/i.test(title) ? "МОДУЛЬ" : "НЕДЕЛЯ";
+    var index = fallbackIndex;
+    var normalizedTitle = title;
+    var match = title.match(/^(недел(?:я|и|ю|е)|модул(?:ь|я|ю|е))\s*(\d+)\s*(?:[-–—:|.]\s*)?(.*)$/i);
+
+    if (match) {
+      kind = /модул/i.test(match[1]) ? "МОДУЛЬ" : "НЕДЕЛЯ";
+      index = Number(match[2]) || fallbackIndex;
+      if (String(match[3] || "").trim()) {
+        normalizedTitle = String(match[3] || "").trim();
+      }
+    }
+
+    return {
+      chip: kind + " " + index,
+      title: normalizedTitle
+    };
+  }
+
   function getLessonDisplayLabel(lesson) {
     if (!lesson) return "Урок";
 
@@ -1016,16 +1038,20 @@
 
     if (COURSE_SETTINGS && COURSE_SETTINGS.course_structure === "grouped") {
       var lastGroupTitle = "";
+      var groupIndex = 0;
 
       list.innerHTML = lessons.map(function (lesson) {
         var groupTitle = String(lesson.group_title || "").trim();
         var groupHeader = "";
 
         if (groupTitle && groupTitle !== lastGroupTitle) {
+          groupIndex += 1;
+          var groupHeaderParts = getLessonGroupHeaderParts(groupTitle, groupIndex);
+
           groupHeader = [
             '<div class="lesson-group-header">',
-            '<span class="lesson-group-header__label">Неделя</span>',
-            '<h2>' + escapeHtml(groupTitle) + '</h2>',
+            '<span class="lesson-group-header__chip">' + escapeHtml(groupHeaderParts.chip) + '</span>',
+            '<h2>' + escapeHtml(groupHeaderParts.title) + '</h2>',
             '</div>'
           ].join("");
         }
