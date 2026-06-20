@@ -1051,7 +1051,7 @@
           groupHeader = [
             '<div class="lesson-group-header">',
             '<span class="lesson-group-header__chip">' + escapeHtml(groupHeaderParts.chip) + '</span>',
-            '<h2>' + escapeHtml(groupHeaderParts.title) + '</h2>',
+            '<h2 class="lesson-group-header__title">' + escapeHtml(groupHeaderParts.title) + '</h2>',
             '</div>'
           ].join("");
         }
