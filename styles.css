@@ -291,6 +291,11 @@ a { color: inherit; }
 }
 
 .lesson-group-header {
+  --group-chip-bg: var(--badge-bg, rgba(var(--accent-rgb), 0.14));
+  --group-chip-text: var(--accent);
+  --group-chip-border: var(--button-border, var(--border));
+  --group-title-color: var(--text);
+
   width: 100%;
   display: flex;
   align-items: center;
@@ -311,20 +316,20 @@ a { color: inherit; }
   min-height: 34px;
   padding: 0 14px;
   border-radius: 999px;
-  background: rgba(255, 228, 235, 0.92);
-  color: var(--accent);
+  background: var(--group-chip-bg);
+  color: var(--group-chip-text);
   font-size: 13px;
   font-weight: 700;
   letter-spacing: 0.02em;
   line-height: 1;
   white-space: nowrap;
-  box-shadow: 0 0 0 1px rgba(var(--accent-rgb), 0.12) inset;
+  box-shadow: 0 0 0 1px var(--group-chip-border) inset;
 }
 
 .lesson-group-header__title {
   min-width: 0;
   margin: 0;
-  color: var(--text);
+  color: var(--group-title-color);
   font-size: 17px;
   font-weight: 700;
   line-height: 1.17;
