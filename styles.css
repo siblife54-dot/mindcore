@@ -1458,3 +1458,62 @@ body.theme-emerald-gold .status.locked {
   color: #F3C85A;
   border: 1px solid rgba(212, 160, 23, 0.28);
 }
+
+/* Lesson material groups */
+.lesson-block-group {
+  margin: 0 0 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--card);
+  box-shadow: var(--shadow);
+  overflow: hidden;
+}
+
+.lesson-block-group__summary {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px;
+  cursor: pointer;
+  color: var(--text);
+  list-style: none;
+}
+
+.lesson-block-group__summary::-webkit-details-marker { display: none; }
+
+.lesson-block-group__text {
+  flex: 1;
+  display: grid;
+  gap: 4px;
+}
+
+.lesson-block-group__text strong { font-size: 17px; }
+.lesson-block-group__text small { color: var(--muted); line-height: 1.45; }
+
+.lesson-block-group__count {
+  color: var(--muted);
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.lesson-block-group__arrow {
+  color: var(--accent);
+  transition: transform 0.2s ease;
+}
+
+.lesson-block-group[open] .lesson-block-group__arrow { transform: rotate(180deg); }
+
+.lesson-block-group__content {
+  padding: 0 16px 16px;
+}
+
+.lesson-block-group__content .lesson-block:last-child { margin-bottom: 0; }
+
+.lesson-block-group--additional {
+  padding: 16px;
+}
+
+.lesson-block-group--additional h3 {
+  margin: 0 0 12px;
+  color: var(--text);
+}
