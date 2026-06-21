@@ -2389,3 +2389,61 @@ body[data-page="admin"] {
 .admin-theme-preview.theme-emerald-gold .admin-theme-preview__lesson-subtitle {
   background: rgba(248, 241, 217, 0.58);
 }
+
+.admin-groups-manager {
+  margin-top: 16px;
+  display: grid;
+  gap: 10px;
+}
+
+.admin-groups-header,
+.admin-group-item {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: flex-start;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--card) 86%, transparent);
+  padding: 14px;
+}
+
+.admin-groups-header h4,
+.admin-group-item p {
+  margin: 0;
+}
+
+.admin-groups-header h4 {
+  font-size: 18px;
+}
+
+.admin-group-item {
+  background: linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.01));
+}
+
+.admin-group-item strong {
+  display: block;
+  margin-bottom: 4px;
+}
+
+.admin-group-item p {
+  margin-bottom: 8px;
+  color: var(--muted);
+}
+
+.admin-block-group-select {
+  display: grid;
+  gap: 6px;
+  margin-bottom: 12px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.admin-block-group-select select {
+  width: 100%;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--card-2);
+  color: var(--text);
+  padding: 10px 12px;
+}

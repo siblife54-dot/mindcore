@@ -6,6 +6,7 @@
     selectedLesson: null,
     selectedThemeId: "dark_premium",
     blocks: [],
+    blockGroups: [],
     blockItemsByBlockId: {},
     quills: {},
     activeSectionId: null,
@@ -1062,6 +1063,25 @@ function getDefaultAdminTab() {
     return result.data || [];
   }
 
+  async function fetchLessonBlockGroups(lessonDbId) {
+    var client = getClient();
+    if (!client || !lessonDbId) return [];
+
+    var result = await client
+      .from("lesson_block_groups")
+      .select("*")
+      .eq("lesson_id", lessonDbId)
+      .order("sort_order", { ascending: true });
+
+    if (result.error) {
+      console.error(result.error);
+      alert("Не удалось загрузить группы материалов");
+      return [];
+    }
+
+    return result.data || [];
+  }
+
   async function fetchItemsForBlocks(blockIds) {
     var client = getClient();
     if (!client || !blockIds.length) return [];
@@ -1098,6 +1118,13 @@ function getDefaultAdminTab() {
 
   function getItems(blockId) {
     return state.blockItemsByBlockId[String(blockId)] || [];
+  }
+
+  function getBlockGroup(block) {
+    if (!block || !block.group_id) return null;
+    return state.blockGroups.find(function (group) {
+      return String(group.id) === String(block.group_id);
+    }) || null;
   }
 
   function getMaterialPrimaryType(blockId) {
@@ -1571,6 +1598,7 @@ function getDefaultAdminTab() {
 
     updateLessonEditorPanelsVisibility();
     renderLessonPreviewUploader();
+    renderBlockGroupsManager();
     renderBlocksList();
     refreshPreviewData();
   }
@@ -1588,6 +1616,56 @@ function getDefaultAdminTab() {
 
     previewBox.innerHTML = '<img src="' + escapeAttr(state.selectedLesson.preview_image_url) + '" alt="Превью модуля">';
     removeBtn.hidden = false;
+  }
+
+  function renderBlockGroupsManager() {
+    var host = document.getElementById("blockGroupsManager");
+    if (!host) return;
+
+    if (!state.selectedLesson) {
+      host.innerHTML = "";
+      return;
+    }
+
+    var groups = state.blockGroups.slice().sort(function (a, b) {
+      return (a.sort_order || 0) - (b.sort_order || 0);
+    });
+
+    host.innerHTML = [
+      '<div class="admin-groups-header">',
+      '<div><h4>Группы материалов</h4><p class="admin-hint">Группы отображаются на странице урока как аккордеоны. Блоки без группы останутся видимыми.</p></div>',
+      '<button id="addBlockGroupBtn" class="admin-btn-ghost" type="button">Добавить группу материалов</button>',
+      '</div>',
+      groups.length ? groups.map(function (group) {
+        var count = state.blocks.filter(function (block) { return String(block.group_id || "") === String(group.id); }).length;
+        return [
+          '<article class="admin-group-item" data-group-id="' + group.id + '">',
+          '<div><strong>' + escapeHtml(group.title || "Без названия") + '</strong>',
+          group.description ? '<p>' + escapeHtml(group.description) + '</p>' : '',
+          '<span class="admin-content-badge">Порядок: ' + escapeHtml(group.sort_order || 0) + '</span> ',
+          '<span class="admin-content-badge">Материалов: ' + count + '</span></div>',
+          '<div class="admin-inline-actions">',
+          '<button class="admin-btn-ghost edit-group-btn" data-group-id="' + group.id + '" type="button">Редактировать</button>',
+          '<button class="admin-btn-ghost delete-group-btn" data-group-id="' + group.id + '" type="button">Удалить</button>',
+          '</div>',
+          '</article>'
+        ].join("");
+      }).join("") : '<div class="admin-empty">Группы пока не созданы</div>'
+    ].join("");
+  }
+
+  function renderGroupSelect(block) {
+    var value = block && block.group_id ? String(block.group_id) : "";
+    return [
+      '<label class="admin-block-group-select">Группа материалов',
+      '<select class="block-group-select" data-block-id="' + block.id + '">',
+      '<option value="">Без группы</option>',
+      state.blockGroups.map(function (group) {
+        return '<option value="' + escapeAttr(group.id) + '"' + (String(group.id) === value ? ' selected' : '') + '>' + escapeHtml(group.title || "Без названия") + '</option>';
+      }).join(""),
+      '</select>',
+      '</label>'
+    ].join("");
   }
 
   function renderBlocksList() {
@@ -1613,6 +1691,7 @@ function getDefaultAdminTab() {
         '<div>',
         '<h4>Материал ' + (index + 1) + '</h4>',
         '<p class="admin-section-summary' + (summary === "Пока контент не добавлен." ? ' admin-section-summary--empty' : '') + '">' + escapeHtml(summary) + '</p>',
+        getBlockGroup(block) ? '<span class="admin-content-badge">Группа: ' + escapeHtml(getBlockGroup(block).title || "Без названия") + '</span>' : '<span class="admin-content-badge">Без группы</span>',
         shouldShowBadges ? [
         '<div class="admin-content-badges">',
         badges.map(function (badge) {
@@ -1655,6 +1734,7 @@ function getDefaultAdminTab() {
 
     return [
       '<div class="admin-block-editor-inline" id="blockEditor-' + blockId + '">',
+      renderGroupSelect(getActiveBlock()),
       '<div class="admin-tabs' + (isMixed ? '' : ' admin-tabs--single') + '">',
       isMixed ? [
       '<button class="admin-tab-btn' + (effectiveTab === 'text' ? ' active' : '') + '" type="button" data-section-tab="text" data-block-id="' + blockId + '">Текст</button>',
@@ -2109,6 +2189,7 @@ function getDefaultAdminTab() {
     state.activeSectionTab = "text";
 
     state.blocks = await fetchLessonBlocks(lesson.id);
+    state.blockGroups = await fetchLessonBlockGroups(lesson.id);
     var blockIds = state.blocks.map(function (block) { return block.id; });
     var allItems = await fetchItemsForBlocks(blockIds);
     setItemsByBlock(allItems);
@@ -2135,6 +2216,7 @@ function getDefaultAdminTab() {
       return block.id;
     });
     var sourceItems = await fetchItemsForBlocks(sourceBlockIds);
+    var sourceGroups = await fetchLessonBlockGroups(sourceLesson.id);
 
     var nextDayNumber = state.lessons.length
       ? Math.max.apply(null, state.lessons.map(function (lesson) {
@@ -2172,6 +2254,32 @@ function getDefaultAdminTab() {
     }
 
     var insertedLesson = lessonInsert.data;
+    var oldToNewGroupId = {};
+    var sortedSourceGroups = sourceGroups.slice().sort(function (a, b) {
+      return (a.sort_order || 0) - (b.sort_order || 0);
+    });
+
+    for (var groupIndex = 0; groupIndex < sortedSourceGroups.length; groupIndex += 1) {
+      var sourceGroup = sortedSourceGroups[groupIndex];
+      var newGroupPayload = cloneRecord(sourceGroup, ["id", "created_at", "updated_at", "lesson_id"]);
+      newGroupPayload.lesson_id = insertedLesson.id;
+      newGroupPayload.course_id = getActiveCourseId();
+
+      var groupInsert = await client
+        .from("lesson_block_groups")
+        .insert(newGroupPayload)
+        .select()
+        .single();
+
+      if (groupInsert.error) {
+        console.error(groupInsert.error);
+        alert("Урок создан, но не удалось скопировать группы материалов полностью");
+        break;
+      }
+
+      oldToNewGroupId[String(sourceGroup.id)] = groupInsert.data.id;
+    }
+
     var oldToNewBlockId = {};
 
     var sortedSourceBlocks = sourceBlocks.slice().sort(function (a, b) {
@@ -2182,6 +2290,7 @@ function getDefaultAdminTab() {
       var sourceBlock = sortedSourceBlocks[i];
       var newBlockPayload = cloneRecord(sourceBlock, ["id", "created_at", "updated_at", "lesson_id"]);
       newBlockPayload.lesson_id = insertedLesson.id;
+      newBlockPayload.group_id = sourceBlock.group_id ? (oldToNewGroupId[String(sourceBlock.group_id)] || null) : null;
 
       var blockInsert = await client
         .from("lesson_blocks")
@@ -2456,6 +2565,17 @@ function getDefaultAdminTab() {
       return;
     }
 
+    var deleteGroupsResult = await client
+      .from("lesson_block_groups")
+      .delete()
+      .eq("lesson_id", lessonToDelete.id);
+
+    if (deleteGroupsResult.error) {
+      console.error(deleteGroupsResult.error);
+      alert("Не удалось удалить группы материалов урока");
+      return;
+    }
+
     var deleteLessonResult = await client
       .from("lessons")
       .delete()
@@ -2485,6 +2605,7 @@ function getDefaultAdminTab() {
       state.selectedLesson = null;
       state.blocks = [];
       state.blockItemsByBlockId = {};
+      state.blockGroups = [];
       state.quills = {};
       state.activeSectionId = null;
       state.activeSectionTab = "text";
@@ -2511,7 +2632,8 @@ function getDefaultAdminTab() {
     var newBlockPayload = {
       lesson_id: state.selectedLesson.id,
       sort_order: nextOrder,
-      block_type: "section"
+      block_type: "section",
+      group_id: null
     };
 
     var result = await client
@@ -2703,6 +2825,77 @@ function getDefaultAdminTab() {
       refreshBlockIndicesInDom();
     }
     refreshPreviewData();
+  }
+
+  async function saveBlockGroupSelection(blockId, groupId) {
+    var client = getClient();
+    if (!client) return;
+    var normalizedGroupId = groupId || null;
+    var result = await client
+      .from("lesson_blocks")
+      .update({ group_id: normalizedGroupId })
+      .eq("id", blockId)
+      .select()
+      .single();
+
+    if (result.error) {
+      console.error(result.error);
+      alert("Не удалось сохранить группу материала");
+      return;
+    }
+
+    state.blocks = state.blocks.map(function (block) {
+      return String(block.id) === String(blockId) ? result.data : block;
+    });
+    renderBlocksList();
+    refreshPreviewData();
+  }
+
+  async function upsertBlockGroup(groupId) {
+    if (!state.selectedLesson) return;
+    var existing = state.blockGroups.find(function (group) { return String(group.id) === String(groupId); }) || {};
+    var title = window.prompt("Название группы", existing.title || "");
+    if (title === null) return;
+    title = title.trim();
+    if (!title) { alert("Введите название группы"); return; }
+    var description = window.prompt("Описание группы (необязательно)", existing.description || "");
+    if (description === null) return;
+    var defaultOrder = existing.sort_order || (state.blockGroups.length ? Math.max.apply(null, state.blockGroups.map(function (group) { return group.sort_order || 0; })) + 1 : 1);
+    var sortOrderValue = window.prompt("Порядок отображения", String(defaultOrder));
+    if (sortOrderValue === null) return;
+    var sortOrder = Number(sortOrderValue) || defaultOrder;
+    var payload = {
+      course_id: getActiveCourseId(),
+      lesson_id: state.selectedLesson.id,
+      title: title,
+      description: description.trim() || null,
+      sort_order: sortOrder
+    };
+    var client = getClient();
+    if (!client) return;
+    var query = groupId ? client.from("lesson_block_groups").update(payload).eq("id", groupId) : client.from("lesson_block_groups").insert(payload);
+    var result = await query.select().single();
+    if (result.error) { console.error(result.error); alert("Не удалось сохранить группу"); return; }
+    if (groupId) {
+      state.blockGroups = state.blockGroups.map(function (group) { return String(group.id) === String(groupId) ? result.data : group; });
+    } else {
+      state.blockGroups.push(result.data);
+    }
+    state.blockGroups.sort(function (a, b) { return (a.sort_order || 0) - (b.sort_order || 0); });
+    renderEditor();
+  }
+
+  async function deleteBlockGroup(groupId) {
+    if (!window.confirm("Удалить группу? Материалы не удалятся и перейдут в «Без группы».")) return;
+    var client = getClient();
+    if (!client) return;
+    var result = await client.from("lesson_block_groups").delete().eq("id", groupId);
+    if (result.error) { console.error(result.error); alert("Не удалось удалить группу"); return; }
+    state.blockGroups = state.blockGroups.filter(function (group) { return String(group.id) !== String(groupId); });
+    state.blocks = state.blocks.map(function (block) {
+      return String(block.group_id || "") === String(groupId) ? Object.assign({}, block, { group_id: null }) : block;
+    });
+    renderEditor();
   }
 
   async function deleteBlock(blockId) {
@@ -3483,6 +3676,15 @@ function getDefaultAdminTab() {
       });
     });
 
+    document.getElementById("blockGroupsManager").addEventListener("click", function (event) {
+      var addBtn = event.target.closest("#addBlockGroupBtn");
+      if (addBtn) { void upsertBlockGroup(null); return; }
+      var editBtn = event.target.closest(".edit-group-btn");
+      if (editBtn) { void upsertBlockGroup(editBtn.getAttribute("data-group-id")); return; }
+      var deleteBtn = event.target.closest(".delete-group-btn");
+      if (deleteBtn) { void deleteBlockGroup(deleteBtn.getAttribute("data-group-id")); }
+    });
+
     document.querySelectorAll(".add-material-btn").forEach(function (btn) {
       btn.addEventListener("click", function () {
         void createMaterial(btn.getAttribute("data-material-type") || "text");
@@ -3528,6 +3730,12 @@ function getDefaultAdminTab() {
     });
 
     document.getElementById("blocksList").addEventListener("click", function (event) {
+      var groupSelect = event.target.closest(".block-group-select");
+      if (groupSelect) {
+        void saveBlockGroupSelection(groupSelect.getAttribute("data-block-id"), groupSelect.value);
+        return;
+      }
+
       var editBlockBtn = event.target.closest(".edit-block-btn");
       if (editBlockBtn) {
         var blockId = editBlockBtn.getAttribute("data-block-id");

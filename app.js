@@ -644,6 +644,27 @@
     return result.data || [];
   }
 
+  async function fetchLessonBlockGroups(lessonId) {
+    var client = window.getSupabaseClient();
+
+    if (!client) {
+      throw new Error("Supabase client not initialized");
+    }
+
+    var result = await client
+      .from("lesson_block_groups")
+      .select("*")
+      .eq("lesson_id", lessonId)
+      .order("sort_order", { ascending: true });
+
+    if (result.error) {
+      console.warn("Supabase lesson block groups load error:", result.error);
+      throw new Error("Ошибка загрузки групп материалов урока");
+    }
+
+    return result.data || [];
+  }
+
   async function fetchBlockItems(blockId) {
     var client = window.getSupabaseClient();
 
@@ -1296,76 +1317,91 @@
     var content = document.getElementById("lessonContent");
     var blocks = await fetchLessonBlocks(lesson.id);
 
-    if (blocks.length) {
-      var renderedBlocks = await Promise.all(blocks.map(async function (block) {
-        var items = await fetchBlockItems(block.id);
-        var html = "";
+    async function renderLessonBlock(block) {
+      var items = await fetchBlockItems(block.id);
+      var html = "";
 
-        if (items.length) {
-          items.forEach(function (item) {
-            if (item.item_type === "text" && item.text_html) {
-              html += '<div class="rich-text-content">' + item.text_html + '</div>';
-            }
-
-            if (item.item_type === "video" && item.video_id) {
-              var embedUrl = getLessonBlockVideoUrl(item.video_id);
-              if (!embedUrl) return;
-              html += [
-                '<div class="lesson-media">',
-                '<div class="lesson-media__frame">',
-                '<iframe',
-                'class="lesson-media__content"',
-                'src="' + escapeAttr(embedUrl) + '"',
-                'frameborder="0"',
-                'allow="autoplay; fullscreen; picture-in-picture"',
-                'allowfullscreen',
-                'loading="lazy">',
-                '</iframe>',
-                '</div>',
-                '</div>'
-              ].join(" ");
-            }
-
-            if (item.item_type === "file" && item.file_id) {
-              var fileUrl = resolveLessonFileUrl(item.file_id);
-              if (!fileUrl) return;
-              var fileLabel = item.file_label || "Материал";
-
-              html += [
-                '<ul class="attachments-list">',
-                '<li class="attach-item">',
-                '<a class="attach-link" href="' + escapeAttr(fileUrl) + '" target="_blank" rel="noopener noreferrer">',
-                '<span class="attach-name">' + escapeHtml(fileLabel) + '</span>',
-                '<span class="file-tag">FILE</span>',
-                '</a>',
-                '</li>',
-                '</ul>'
-              ].join("");
-            }
-
-            if (item.item_type === "image" && item.image_url) {
-              html += [
-                '<figure class="lesson-inline-image">',
-                '<img src="' + escapeAttr(item.image_url) + '" alt="' + escapeAttr(item.image_alt || "Изображение урока") + '" loading="lazy">',
-                item.image_alt ? '<figcaption>' + escapeHtml(item.image_alt) + '</figcaption>' : "",
-                '</figure>'
-              ].join("");
-            }
-          });
-
-          if (html) {
-            return '<div class="lesson-block">' + html + '</div>';
+      if (items.length) {
+        items.forEach(function (item) {
+          if (item.item_type === "text" && item.text_html) {
+            html += '<div class="rich-text-content">' + item.text_html + '</div>';
           }
+
+          if (item.item_type === "video" && item.video_id) {
+            var embedUrl = getLessonBlockVideoUrl(item.video_id);
+            if (!embedUrl) return;
+            html += [
+              '<div class="lesson-media">',
+              '<div class="lesson-media__frame">',
+              '<iframe class="lesson-media__content" src="' + escapeAttr(embedUrl) + '" frameborder="0" allow="autoplay; fullscreen; picture-in-picture" allowfullscreen loading="lazy">',
+              '</iframe>',
+              '</div>',
+              '</div>'
+            ].join(" ");
+          }
+
+          if (item.item_type === "file" && item.file_id) {
+            var fileUrl = resolveLessonFileUrl(item.file_id);
+            if (!fileUrl) return;
+            var fileLabel = item.file_label || "Материал";
+            html += '<ul class="attachments-list"><li class="attach-item"><a class="attach-link" href="' + escapeAttr(fileUrl) + '" target="_blank" rel="noopener noreferrer"><span class="attach-name">' + escapeHtml(fileLabel) + '</span><span class="file-tag">FILE</span></a></li></ul>';
+          }
+
+          if (item.item_type === "image" && item.image_url) {
+            html += '<figure class="lesson-inline-image"><img src="' + escapeAttr(item.image_url) + '" alt="' + escapeAttr(item.image_alt || "Изображение урока") + '" loading="lazy">' + (item.image_alt ? '<figcaption>' + escapeHtml(item.image_alt) + '</figcaption>' : "") + '</figure>';
+          }
+        });
+
+        if (html) return '<div class="lesson-block">' + html + '</div>';
+      }
+
+      if (block.text_html) return '<div class="lesson-block"><div class="rich-text-content">' + block.text_html + '</div></div>';
+      return "";
+    }
+
+    async function renderBlocksFlat(blocksToRender) {
+      var renderedBlocks = await Promise.all(blocksToRender.map(renderLessonBlock));
+      return renderedBlocks.join("");
+    }
+
+    if (blocks.length) {
+      var groups = [];
+      var groupsLoadFailed = false;
+      try {
+        groups = await fetchLessonBlockGroups(lesson.id);
+      } catch (groupError) {
+        groupsLoadFailed = true;
+        console.warn("Lesson block groups fallback: rendering blocks without accordions", groupError);
+      }
+
+      if (groupsLoadFailed || !groups.length) {
+        content.innerHTML = await renderBlocksFlat(blocks);
+      } else {
+        var groupedHtml = [];
+        for (var groupIndex = 0; groupIndex < groups.length; groupIndex += 1) {
+          var group = groups[groupIndex];
+          var groupBlocks = blocks.filter(function (block) { return String(block.group_id || "") === String(group.id); });
+          var groupBlocksHtml = await renderBlocksFlat(groupBlocks);
+          groupedHtml.push([
+            '<details class="lesson-block-group" open>',
+            '<summary class="lesson-block-group__summary">',
+            '<span class="lesson-block-group__text"><strong>' + escapeHtml(group.title || "Материалы") + '</strong>',
+            group.description ? '<small>' + escapeHtml(group.description) + '</small>' : '',
+            '</span>',
+            '<span class="lesson-block-group__count">' + groupBlocks.length + ' ' + pluralizeRu(groupBlocks.length, ["блок", "блока", "блоков"]) + '</span>',
+            '<span class="lesson-block-group__arrow">⌄</span>',
+            '</summary>',
+            '<div class="lesson-block-group__content">' + groupBlocksHtml + '</div>',
+            '</details>'
+          ].join(""));
         }
 
-        if (block.text_html) {
-          return '<div class="lesson-block"><div class="rich-text-content">' + block.text_html + '</div></div>';
+        var ungroupedBlocks = blocks.filter(function (block) { return !block.group_id; });
+        if (ungroupedBlocks.length) {
+          groupedHtml.push('<section class="lesson-block-group lesson-block-group--additional"><h3>Дополнительные материалы</h3>' + await renderBlocksFlat(ungroupedBlocks) + '</section>');
         }
-
-        return "";
-      }));
-
-      content.innerHTML = renderedBlocks.join("");
+        content.innerHTML = groupedHtml.join("");
+      }
     } else if (lesson.content_html) {
       content.innerHTML = '<div class="rich-text-content">' + lesson.content_html + '</div>';
     } else {
@@ -1439,6 +1475,15 @@
         window.location.href = getIndexUrlWithCourse();
       }, 250);
     });
+  }
+
+  function pluralizeRu(count, forms) {
+    var n = Math.abs(Number(count) || 0);
+    var mod10 = n % 10;
+    var mod100 = n % 100;
+    if (mod10 === 1 && mod100 !== 11) return forms[0];
+    if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)) return forms[1];
+    return forms[2];
   }
 
   function escapeHtml(value) {
