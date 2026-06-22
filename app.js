@@ -1398,7 +1398,7 @@
 
         var ungroupedBlocks = blocks.filter(function (block) { return !block.group_id; });
         if (ungroupedBlocks.length) {
-          groupedHtml.push('<section class="lesson-block-group lesson-block-group--additional"><h3>Дополнительные материалы</h3>' + await renderBlocksFlat(ungroupedBlocks) + '</section>');
+          groupedHtml.push(await renderBlocksFlat(ungroupedBlocks));
         }
         content.innerHTML = groupedHtml.join("");
       }
