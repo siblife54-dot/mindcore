@@ -26,9 +26,9 @@
   }
 
   function shouldAttemptTelegramSdkLoad() {
-    if (getTelegramWebApp()) return true;
-    var marker = String(globalThis.location && (globalThis.location.search + " " + globalThis.location.hash) || "");
-    return /tgWebApp/i.test(marker);
+    // Load the official SDK on every page. Internal navigation can drop Telegram
+    // launch hash params, but the WebView bridge is still available after SDK init.
+    return true;
   }
 
   function loadTelegramSdkSafely(timeoutMs) {

@@ -1,8 +1,10 @@
 (function () {
   "use strict";
 
-  var APP_STATE_KEY = "course_app_state_v1";
-  var STORAGE_KEY = "course_completed_lessons_v1";
+  var APP_STATE_KEY_BASE = "course_app_state_v1";
+  var STORAGE_KEY_BASE = "course_completed_lessons_v1";
+  var APP_STATE_KEY = APP_STATE_KEY_BASE;
+  var STORAGE_KEY = STORAGE_KEY_BASE;
   var LEGACY_STORAGE_KEY = "completedLessons";
   var DEBUG_IMG_STATUS = {};
   var DEBUG_LAST_CONTEXT = null;
@@ -52,6 +54,16 @@
     return params.get("course") || getConfig().courseId;
   }
 
+  function getCourseScopedKey(baseKey) {
+    var courseId = String(getActiveCourseId() || getConfig().courseId || "default").trim() || "default";
+    return baseKey + "__" + courseId.replace(/[^a-z0-9_-]+/gi, "_");
+  }
+
+  function refreshStorageKeys() {
+    APP_STATE_KEY = getCourseScopedKey(APP_STATE_KEY_BASE);
+    STORAGE_KEY = getCourseScopedKey(STORAGE_KEY_BASE);
+  }
+
   function getPreviewThemeId() {
     var params = new URLSearchParams(window.location.search);
     var raw = String(params.get("preview_theme") || "").trim();
@@ -64,14 +76,23 @@
     var isPreview = currentParams.get("preview") === "1";
     var previewTheme = currentParams.get("preview_theme");
 
-    if (!isPreview) return url;
+    if (!isPreview) {
+      return appendTelegramHash(url);
+    }
 
     var nextUrl = new URL(url, window.location.href);
     nextUrl.searchParams.set("preview", "1");
     if (previewTheme) {
       nextUrl.searchParams.set("preview_theme", normalizeThemeId(previewTheme));
     }
-    return nextUrl.pathname.split("/").pop() + "?" + nextUrl.searchParams.toString();
+    return appendTelegramHash(nextUrl.pathname.split("/").pop() + "?" + nextUrl.searchParams.toString());
+  }
+
+  function appendTelegramHash(url) {
+    var hash = window.location.hash || "";
+    if (!/tgWebApp/i.test(hash)) return url;
+    if (String(url || "").indexOf("#") !== -1) return url;
+    return String(url || "") + hash;
   }
 
   function getIndexUrlWithCourse() {
@@ -470,6 +491,22 @@
     var state = await loadAppState();
     var changed = false;
 
+    if (!state.completedLessons.length && APP_STATE_KEY !== APP_STATE_KEY_BASE) {
+      var rawGlobalState = null;
+      try { rawGlobalState = localStorage.getItem(APP_STATE_KEY_BASE); } catch (e) { rawGlobalState = null; }
+      var globalState = null;
+      if (rawGlobalState && globalThis.CourseAppPlatform && globalThis.CourseAppPlatform.normalizeAppState) {
+        try { globalState = globalThis.CourseAppPlatform.normalizeAppState(JSON.parse(rawGlobalState)); }
+        catch (e) { globalState = null; }
+      }
+      if (globalState && Array.isArray(globalState.completedLessons) && globalState.completedLessons.length) {
+        state.completedLessons = globalState.completedLessons;
+        if (globalState.kbju && Object.keys(globalState.kbju).length) state.kbju = globalState.kbju;
+        if (globalState.calculatorInputs && Object.keys(globalState.calculatorInputs).length) state.calculatorInputs = globalState.calculatorInputs;
+        changed = true;
+      }
+    }
+
     if (!state.completedLessons.length) {
       var rawPrimary = await APP_STORAGE.getItem(STORAGE_KEY);
       var rawLegacy = await APP_STORAGE.getItem(LEGACY_STORAGE_KEY);
@@ -795,6 +832,9 @@
     var lines = [
       "DEBUG MODE",
       "courseId: " + (getActiveCourseId() || "(пусто)"),
+      "appStateKey: " + APP_STATE_KEY,
+      "progressKey: " + STORAGE_KEY,
+      "telegram hash present: " + (/tgWebApp/i.test(window.location.hash || "") ? "yes" : "no"),
       "total lessons loaded: " + lessons.length,
       "storage." + APP_STATE_KEY + ": " + String(rawAppState),
       "storage." + STORAGE_KEY + ": " + String(rawStorage),
@@ -1555,6 +1595,7 @@
   }
 
   async function init() {
+    refreshStorageKeys();
     console.log("activeCourseId:", getActiveCourseId());
     var config = getConfig();
     var themeId = "dark_premium";
