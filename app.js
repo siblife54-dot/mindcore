@@ -1317,6 +1317,12 @@
     var content = document.getElementById("lessonContent");
     var blocks = await fetchLessonBlocks(lesson.id);
 
+    function renderVideoDescription(block) {
+      var description = String((block && block.video_description) || "").trim();
+      if (!description) return "";
+      return '<p class="lesson-media__description">' + escapeHtml(description) + '</p>';
+    }
+
     async function renderLessonBlock(block) {
       var items = await fetchBlockItems(block.id);
       var html = "";
@@ -1336,6 +1342,7 @@
               '<iframe class="lesson-media__content" src="' + escapeAttr(embedUrl) + '" frameborder="0" allow="autoplay; fullscreen; picture-in-picture" allowfullscreen loading="lazy">',
               '</iframe>',
               '</div>',
+              renderVideoDescription(block),
               '</div>'
             ].join(" ");
           }

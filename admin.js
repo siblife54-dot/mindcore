@@ -1163,6 +1163,12 @@ function getDefaultAdminTab() {
     });
   }
 
+  function getBlockById(blockId) {
+    return state.blocks.find(function (block) {
+      return String(block.id) === String(blockId);
+    }) || null;
+  }
+
   function getFileItems(blockId) {
     return getItems(blockId).filter(function (item) {
       return item.item_type === "file";
@@ -1830,6 +1836,8 @@ function getDefaultAdminTab() {
 
   function renderVideoTab(blockId) {
     var videos = getVideoItems(blockId);
+    var block = getBlockById(blockId);
+    var videoDescription = block ? String(block.video_description || "") : "";
     return [
       '<section class="admin-tab-panel">',
       '<div class="admin-panel-head">',
@@ -1856,6 +1864,10 @@ function getDefaultAdminTab() {
       '<label>Ссылка на видео',
       '<input class="video-id-input" data-block-id="' + blockId + '" type="text" placeholder="https://..." />',
       '</label>',
+      '<label>Описание под видео',
+      '<textarea class="video-description-input" data-block-id="' + blockId + '" rows="4" placeholder="Короткий текст, который будет показан под видео. Можно оставить пустым.">' + escapeHtml(videoDescription) + '</textarea>',
+      '</label>',
+      '<p class="admin-hint">Короткий текст, который будет показан под видео. Можно оставить пустым.</p>',
       '<p class="admin-hint">Поддерживаются:<br><strong class="admin-hint__brand">Kinescope</strong>, Vimeo, Rutube и Google Drive.</p>',
       '<p class="admin-hint admin-hint--kinescope">Kinescope рекомендуется для курсов:<br>без рекламы, лучше работает в Telegram и поддерживает защиту видео.</p>',
       '<button class="btn btn-primary save-video-btn" data-block-id="' + blockId + '" type="button">Сохранить видео</button>',
@@ -2671,6 +2683,10 @@ function getDefaultAdminTab() {
       group_id: null
     };
 
+    if (type === "video") {
+      newBlockPayload.video_description = null;
+    }
+
     var result = await client
       .from("lesson_blocks")
       .insert(newBlockPayload)
@@ -3102,6 +3118,30 @@ function getDefaultAdminTab() {
     renderBlocksList();
     refreshPreviewData();
     alert("Текст сохранён");
+  }
+
+  async function saveVideoDescription(blockId, description) {
+    var client = getClient();
+    if (!client) return false;
+
+    var normalizedDescription = String(description || "").trim();
+    var payload = { video_description: normalizedDescription || null };
+    var result = await client
+      .from("lesson_blocks")
+      .update(payload)
+      .eq("id", blockId)
+      .select()
+      .single();
+
+    if (result.error) {
+      console.error(result.error);
+      alert("Ошибка сохранения описания видео");
+      return false;
+    }
+
+    var block = getBlockById(blockId);
+    if (block) block.video_description = result.data.video_description;
+    return true;
   }
 
   async function createVideoItem(blockId, videoId) {
@@ -3829,7 +3869,7 @@ function getDefaultAdminTab() {
           });
     });
 
-    document.getElementById("blocksList").addEventListener("click", function (event) {
+    document.getElementById("blocksList").addEventListener("click", async function (event) {
       var groupSelect = event.target.closest(".block-group-select");
       if (groupSelect) {
         void saveBlockGroupSelection(groupSelect.getAttribute("data-block-id"), groupSelect.value);
@@ -3890,10 +3930,21 @@ function getDefaultAdminTab() {
       if (saveVideoBtn) {
         var videoBlockId = saveVideoBtn.getAttribute("data-block-id");
         var videoInput = document.querySelector('.video-id-input[data-block-id="' + videoBlockId + '"]');
+        var descriptionInput = document.querySelector('.video-description-input[data-block-id="' + videoBlockId + '"]');
         if (!videoInput) return;
 
         var videoValue = videoInput.value.trim();
+        var descriptionValue = descriptionInput ? descriptionInput.value : "";
+        var descriptionSaved = await saveVideoDescription(videoBlockId, descriptionValue);
+        if (!descriptionSaved) return;
+
         if (!videoValue) {
+          if (getVideoItems(videoBlockId).some(function (item) { return String(item.video_id || "").trim(); })) {
+            renderBlocksList();
+            refreshPreviewData();
+            alert("Описание видео сохранено");
+            return;
+          }
           alert("Введите ссылку на видео");
           return;
         }
