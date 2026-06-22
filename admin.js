@@ -3124,8 +3124,8 @@ function getDefaultAdminTab() {
     var client = getClient();
     if (!client) return false;
 
-    var normalizedDescription = String(description || "").trim();
-    var payload = { video_description: normalizedDescription || null };
+    var normalizedDescription = String(description || "");
+    var payload = { video_description: normalizedDescription.trim() ? normalizedDescription : null };
     var result = await client
       .from("lesson_blocks")
       .update(payload)

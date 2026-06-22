@@ -923,6 +923,7 @@ a { color: inherit; }
   color: var(--muted);
   font-size: 0.92rem;
   line-height: 1.55;
+  white-space: pre-line;
 }
 
 /* Final override: compact Quill HTML spacing in lesson WebApp */
