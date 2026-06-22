@@ -1377,9 +1377,31 @@
       if (groupsLoadFailed || !groups.length) {
         content.innerHTML = await renderBlocksFlat(blocks);
       } else {
+        var groupById = {};
+        groups.forEach(function (group) {
+          groupById[String(group.id)] = group;
+        });
+
+        var displayItems = groups.map(function (group, index) {
+          return { type: "group", order: group.sort_order || 0, originalIndex: index, data: group };
+        }).concat(blocks.filter(function (block) {
+          return !block.group_id || !groupById[String(block.group_id)];
+        }).map(function (block, index) {
+          return { type: "block", order: block.sort_order || 0, originalIndex: groups.length + index, data: block };
+        })).sort(function (a, b) {
+          if (a.order !== b.order) return a.order - b.order;
+          return a.originalIndex - b.originalIndex;
+        });
+
         var groupedHtml = [];
-        for (var groupIndex = 0; groupIndex < groups.length; groupIndex += 1) {
-          var group = groups[groupIndex];
+        for (var displayIndex = 0; displayIndex < displayItems.length; displayIndex += 1) {
+          var displayItem = displayItems[displayIndex];
+          if (displayItem.type === "block") {
+            groupedHtml.push(await renderLessonBlock(displayItem.data));
+            continue;
+          }
+
+          var group = displayItem.data;
           var groupBlocks = blocks.filter(function (block) { return String(block.group_id || "") === String(group.id); });
           var groupBlocksHtml = await renderBlocksFlat(groupBlocks);
           groupedHtml.push([
@@ -1394,11 +1416,6 @@
             '<div class="lesson-block-group__content">' + groupBlocksHtml + '</div>',
             '</details>'
           ].join(""));
-        }
-
-        var ungroupedBlocks = blocks.filter(function (block) { return !block.group_id; });
-        if (ungroupedBlocks.length) {
-          groupedHtml.push(await renderBlocksFlat(ungroupedBlocks));
         }
         content.innerHTML = groupedHtml.join("");
       }
