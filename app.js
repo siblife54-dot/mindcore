@@ -1317,10 +1317,21 @@
     var content = document.getElementById("lessonContent");
     var blocks = await fetchLessonBlocks(lesson.id);
 
+    var videoDescriptionQueue = [];
+
     function renderVideoDescription(block) {
-      var description = String((block && block.video_description) || "").trim();
-      if (!description) return "";
-      return '<p class="lesson-media__description">' + escapeHtml(description) + '</p>';
+      var description = String((block && block.video_description) || "");
+      if (!description.trim()) return "";
+
+      var descriptionIndex = videoDescriptionQueue.push(description) - 1;
+      return '<p class="lesson-media__description" data-video-description-index="' + descriptionIndex + '"></p>';
+    }
+
+    function hydrateVideoDescriptions() {
+      content.querySelectorAll(".lesson-media__description[data-video-description-index]").forEach(function (descriptionNode) {
+        var descriptionIndex = Number(descriptionNode.getAttribute("data-video-description-index"));
+        descriptionNode.textContent = videoDescriptionQueue[descriptionIndex] || "";
+      });
     }
 
     async function renderLessonBlock(block) {
@@ -1383,6 +1394,7 @@
 
       if (groupsLoadFailed || !groups.length) {
         content.innerHTML = await renderBlocksFlat(blocks);
+        hydrateVideoDescriptions();
       } else {
         var groupById = {};
         groups.forEach(function (group) {
@@ -1425,6 +1437,7 @@
           ].join(""));
         }
         content.innerHTML = groupedHtml.join("");
+        hydrateVideoDescriptions();
       }
     } else if (lesson.content_html) {
       content.innerHTML = '<div class="rich-text-content">' + lesson.content_html + '</div>';
