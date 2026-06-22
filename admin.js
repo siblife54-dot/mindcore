@@ -1620,18 +1620,17 @@ function getDefaultAdminTab() {
 
 
   function getLessonDisplayOrderItems() {
-    var items = state.blockGroups.map(function (group) {
-      return { type: "group", id: String(group.id), sort_order: group.sort_order || 0, data: group };
+    var items = state.blockGroups.map(function (group, index) {
+      return { type: "group", id: String(group.id), sort_order: group.sort_order || 0, originalIndex: index, data: group };
     }).concat(state.blocks.filter(function (block) {
       return !block.group_id;
-    }).map(function (block) {
-      return { type: "block", id: String(block.id), sort_order: block.sort_order || 0, data: block };
+    }).map(function (block, index) {
+      return { type: "block", id: String(block.id), sort_order: block.sort_order || 0, originalIndex: state.blockGroups.length + index, data: block };
     }));
 
     return items.sort(function (a, b) {
       if (a.sort_order !== b.sort_order) return a.sort_order - b.sort_order;
-      if (a.type !== b.type) return a.type === "group" ? -1 : 1;
-      return 0;
+      return a.originalIndex - b.originalIndex;
     });
   }
 
@@ -1648,20 +1647,34 @@ function getDefaultAdminTab() {
       return;
     }
 
-    var groups = state.blockGroups.slice().sort(function (a, b) {
-      return (a.sort_order || 0) - (b.sort_order || 0);
-    });
+    var displayItems = getLessonDisplayOrderItems();
 
     host.innerHTML = [
       '<div class="admin-groups-header">',
-      '<div><h4>Группы материалов</h4><p class="admin-hint">Группы и материалы без группы отображаются в общем порядке. Меняйте поле «Порядок отображения» у группы или порядок материалов кнопками ↑ / ↓.</p></div>',
+      '<div><h4>Верхний уровень урока</h4><p class="admin-hint">Группы и материалы без группы находятся в одном общем порядке. Материалы внутри группы сортируются отдельно внутри своей группы.</p></div>',
       '<button id="addBlockGroupBtn" class="admin-btn-ghost" type="button">Добавить группу материалов</button>',
       '</div>',
-      groups.length ? groups.map(function (group) {
+      displayItems.length ? displayItems.map(function (item) {
+        if (item.type === "block") {
+          var block = item.data;
+          return [
+            '<article class="admin-group-item admin-group-item--block" data-block-id="' + block.id + '">',
+            '<div><strong>Материал без группы</strong>',
+            '<p>' + escapeHtml(getSectionSummary(block.id)) + '</p>',
+            '<span class="admin-content-badge">Без группы</span> ',
+            getDisplayOrderBadge(block) + '</div>',
+            '<div class="admin-inline-actions">',
+            '<button class="admin-btn-ghost move-block-btn" data-dir="up" data-block-id="' + block.id + '" type="button">↑</button>',
+            '<button class="admin-btn-ghost move-block-btn" data-dir="down" data-block-id="' + block.id + '" type="button">↓</button>',
+            '</div>',
+            '</article>'
+          ].join("");
+        }
+        var group = item.data;
         var count = state.blocks.filter(function (block) { return String(block.group_id || "") === String(group.id); }).length;
         return [
           '<article class="admin-group-item" data-group-id="' + group.id + '">',
-          '<div><strong>' + escapeHtml(group.title || "Без названия") + '</strong>',
+          '<div><strong>Группа: ' + escapeHtml(group.title || "Без названия") + '</strong>',
           group.description ? '<p>' + escapeHtml(group.description) + '</p>' : '',
           getDisplayOrderBadge(group) + ' ',
           '<span class="admin-content-badge">Материалов: ' + count + '</span></div>',
@@ -1673,7 +1686,7 @@ function getDefaultAdminTab() {
           '</div>',
           '</article>'
         ].join("");
-      }).join("") : '<div class="admin-empty">Группы пока не созданы</div>'
+      }).join("") : '<div class="admin-empty">На верхнем уровне пока нет групп или материалов без группы</div>'
     ].join("");
   }
 
@@ -2648,9 +2661,8 @@ function getDefaultAdminTab() {
     var client = getClient();
     if (!client) return;
 
-    var nextOrder = state.blocks.length
-      ? Math.max.apply(null, state.blocks.map(function (block) { return block.sort_order || 0; })) + 1
-      : 1;
+    var topLevelOrders = getLessonDisplayOrderItems().map(function (item) { return item.data.sort_order || 0; });
+    var nextOrder = topLevelOrders.length ? Math.max.apply(null, topLevelOrders) + 1 : 1;
 
     var newBlockPayload = {
       lesson_id: state.selectedLesson.id,
@@ -2734,6 +2746,19 @@ function getDefaultAdminTab() {
     return true;
   }
 
+  async function normalizeLessonDisplayOrder(displayItems) {
+    var items = displayItems || getLessonDisplayOrderItems();
+    for (var i = 0; i < items.length; i += 1) {
+      var nextOrder = i + 1;
+      if ((items[i].data.sort_order || 0) !== nextOrder) {
+        if (!(await updateDisplayOrderItem(items[i], nextOrder))) return false;
+      }
+    }
+    state.blocks.sort(function (a, b) { return (a.sort_order || 0) - (b.sort_order || 0); });
+    state.blockGroups.sort(function (a, b) { return (a.sort_order || 0) - (b.sort_order || 0); });
+    return true;
+  }
+
   async function swapDisplayOrderItem(itemType, itemId, direction) {
     var displayItems = getLessonDisplayOrderItems();
     var currentIndex = displayItems.findIndex(function (item) {
@@ -2744,31 +2769,30 @@ function getDefaultAdminTab() {
     var swapIndex = direction === "up" ? currentIndex - 1 : currentIndex + 1;
     if (swapIndex < 0 || swapIndex >= displayItems.length) return false;
 
-    var currentItem = displayItems[currentIndex];
-    var targetItem = displayItems[swapIndex];
-    var currentOrder = currentItem.data.sort_order || currentIndex + 1;
-    var targetOrder = targetItem.data.sort_order || swapIndex + 1;
+    var moved = displayItems.splice(currentIndex, 1)[0];
+    displayItems.splice(swapIndex, 0, moved);
 
-    if (!(await updateDisplayOrderItem(currentItem, targetOrder))) return false;
-    if (!(await updateDisplayOrderItem(targetItem, currentOrder))) return false;
-
-    state.blocks.sort(function (a, b) { return (a.sort_order || 0) - (b.sort_order || 0); });
-    state.blockGroups.sort(function (a, b) { return (a.sort_order || 0) - (b.sort_order || 0); });
+    if (!(await normalizeLessonDisplayOrder(displayItems))) return false;
     renderEditor();
     return true;
   }
 
   async function swapBlockWithinMaterials(blockId, direction) {
-    var currentIndex = state.blocks.findIndex(function (block) {
+    var sourceBlock = state.blocks.find(function (block) { return String(block.id) === String(blockId); });
+    if (!sourceBlock) return;
+    var scopedBlocks = state.blocks.filter(function (block) {
+      return String(block.group_id || "") === String(sourceBlock.group_id || "");
+    }).sort(function (a, b) { return (a.sort_order || 0) - (b.sort_order || 0); });
+    var currentIndex = scopedBlocks.findIndex(function (block) {
       return String(block.id) === String(blockId);
     });
     if (currentIndex < 0) return;
 
     var swapIndex = direction === "up" ? currentIndex - 1 : currentIndex + 1;
-    if (swapIndex < 0 || swapIndex >= state.blocks.length) return;
+    if (swapIndex < 0 || swapIndex >= scopedBlocks.length) return;
 
-    var currentBlock = state.blocks[currentIndex];
-    var targetBlock = state.blocks[swapIndex];
+    var currentBlock = scopedBlocks[currentIndex];
+    var targetBlock = scopedBlocks[swapIndex];
     var currentItem = { type: "block", id: String(currentBlock.id), data: currentBlock };
     var targetItem = { type: "block", id: String(targetBlock.id), data: targetBlock };
     var currentOrder = currentBlock.sort_order || currentIndex + 1;
@@ -2885,9 +2909,22 @@ function getDefaultAdminTab() {
     var client = getClient();
     if (!client) return;
     var normalizedGroupId = groupId || null;
+    var payload = { group_id: normalizedGroupId };
+    if (normalizedGroupId) {
+      var groupBlocks = state.blocks.filter(function (block) {
+        return String(block.group_id || "") === String(normalizedGroupId) && String(block.id) !== String(blockId);
+      });
+      payload.sort_order = groupBlocks.length ? Math.max.apply(null, groupBlocks.map(function (block) { return block.sort_order || 0; })) + 1 : 1;
+    } else {
+      var topLevelOrders = getLessonDisplayOrderItems().filter(function (item) {
+        return !(item.type === "block" && String(item.id) === String(blockId));
+      }).map(function (item) { return item.data.sort_order || 0; });
+      payload.sort_order = topLevelOrders.length ? Math.max.apply(null, topLevelOrders) + 1 : 1;
+    }
+
     var result = await client
       .from("lesson_blocks")
-      .update({ group_id: normalizedGroupId })
+      .update(payload)
       .eq("id", blockId)
       .select()
       .single();
@@ -2901,7 +2938,10 @@ function getDefaultAdminTab() {
     state.blocks = state.blocks.map(function (block) {
       return String(block.id) === String(blockId) ? result.data : block;
     });
-    renderBlocksList();
+    if (!normalizedGroupId) {
+      await normalizeLessonDisplayOrder();
+    }
+    renderEditor();
     refreshPreviewData();
   }
 
@@ -2914,7 +2954,10 @@ function getDefaultAdminTab() {
     if (!title) { alert("Введите название группы"); return; }
     var description = window.prompt("Описание группы (необязательно)", existing.description || "");
     if (description === null) return;
-    var defaultOrder = existing.sort_order || (state.blockGroups.length ? Math.max.apply(null, state.blockGroups.map(function (group) { return group.sort_order || 0; })) + 1 : 1);
+    var topLevelOrders = getLessonDisplayOrderItems().filter(function (item) {
+      return !(item.type === "group" && String(item.id) === String(groupId));
+    }).map(function (item) { return item.data.sort_order || 0; });
+    var defaultOrder = existing.sort_order || (topLevelOrders.length ? Math.max.apply(null, topLevelOrders) + 1 : 1);
     var sortOrderValue = window.prompt("Порядок отображения", String(defaultOrder));
     if (sortOrderValue === null) return;
     var sortOrder = Number(sortOrderValue) || defaultOrder;
@@ -2936,6 +2979,7 @@ function getDefaultAdminTab() {
       state.blockGroups.push(result.data);
     }
     state.blockGroups.sort(function (a, b) { return (a.sort_order || 0) - (b.sort_order || 0); });
+    await normalizeLessonDisplayOrder();
     renderEditor();
   }
 
