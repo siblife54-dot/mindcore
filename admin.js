@@ -1618,6 +1618,27 @@ function getDefaultAdminTab() {
     removeBtn.hidden = false;
   }
 
+
+  function getLessonDisplayOrderItems() {
+    var items = state.blockGroups.map(function (group) {
+      return { type: "group", id: String(group.id), sort_order: group.sort_order || 0, data: group };
+    }).concat(state.blocks.filter(function (block) {
+      return !block.group_id;
+    }).map(function (block) {
+      return { type: "block", id: String(block.id), sort_order: block.sort_order || 0, data: block };
+    }));
+
+    return items.sort(function (a, b) {
+      if (a.sort_order !== b.sort_order) return a.sort_order - b.sort_order;
+      if (a.type !== b.type) return a.type === "group" ? -1 : 1;
+      return 0;
+    });
+  }
+
+  function getDisplayOrderBadge(entity) {
+    return '<span class="admin-content-badge">Общий порядок: ' + escapeHtml(entity && entity.sort_order ? entity.sort_order : 0) + '</span>';
+  }
+
   function renderBlockGroupsManager() {
     var host = document.getElementById("blockGroupsManager");
     if (!host) return;
@@ -1633,7 +1654,7 @@ function getDefaultAdminTab() {
 
     host.innerHTML = [
       '<div class="admin-groups-header">',
-      '<div><h4>Группы материалов</h4><p class="admin-hint">Группы отображаются на странице урока как аккордеоны. Блоки без группы останутся видимыми.</p></div>',
+      '<div><h4>Группы материалов</h4><p class="admin-hint">Группы и материалы без группы отображаются в общем порядке. Меняйте поле «Порядок отображения» у группы или порядок материалов кнопками ↑ / ↓.</p></div>',
       '<button id="addBlockGroupBtn" class="admin-btn-ghost" type="button">Добавить группу материалов</button>',
       '</div>',
       groups.length ? groups.map(function (group) {
@@ -1642,9 +1663,11 @@ function getDefaultAdminTab() {
           '<article class="admin-group-item" data-group-id="' + group.id + '">',
           '<div><strong>' + escapeHtml(group.title || "Без названия") + '</strong>',
           group.description ? '<p>' + escapeHtml(group.description) + '</p>' : '',
-          '<span class="admin-content-badge">Порядок: ' + escapeHtml(group.sort_order || 0) + '</span> ',
+          getDisplayOrderBadge(group) + ' ',
           '<span class="admin-content-badge">Материалов: ' + count + '</span></div>',
           '<div class="admin-inline-actions">',
+          '<button class="admin-btn-ghost move-group-btn" data-dir="up" data-group-id="' + group.id + '" type="button">↑</button>',
+          '<button class="admin-btn-ghost move-group-btn" data-dir="down" data-group-id="' + group.id + '" type="button">↓</button>',
           '<button class="admin-btn-ghost edit-group-btn" data-group-id="' + group.id + '" type="button">Редактировать</button>',
           '<button class="admin-btn-ghost delete-group-btn" data-group-id="' + group.id + '" type="button">Удалить</button>',
           '</div>',
@@ -1691,7 +1714,7 @@ function getDefaultAdminTab() {
         '<div>',
         '<h4>Материал ' + (index + 1) + '</h4>',
         '<p class="admin-section-summary' + (summary === "Пока контент не добавлен." ? ' admin-section-summary--empty' : '') + '">' + escapeHtml(summary) + '</p>',
-        getBlockGroup(block) ? '<span class="admin-content-badge">Группа: ' + escapeHtml(getBlockGroup(block).title || "Без названия") + '</span>' : '<span class="admin-content-badge">Без группы</span>',
+        getBlockGroup(block) ? '<span class="admin-content-badge">Группа: ' + escapeHtml(getBlockGroup(block).title || "Без названия") + '</span>' : '<span class="admin-content-badge">Без группы</span>' + getDisplayOrderBadge(block),
         shouldShowBadges ? [
         '<div class="admin-content-badges">',
         badges.map(function (badge) {
@@ -2692,7 +2715,50 @@ function getDefaultAdminTab() {
     refreshPreviewData();
   }
 
-  async function swapBlocks(blockId, direction) {
+  async function updateDisplayOrderItem(item, sortOrder) {
+    var client = getClient();
+    if (!client) return false;
+    var table = item.type === "group" ? "lesson_block_groups" : "lesson_blocks";
+    var result = await client
+      .from(table)
+      .update({ sort_order: sortOrder })
+      .eq("id", item.data.id);
+
+    if (result.error) {
+      console.error(result.error);
+      alert("Ошибка сохранения общего порядка отображения");
+      return false;
+    }
+
+    item.data.sort_order = sortOrder;
+    return true;
+  }
+
+  async function swapDisplayOrderItem(itemType, itemId, direction) {
+    var displayItems = getLessonDisplayOrderItems();
+    var currentIndex = displayItems.findIndex(function (item) {
+      return item.type === itemType && String(item.id) === String(itemId);
+    });
+    if (currentIndex < 0) return false;
+
+    var swapIndex = direction === "up" ? currentIndex - 1 : currentIndex + 1;
+    if (swapIndex < 0 || swapIndex >= displayItems.length) return false;
+
+    var currentItem = displayItems[currentIndex];
+    var targetItem = displayItems[swapIndex];
+    var currentOrder = currentItem.data.sort_order || currentIndex + 1;
+    var targetOrder = targetItem.data.sort_order || swapIndex + 1;
+
+    if (!(await updateDisplayOrderItem(currentItem, targetOrder))) return false;
+    if (!(await updateDisplayOrderItem(targetItem, currentOrder))) return false;
+
+    state.blocks.sort(function (a, b) { return (a.sort_order || 0) - (b.sort_order || 0); });
+    state.blockGroups.sort(function (a, b) { return (a.sort_order || 0) - (b.sort_order || 0); });
+    renderEditor();
+    return true;
+  }
+
+  async function swapBlockWithinMaterials(blockId, direction) {
     var currentIndex = state.blocks.findIndex(function (block) {
       return String(block.id) === String(blockId);
     });
@@ -2703,42 +2769,30 @@ function getDefaultAdminTab() {
 
     var currentBlock = state.blocks[currentIndex];
     var targetBlock = state.blocks[swapIndex];
-
-    var client = getClient();
-    if (!client) return;
-
+    var currentItem = { type: "block", id: String(currentBlock.id), data: currentBlock };
+    var targetItem = { type: "block", id: String(targetBlock.id), data: targetBlock };
     var currentOrder = currentBlock.sort_order || currentIndex + 1;
     var targetOrder = targetBlock.sort_order || swapIndex + 1;
 
-    var firstUpdate = await client
-      .from("lesson_blocks")
-      .update({ sort_order: targetOrder })
-      .eq("id", currentBlock.id);
+    if (!(await updateDisplayOrderItem(currentItem, targetOrder))) return;
+    if (!(await updateDisplayOrderItem(targetItem, currentOrder))) return;
 
-    if (firstUpdate.error) {
-      console.error(firstUpdate.error);
-      alert("Ошибка перемещения материала");
-      return;
-    }
-
-    var secondUpdate = await client
-      .from("lesson_blocks")
-      .update({ sort_order: currentOrder })
-      .eq("id", targetBlock.id);
-
-    if (secondUpdate.error) {
-      console.error(secondUpdate.error);
-      alert("Ошибка перемещения материала");
-      return;
-    }
-
-    currentBlock.sort_order = targetOrder;
-    targetBlock.sort_order = currentOrder;
-    state.blocks.sort(function (a, b) {
-      return (a.sort_order || 0) - (b.sort_order || 0);
-    });
-
+    state.blocks.sort(function (a, b) { return (a.sort_order || 0) - (b.sort_order || 0); });
     renderEditor();
+  }
+
+  async function swapBlocks(blockId, direction) {
+    var block = state.blocks.find(function (item) { return String(item.id) === String(blockId); });
+    if (!block) return;
+    if (!block.group_id && state.blockGroups.length) {
+      await swapDisplayOrderItem("block", blockId, direction);
+      return;
+    }
+    await swapBlockWithinMaterials(blockId, direction);
+  }
+
+  async function swapBlockGroup(groupId, direction) {
+    await swapDisplayOrderItem("group", groupId, direction);
   }
 
   function resetDragAndDropState() {
@@ -3679,6 +3733,8 @@ function getDefaultAdminTab() {
     document.getElementById("blockGroupsManager").addEventListener("click", function (event) {
       var addBtn = event.target.closest("#addBlockGroupBtn");
       if (addBtn) { void upsertBlockGroup(null); return; }
+      var moveGroupBtn = event.target.closest(".move-group-btn");
+      if (moveGroupBtn) { void swapBlockGroup(moveGroupBtn.getAttribute("data-group-id"), moveGroupBtn.getAttribute("data-dir")); return; }
       var editBtn = event.target.closest(".edit-group-btn");
       if (editBtn) { void upsertBlockGroup(editBtn.getAttribute("data-group-id")); return; }
       var deleteBtn = event.target.closest(".delete-group-btn");
