@@ -918,6 +918,13 @@ a { color: inherit; }
   background: transparent !important;
 }
 
+.lesson-media__description {
+  margin: 10px 0 0;
+  color: var(--muted);
+  font-size: 0.92rem;
+  line-height: 1.55;
+}
+
 /* Final override: compact Quill HTML spacing in lesson WebApp */
 #lessonContent .lesson-block {
   font-size: clamp(16px, 3.9vw, 18px);
