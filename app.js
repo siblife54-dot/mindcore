@@ -1383,7 +1383,7 @@
           var groupBlocks = blocks.filter(function (block) { return String(block.group_id || "") === String(group.id); });
           var groupBlocksHtml = await renderBlocksFlat(groupBlocks);
           groupedHtml.push([
-            '<details class="lesson-block-group" open>',
+            '<details class="lesson-block-group">',
             '<summary class="lesson-block-group__summary">',
             '<span class="lesson-block-group__text"><strong>' + escapeHtml(group.title || "Материалы") + '</strong>',
             group.description ? '<small>' + escapeHtml(group.description) + '</small>' : '',
