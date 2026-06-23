@@ -62,6 +62,7 @@
   function createModal() {
     var modal = document.createElement("div");
     modal.className = "eva-calculator-modal";
+    modal.hidden = true;
     modal.setAttribute("aria-hidden", "true");
     modal.innerHTML = [
       '<div class="eva-calculator-backdrop" data-eva-calculator-close></div>',
@@ -116,7 +117,12 @@
     var modal = getModal();
     var sheet = modal.querySelector(".eva-calculator-sheet");
     if (!sheet) return;
-    document.body.classList.add("eva-calculator-open");
+    modal.hidden = false;
+    modal.classList.remove("is-open");
+    // Force the hidden/closed state to apply before opening so the sheet
+    // is positioned as a modal overlay instead of a page block in WebViews.
+    modal.offsetHeight;
+    document.body.classList.add("modal-open", "calculator-modal-open", "eva-calculator-open");
     modal.classList.add("is-open");
     modal.setAttribute("aria-hidden", "false");
   }
@@ -124,9 +130,11 @@
   function closeEvaCalculator() {
     var modal = document.querySelector(".eva-calculator-modal");
     if (!modal) return;
+    if (modal.hidden) return;
     modal.classList.remove("is-open");
     modal.setAttribute("aria-hidden", "true");
-    document.body.classList.remove("eva-calculator-open");
+    modal.hidden = true;
+    document.body.classList.remove("modal-open", "calculator-modal-open", "eva-calculator-open");
   }
 
   function onSubmit(event) {
