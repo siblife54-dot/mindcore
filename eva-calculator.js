@@ -62,13 +62,14 @@
   function createModal() {
     var modal = document.createElement("div");
     modal.id = "evaCalculatorModal";
-    modal.className = "eva-calculator-modal";
+    modal.className = "nutrition-modal";
     modal.hidden = true;
     modal.setAttribute("aria-hidden", "true");
     modal.innerHTML = [
-      '<div class="eva-calculator-backdrop" data-eva-calculator-close></div>',
-      '<div class="eva-calculator-sheet" role="dialog" aria-modal="true" aria-label="Калькулятор КБЖУ">',
-      '<button class="eva-calculator-close" type="button" data-eva-calculator-close aria-label="Закрыть">×</button>',
+      '<div class="nutrition-modal__backdrop" data-eva-calculator-close></div>',
+      '<div class="nutrition-modal__sheet" role="dialog" aria-modal="true" aria-label="Калькулятор КБЖУ">',
+      '<button class="nutrition-modal__close" type="button" data-eva-calculator-close aria-label="Закрыть">×</button>',
+      '<div class="nutrition-modal__content">',
       '<h2 class="eva-calculator-title">Калькулятор КБЖУ</h2>',
       '<p class="eva-calculator-text">Заполните поля — рассчитаем калории, белки, жиры и углеводы под вашу цель.</p>',
       '<form class="eva-calculator-form" novalidate>',
@@ -93,6 +94,7 @@
       '<button class="btn btn-primary eva-calculator-submit" type="submit">Рассчитать</button>',
       '</form>',
       '<div class="eva-calculator-result" aria-live="polite" hidden></div>',
+      '</div>',
       '</div>'
     ].join("");
     document.body.appendChild(modal);
@@ -115,14 +117,14 @@
 
   function getModal() {
     if (!modalRoot) {
-      modalRoot = document.getElementById("evaCalculatorModal") || document.querySelector(".eva-calculator-modal") || createModal();
+      modalRoot = document.getElementById("evaCalculatorModal") || createModal();
     }
     return modalRoot;
   }
 
   function openEvaCalculator() {
     var modal = getModal();
-    var sheet = modal.querySelector(".eva-calculator-sheet");
+    var sheet = modal.querySelector(".nutrition-modal__sheet");
     if (!sheet) return;
     if (typeof closeTransitionCleanup === "function") {
       closeTransitionCleanup();
@@ -134,7 +136,7 @@
     // is positioned as a modal overlay instead of a page block in WebViews.
     modal.offsetHeight;
     modal.classList.add("is-open");
-    document.body.classList.add("modal-open", "calculator-modal-open", "eva-calculator-open");
+    document.body.classList.add("modal-open", "calculator-modal-open");
     modal.setAttribute("aria-hidden", "false");
   }
 
@@ -142,7 +144,7 @@
     var modal = getModal();
     if (!modal) return;
     if (modal.hidden) return;
-    var sheet = modal.querySelector(".eva-calculator-sheet");
+    var sheet = modal.querySelector(".nutrition-modal__sheet");
 
     function finishClose() {
       if (typeof closeTransitionCleanup === "function") {
@@ -150,7 +152,7 @@
         closeTransitionCleanup = null;
       }
       modal.hidden = true;
-      document.body.classList.remove("modal-open", "calculator-modal-open", "eva-calculator-open");
+      document.body.classList.remove("modal-open", "calculator-modal-open");
     }
 
     modal.classList.remove("is-open");
