@@ -140,6 +140,7 @@
       closeTransitionCleanup = null;
     }
     modal.hidden = false;
+    modal.removeAttribute("hidden");
     modal.classList.remove("is-open");
     // Force the hidden/closed state to apply before opening so the sheet
     // is positioned as a modal overlay instead of a page block in WebViews.
@@ -147,6 +148,15 @@
     modal.classList.add("is-open");
     document.body.classList.add("modal-open", "calculator-modal-open");
     modal.setAttribute("aria-hidden", "false");
+    console.log("[EvaCalculator] after open", {
+      hiddenProp: modal.hidden,
+      hasHiddenAttr: modal.hasAttribute("hidden"),
+      className: modal.className,
+      display: getComputedStyle(modal).display,
+      sheetDisplay: getComputedStyle(sheet).display,
+      sheetTransform: getComputedStyle(sheet).transform,
+      sheetRect: sheet.getBoundingClientRect()
+    });
   }
 
   function closeEvaCalculator() {
