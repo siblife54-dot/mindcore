@@ -61,6 +61,7 @@
 
   function createModal() {
     var modal = document.createElement("div");
+    modal.id = "evaCalculatorModal";
     modal.className = "eva-calculator-modal";
     modal.hidden = true;
     modal.setAttribute("aria-hidden", "true");
@@ -109,32 +110,70 @@
     }).join("") + '</select></label>';
   }
 
+  var modalRoot = null;
+  var closeTransitionCleanup = null;
+
   function getModal() {
-    return document.querySelector(".eva-calculator-modal") || createModal();
+    if (!modalRoot) {
+      modalRoot = document.getElementById("evaCalculatorModal") || document.querySelector(".eva-calculator-modal") || createModal();
+    }
+    return modalRoot;
   }
 
   function openEvaCalculator() {
     var modal = getModal();
     var sheet = modal.querySelector(".eva-calculator-sheet");
     if (!sheet) return;
+    if (typeof closeTransitionCleanup === "function") {
+      closeTransitionCleanup();
+      closeTransitionCleanup = null;
+    }
     modal.hidden = false;
     modal.classList.remove("is-open");
     // Force the hidden/closed state to apply before opening so the sheet
     // is positioned as a modal overlay instead of a page block in WebViews.
     modal.offsetHeight;
-    document.body.classList.add("modal-open", "calculator-modal-open", "eva-calculator-open");
     modal.classList.add("is-open");
+    document.body.classList.add("modal-open", "calculator-modal-open", "eva-calculator-open");
     modal.setAttribute("aria-hidden", "false");
   }
 
   function closeEvaCalculator() {
-    var modal = document.querySelector(".eva-calculator-modal");
+    var modal = getModal();
     if (!modal) return;
     if (modal.hidden) return;
+    var sheet = modal.querySelector(".eva-calculator-sheet");
+
+    function finishClose() {
+      if (typeof closeTransitionCleanup === "function") {
+        closeTransitionCleanup();
+        closeTransitionCleanup = null;
+      }
+      modal.hidden = true;
+      document.body.classList.remove("modal-open", "calculator-modal-open", "eva-calculator-open");
+    }
+
     modal.classList.remove("is-open");
     modal.setAttribute("aria-hidden", "true");
-    modal.hidden = true;
-    document.body.classList.remove("modal-open", "calculator-modal-open", "eva-calculator-open");
+
+    if (!sheet) {
+      finishClose();
+      return;
+    }
+
+    var onTransitionEnd = function (event) {
+      if (event.target !== sheet || event.propertyName !== "transform") return;
+      finishClose();
+    };
+
+    closeTransitionCleanup = function () {
+      sheet.removeEventListener("transitionend", onTransitionEnd);
+    };
+
+    sheet.addEventListener("transitionend", onTransitionEnd);
+    setTimeout(function () {
+      if (!modal.classList.contains("is-open") && !modal.hidden) finishClose();
+    }, 260);
   }
 
   function onSubmit(event) {
