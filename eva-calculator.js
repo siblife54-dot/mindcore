@@ -70,37 +70,91 @@
       '<div class="nutrition-modal__backdrop" data-eva-calculator-close></div>',
       '<div class="nutrition-modal__sheet" role="dialog" aria-modal="true" aria-label="Калькулятор КБЖУ">',
       '<button class="nutrition-modal__close" type="button" data-eva-calculator-close aria-label="Закрыть">×</button>',
-      '<div class="nutrition-modal__content">',
+      '<div class="nutrition-modal__content"></div>',
+      '</div>'
+    ].join("");
+    document.body.appendChild(modal);
+    modalRoot = modal;
+    renderForm();
+    return modal;
+  }
+
+
+  function getContent() {
+    var modal = getModal();
+    return modal ? modal.querySelector(".nutrition-modal__content") : null;
+  }
+
+  function getInputValue(data, name) {
+    if (!data || data[name] == null) return "";
+    return escapeHtml(data[name]);
+  }
+
+  function renderForm(data) {
+    var content = getContent();
+    if (!content) return;
+
+    content.innerHTML = [
       '<h2 class="eva-calculator-title">Калькулятор КБЖУ</h2>',
       '<p class="eva-calculator-text">Заполните поля — рассчитаем калории, белки, жиры и углеводы под вашу цель.</p>',
       '<form class="eva-calculator-form" novalidate>',
-      field("Вес, кг", "weight", "number", "35", "250"),
-      field("Рост, см", "height", "number", "130", "220"),
-      field("Возраст", "age", "number", "14", "100"),
+      field("Вес, кг", "weight", "number", "35", "250", getInputValue(data, "weight")),
+      field("Рост, см", "height", "number", "130", "220", getInputValue(data, "height")),
+      field("Возраст", "age", "number", "14", "100", getInputValue(data, "age")),
       selectField("Цель", "goal", [
         ["loss", "Похудение"],
         ["skinny-fat", "Skinny Fat"],
         ["muscle-gain", "Набор мышечной массы"]
-      ]),
+      ], data && data.goal),
       goalHelpBlock(),
       '<button class="btn btn-primary eva-calculator-submit" type="submit">Рассчитать</button>',
-      '</form>',
-      '<div class="eva-calculator-result" aria-live="polite" hidden></div>',
-      '</div>',
-      '</div>'
+      '</form>'
     ].join("");
-    document.body.appendChild(modal);
-    modal.querySelector(".eva-calculator-form").addEventListener("submit", onSubmit);
-    return modal;
+
+    content.querySelector(".eva-calculator-form").addEventListener("submit", onSubmit);
   }
 
-  function field(label, name, type, min, max) {
-    return '<label class="eva-calculator-field"><span>' + label + '</span><input type="' + type + '" name="' + name + '" min="' + min + '" max="' + max + '" step="0.1" required></label>';
+  function renderResult(plan, inputData) {
+    var content = getContent();
+    if (!content) return;
+
+    content.innerHTML = [
+      '<section class="eva-calculator-result-screen" aria-live="polite">',
+      '<h2 class="eva-calculator-title">Ваш результат</h2>',
+      '<div class="eva-calculator-result-main">',
+      '<p class="eva-calculator-result-label">Рекомендованная калорийность</p>',
+      '<p class="eva-calculator-result-calories">' + Math.round(plan.calories) + ' ккал / день</p>',
+      '</div>',
+      '<div class="eva-calculator-result-details">',
+      '<p><strong>Белки:</strong> ' + Math.round(plan.protein) + ' г</p>',
+      '<p><strong>Жиры:</strong> ' + Math.round(plan.fats) + ' г</p>',
+      '<p><strong>Углеводы:</strong> ' + Math.round(Math.max(0, plan.carbs)) + ' г</p>',
+      '</div>',
+      '<div class="eva-calculator-result-extra">',
+      '<p><strong>Поддержка:</strong> ' + Math.round(plan.maintenanceCalories) + ' ккал</p>',
+      '<p><strong>Цель:</strong> ' + escapeHtml(getGoalLabel(inputData.goal)) + '</p>',
+      '</div>',
+      '<div class="eva-calculator-result-actions">',
+      '<button class="btn btn-secondary" type="button" data-eva-calculator-recalculate>Пересчитать</button>',
+      '<button class="btn btn-primary" type="button" data-eva-calculator-close>Закрыть</button>',
+      '</div>',
+      '</section>'
+    ].join("");
+
+    content.querySelector("[data-eva-calculator-recalculate]").addEventListener("click", function () {
+      renderForm(inputData);
+    });
   }
 
-  function selectField(label, name, options) {
+  function field(label, name, type, min, max, value) {
+    var valueAttribute = value ? ' value="' + value + '"' : '';
+    return '<label class="eva-calculator-field"><span>' + label + '</span><input type="' + type + '" name="' + name + '" min="' + min + '" max="' + max + '" step="0.1" required' + valueAttribute + '></label>';
+  }
+
+  function selectField(label, name, options, selectedValue) {
     return '<label class="eva-calculator-field"><span>' + label + '</span><select name="' + name + '" required>' + options.map(function (option) {
-      return '<option value="' + escapeHtml(option[0]) + '">' + escapeHtml(option[1]) + '</option>';
+      var selected = option[0] === selectedValue ? ' selected' : '';
+      return '<option value="' + escapeHtml(option[0]) + '"' + selected + '>' + escapeHtml(option[1]) + '</option>';
     }).join("") + '</select></label>';
   }
 
@@ -128,6 +182,7 @@
   function openEvaCalculator() {
     var modal = getModal();
     var sheet = modal && modal.querySelector(".nutrition-modal__sheet");
+    if (modal && modal.querySelector(".eva-calculator-result-screen")) renderForm();
     if (!sheet) return;
     if (typeof closeTransitionCleanup === "function") {
       closeTransitionCleanup();
@@ -220,16 +275,18 @@
 
     var carbs = (calories - protein * 4 - fats * 9) / 4;
 
-    var result = form.parentElement.querySelector(".eva-calculator-result");
-    result.hidden = false;
-    result.innerHTML = [
-      '<p><strong>Поддержка:</strong> ' + Math.round(maintenanceCalories) + ' ккал</p>',
-      '<p><strong>Рекомендованная калорийность:</strong> ' + Math.round(calories) + ' ккал</p>',
-      '<p><strong>Белки:</strong> ' + Math.round(protein) + ' г</p>',
-      '<p><strong>Жиры:</strong> ' + Math.round(fats) + ' г</p>',
-      '<p><strong>Углеводы:</strong> ' + Math.round(Math.max(0, carbs)) + ' г</p>',
-      '<p><strong>Выбранная цель:</strong> ' + escapeHtml(getGoalLabel(goal)) + '</p>'
-    ].join("");
+    renderResult({
+      maintenanceCalories: maintenanceCalories,
+      calories: calories,
+      protein: protein,
+      fats: fats,
+      carbs: carbs
+    }, {
+      weight: data.get("weight"),
+      height: data.get("height"),
+      age: data.get("age"),
+      goal: goal
+    });
   }
 
   document.addEventListener("click", function (event) {
