@@ -53,6 +53,15 @@
   box-sizing: border-box;
 }
 
+.eva-calculator-field select {
+  color: var(--text);
+}
+
+.eva-calculator-field select option {
+  color: #111827;
+  background: #ffffff;
+}
+
 .eva-calculator-field small {
   color: #ffb4bf;
 }
