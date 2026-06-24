@@ -17,8 +17,9 @@
 
   function getGoalLabel(goal) {
     if (goal === "loss") return "Похудение";
-    if (goal === "gain") return "Набор";
-    return "Поддержание";
+    if (goal === "skinny-fat") return "Skinny Fat";
+    if (goal === "muscle-gain") return "Набор мышечной массы";
+    return "Похудение";
   }
 
   function ensureHost() {
@@ -76,21 +77,12 @@
       field("Вес, кг", "weight", "number", "35", "250"),
       field("Рост, см", "height", "number", "130", "220"),
       field("Возраст", "age", "number", "14", "100"),
-      selectField("Пол", "sex", [
-        ["female", "Женский"],
-        ["male", "Мужской"]
-      ]),
-      selectField("Активность", "activity", [
-        ["1.2", "Низкая активность"],
-        ["1.375", "1–3 тренировки в неделю"],
-        ["1.55", "3–5 тренировок в неделю"],
-        ["1.725", "6–7 тренировок в неделю"]
-      ]),
       selectField("Цель", "goal", [
         ["loss", "Похудение"],
-        ["maintain", "Поддержание"],
-        ["gain", "Набор"]
+        ["skinny-fat", "Skinny Fat"],
+        ["muscle-gain", "Набор мышечной массы"]
       ]),
+      goalHelpBlock(),
       '<button class="btn btn-primary eva-calculator-submit" type="submit">Рассчитать</button>',
       '</form>',
       '<div class="eva-calculator-result" aria-live="polite" hidden></div>',
@@ -110,6 +102,17 @@
     return '<label class="eva-calculator-field"><span>' + label + '</span><select name="' + name + '" required>' + options.map(function (option) {
       return '<option value="' + escapeHtml(option[0]) + '">' + escapeHtml(option[1]) + '</option>';
     }).join("") + '</select></label>';
+  }
+
+  function goalHelpBlock() {
+    return [
+      '<div class="eva-calculator-field eva-calculator-goal-help" aria-label="Помощь в выборе цели">',
+      '<strong>Помощь в выборе цели</strong>',
+      '<div><b>Похудение:</b><ul><li>30%+ жира</li><li>лишний вес от 8–10 кг и больше</li></ul></div>',
+      '<div><b>Skinny Fat:</b><ul><li>вес в норме</li><li>есть живот и бока</li><li>мало мышц</li><li>хочется подтянуть тело</li></ul></div>',
+      '<div><b>Набор:</b><ul><li>худощавое телосложение</li><li>сложно набрать вес</li><li>хочется увеличить ягодицы, ноги, плечи</li></ul></div>',
+      '</div>'
+    ].join("");
   }
 
   var modalRoot = null;
@@ -186,23 +189,35 @@
     var weight = toNumber(data.get("weight"));
     var height = toNumber(data.get("height"));
     var age = toNumber(data.get("age"));
-    var activity = toNumber(data.get("activity"));
-    var sex = String(data.get("sex") || "female");
-    var goal = String(data.get("goal") || "maintain");
+    var goal = String(data.get("goal") || "loss");
 
-    if (!(weight > 0) || !(height > 0) || !(age > 0) || !(activity > 0)) {
+    if (!(weight > 0) || !(height > 0) || !(age > 0)) {
       form.reportValidity();
       return;
     }
 
-    var bmr = 10 * weight + 6.25 * height - 5 * age + (sex === "male" ? 5 : -161);
-    var maintenanceCalories = bmr * activity;
-    var calories = maintenanceCalories;
-    if (goal === "loss") calories = maintenanceCalories * 0.85;
-    if (goal === "gain") calories = maintenanceCalories * 1.1;
+    var maintenanceCalories = (10 * weight + 6.25 * height - 5 * age - 161) * 1.375;
+    var calories = maintenanceCalories * 0.8;
+    var protein;
+    var fats;
 
-    var protein = weight * 1.8;
-    var fats = weight * 0.9;
+    if (goal === "loss") {
+      protein = weight < 80 ? 1.7 * weight : (weight <= 100 ? 140 : 150);
+      fats = 0.8 * weight;
+    } else if (goal === "skinny-fat") {
+      calories = maintenanceCalories * 0.9;
+      protein = Math.min(1.8 * weight, 140);
+      fats = 0.9 * weight;
+    } else if (goal === "muscle-gain") {
+      calories = maintenanceCalories * 1.1;
+      protein = 1.8 * weight;
+      fats = 1.0 * weight;
+    } else {
+      goal = "loss";
+      protein = weight < 80 ? 1.7 * weight : (weight <= 100 ? 140 : 150);
+      fats = 0.8 * weight;
+    }
+
     var carbs = (calories - protein * 4 - fats * 9) / 4;
 
     var result = form.parentElement.querySelector(".eva-calculator-result");
@@ -213,7 +228,7 @@
       '<p><strong>Белки:</strong> ' + Math.round(protein) + ' г</p>',
       '<p><strong>Жиры:</strong> ' + Math.round(fats) + ' г</p>',
       '<p><strong>Углеводы:</strong> ' + Math.round(Math.max(0, carbs)) + ' г</p>',
-      '<p><strong>Цель:</strong> ' + escapeHtml(getGoalLabel(goal)) + '</p>'
+      '<p><strong>Выбранная цель:</strong> ' + escapeHtml(getGoalLabel(goal)) + '</p>'
     ].join("");
   }
 
