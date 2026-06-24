@@ -71,19 +71,49 @@
   width: 100%;
 }
 
-.eva-calculator-result {
+.eva-calculator-result-screen {
+  display: grid;
+  gap: 14px;
+}
+
+.eva-calculator-result-main,
+.eva-calculator-result-details,
+.eva-calculator-result-extra {
   border: 1px solid var(--border);
   border-radius: 14px;
   padding: 12px;
-  margin-top: 12px;
   background: rgba(255, 255, 255, 0.03);
 }
 
-.eva-calculator-result p {
+.eva-calculator-result-label {
+  margin: 0 0 6px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.eva-calculator-result-calories {
+  margin: 0;
+  color: var(--text);
+  font-size: 24px;
+  font-weight: 700;
+}
+
+.eva-calculator-result-details p,
+.eva-calculator-result-extra p {
   margin: 0 0 6px;
   color: var(--text);
 }
 
-.eva-calculator-result p:last-child {
+.eva-calculator-result-details p:last-child,
+.eva-calculator-result-extra p:last-child {
   margin-bottom: 0;
+}
+
+.eva-calculator-result-actions {
+  display: grid;
+  gap: 10px;
+}
+
+.eva-calculator-result-actions .btn {
+  width: 100%;
 }
