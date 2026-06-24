@@ -1,8 +1,6 @@
 (function () {
   "use strict";
 
-  console.log("[EvaCalculator] loaded v2 shared nutrition modal");
-
   function escapeHtml(value) {
     return String(value == null ? "" : value)
       .replace(/&/g, "&amp;")
@@ -127,13 +125,6 @@
   function openEvaCalculator() {
     var modal = getModal();
     var sheet = modal && modal.querySelector(".nutrition-modal__sheet");
-    console.log("[EvaCalculator] open clicked", {
-      modal: modal,
-      modalClass: modal && modal.className,
-      sheet: sheet,
-      sheetClass: sheet && sheet.className,
-      hidden: modal && modal.hidden
-    });
     if (!sheet) return;
     if (typeof closeTransitionCleanup === "function") {
       closeTransitionCleanup();
@@ -148,15 +139,6 @@
     modal.classList.add("is-open");
     document.body.classList.add("modal-open", "calculator-modal-open");
     modal.setAttribute("aria-hidden", "false");
-    console.log("[EvaCalculator] after open", {
-      hiddenProp: modal.hidden,
-      hasHiddenAttr: modal.hasAttribute("hidden"),
-      className: modal.className,
-      display: getComputedStyle(modal).display,
-      sheetDisplay: getComputedStyle(sheet).display,
-      sheetTransform: getComputedStyle(sheet).transform,
-      sheetRect: sheet.getBoundingClientRect()
-    });
   }
 
   function closeEvaCalculator() {
