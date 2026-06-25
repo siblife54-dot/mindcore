@@ -12,6 +12,7 @@
   var APP_PROFILE = null;
   var COURSE_SETTINGS = null;
   var COURSE_ACCESS = null;
+  var PRODUCT_USER = null;
   var CURRENT_COURSE = null;
   var NUTRITION = null;
   var EMOTION_STORAGE_KEY = "emotion_navigator_state";
@@ -160,7 +161,7 @@
 
     var result = await client
       .from("course_settings")
-      .select("theme_id, course_structure, addon_nutrition_calculator, addon_eva_calculator, addon_emotion_navigator, addon_designer_xp")
+      .select("theme_id, course_structure, addon_nutrition_calculator, addon_eva_calculator, addon_emotion_navigator, addon_designer_xp, access_control_enabled, access_duration_days, access_expired_title, access_expired_text, access_expired_button_text, access_expired_button_url")
       .eq("course_id", getActiveCourseId())
       .maybeSingle();
 
@@ -172,7 +173,13 @@
         addon_eva_calculator: false,
         course_structure: "classic",
         addon_emotion_navigator: false,
-        addon_designer_xp: false
+        addon_designer_xp: false,
+        access_control_enabled: false,
+        access_duration_days: null,
+        access_expired_title: "",
+        access_expired_text: "",
+        access_expired_button_text: "",
+        access_expired_button_url: ""
       };
     }
 
@@ -182,7 +189,13 @@
       addon_nutrition_calculator: Boolean(result.data && result.data.addon_nutrition_calculator === true),
       addon_eva_calculator: Boolean(result.data && result.data.addon_eva_calculator === true),
       addon_emotion_navigator: Boolean(result.data && result.data.addon_emotion_navigator === true),
-      addon_designer_xp: Boolean(result.data && result.data.addon_designer_xp === true)
+      addon_designer_xp: Boolean(result.data && result.data.addon_designer_xp === true),
+      access_control_enabled: Boolean(result.data && result.data.access_control_enabled === true),
+      access_duration_days: result.data ? result.data.access_duration_days : null,
+      access_expired_title: (result.data && result.data.access_expired_title) || "",
+      access_expired_text: (result.data && result.data.access_expired_text) || "",
+      access_expired_button_text: (result.data && result.data.access_expired_button_text) || "",
+      access_expired_button_url: (result.data && result.data.access_expired_button_url) || ""
     };
   }
 
@@ -619,10 +632,20 @@
     return fullName || profile.fullName || profile.username || "Студент";
   }
 
-  function addMonths(date, months) {
+  function addDays(date, days) {
     var next = new Date(date.getTime());
-    next.setMonth(next.getMonth() + months);
+    next.setDate(next.getDate() + days);
     return next;
+  }
+
+  function getAccessDurationDays(courseSettings) {
+    var rawDays = courseSettings && courseSettings.access_duration_days;
+    var days = Number(rawDays);
+    if (!Number.isFinite(days) || days <= 0) {
+      console.warn("[MindCore] Invalid access_duration_days, fallback to 120 days:", rawDays);
+      return 120;
+    }
+    return Math.floor(days);
   }
 
   function resolveCourseTitle(course) {
@@ -750,16 +773,28 @@
       if (existingResult.data) {
         saveResult = await client
           .from("product_users")
-          .update(basePayload)
+          .update({
+            last_seen_at: now,
+            user_display_name: basePayload.user_display_name,
+            expert_name: basePayload.expert_name,
+            course_title: basePayload.course_title,
+            metadata: basePayload.metadata
+          })
           .eq("id", existingResult.data.id)
           .select("*")
           .single();
       } else {
+        var accessControlEnabled = Boolean(COURSE_SETTINGS && COURSE_SETTINGS.access_control_enabled === true);
+        var accessExpiresAt = null;
+        if (accessControlEnabled) {
+          accessExpiresAt = addDays(nowDate, getAccessDurationDays(COURSE_SETTINGS)).toISOString();
+        }
+
         saveResult = await client
           .from("product_users")
           .insert(Object.assign({}, basePayload, {
             access_started_at: now,
-            access_expires_at: addMonths(nowDate, 4).toISOString(),
+            access_expires_at: accessExpiresAt,
             created_at: now,
             updated_at: now
           }))
@@ -772,9 +807,12 @@
         return null;
       }
 
+      PRODUCT_USER = saveResult.data || null;
       console.log("[MindCore] Product user saved", saveResult.data);
-      console.log("[MindCore] Product access expires at:", saveResult.data && saveResult.data.access_expires_at);
-      return saveResult.data || null;
+      console.log("[MindCore] Access started:", PRODUCT_USER && PRODUCT_USER.access_started_at);
+      console.log("[MindCore] Access expires:", PRODUCT_USER && PRODUCT_USER.access_expires_at);
+      console.log("[MindCore] Access status:", PRODUCT_USER && PRODUCT_USER.status);
+      return PRODUCT_USER;
     } catch (error) {
       console.warn("Supabase product_users save error:", error);
       return null;
@@ -784,7 +822,7 @@
   async function saveWebAppAccess() {
     try {
       var webappUser = await ensureWebAppUser();
-      if (webappUser) await ensureProductUser(webappUser);
+      if (webappUser) PRODUCT_USER = await ensureProductUser(webappUser);
     } catch (error) {
       console.warn("Supabase webapp access save error:", error);
     }
@@ -1235,6 +1273,86 @@
 
   }
 
+  function getAccessExpiredScreenModel(accessResult) {
+    var settings = COURSE_SETTINGS || {};
+    return {
+      title: String(settings.access_expired_title || "").trim() || "Доступ к программе завершён",
+      text: String(settings.access_expired_text || "").trim() || "Срок доступа к программе закончился. Чтобы продлить доступ, нажмите кнопку ниже.",
+      buttonText: String(settings.access_expired_button_text || "").trim() || "Продлить доступ",
+      buttonUrl: String(settings.access_expired_button_url || "").trim(),
+      accessExpiresAt: accessResult && accessResult.productUser && accessResult.productUser.access_expires_at
+    };
+  }
+
+  function formatAccessDate(value) {
+    if (!value) return "";
+    var date = new Date(value);
+    if (Number.isNaN(date.getTime())) return "";
+    return date.toLocaleDateString("ru-RU", { day: "2-digit", month: "2-digit", year: "numeric" });
+  }
+
+  function renderAccessExpiredScreen(host, accessResult) {
+    if (!host) return;
+    var model = getAccessExpiredScreenModel(accessResult);
+    var expiredDate = formatAccessDate(model.accessExpiresAt);
+    host.innerHTML = [
+      '<section class="card access-expired-card" role="status" aria-live="polite">',
+      '<div class="access-expired-icon" aria-hidden="true">⏳</div>',
+      '<h2>' + escapeHtml(model.title) + '</h2>',
+      '<p>' + escapeHtml(model.text) + '</p>',
+      (expiredDate ? '<p class="access-expired-date">Доступ был активен до: <strong>' + escapeHtml(expiredDate) + '</strong></p>' : ''),
+      (model.buttonUrl ? '<a class="btn btn-primary access-expired-btn" href="' + escapeAttr(model.buttonUrl) + '" target="_blank" rel="noopener noreferrer">' + escapeHtml(model.buttonText) + '</a>' : ''),
+      '</section>'
+    ].join("");
+  }
+
+  async function checkCourseAccess() {
+    var settings = COURSE_SETTINGS || {};
+    var enabled = Boolean(settings.access_control_enabled === true);
+    var productUser = PRODUCT_USER || null;
+    var allowed = true;
+    var reason = "access_control_disabled";
+
+    if (enabled) {
+      allowed = false;
+      reason = "product_user_missing";
+      if (productUser) {
+        var status = String(productUser.status || "active").toLowerCase();
+        if (status === "blocked" || status === "expired") {
+          reason = "status_" + status;
+        } else if (productUser.access_expires_at && new Date() > new Date(productUser.access_expires_at)) {
+          reason = "access_expired";
+        } else {
+          allowed = true;
+          reason = "allowed";
+        }
+      }
+    }
+
+    console.log("[MindCore] Access control enabled:", enabled);
+    console.log("[MindCore] Access started:", productUser && productUser.access_started_at);
+    console.log("[MindCore] Access expires:", productUser && productUser.access_expires_at);
+    console.log("[MindCore] Access status:", productUser && productUser.status);
+    console.log("[MindCore] Access allowed:", allowed);
+    console.log("[MindCore] Access blocked reason:", allowed ? "" : reason);
+
+    return { allowed: allowed, reason: reason, productUser: productUser, settings: settings };
+  }
+
+  function setDashboardCourseContentBlocked(blocked) {
+    var list = document.getElementById("lessonsContainer");
+    var stateBox = document.getElementById("stateBox");
+    var progressWrap = document.querySelector(".progress-wrap");
+    var sectionTitles = Array.from(document.querySelectorAll(".section-title"));
+    if (progressWrap) progressWrap.hidden = blocked;
+    sectionTitles.forEach(function (title) {
+      var text = String(title.textContent || "").trim().toLowerCase();
+      if (text === "ваш прогресс" || text === "уроки") title.hidden = blocked;
+    });
+    if (blocked && list) list.innerHTML = "";
+    if (blocked && stateBox) stateBox.hidden = true;
+  }
+
   async function renderDashboard(lessons, config) {
     console.log("[preview access]", {
       isPreview: isPreviewMode(),
@@ -1263,6 +1381,16 @@
     renderEmotionNavigator();
     await renderDesignerXpCard(lessons);
     renderDashboardWatermark(COURSE_ACCESS);
+
+    var courseAccessResult = await checkCourseAccess();
+    setDashboardCourseContentBlocked(!courseAccessResult.allowed);
+    if (!courseAccessResult.allowed) {
+      renderAccessExpiredScreen(list, courseAccessResult);
+      await renderDebugPanel(config, lessons, completed, accessModel);
+      return;
+    }
+
+    setDashboardCourseContentBlocked(false);
     await renderDebugPanel(config, lessons, completed, accessModel);
 
     if (!lessons.length) {
@@ -1529,6 +1657,16 @@
     if (!lesson) {
       stateBox.classList.remove("skeleton");
       stateBox.textContent = "Урок не найден для выбранного курса.";
+      return;
+    }
+
+    var courseAccessResult = await checkCourseAccess();
+    if (!courseAccessResult.allowed) {
+      if (main) main.hidden = true;
+      stateBox.hidden = false;
+      stateBox.classList.remove("skeleton");
+      renderAccessExpiredScreen(stateBox, courseAccessResult);
+      wireLessonBackLinks();
       return;
     }
 
