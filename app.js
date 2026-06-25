@@ -12,6 +12,7 @@
   var APP_PROFILE = null;
   var COURSE_SETTINGS = null;
   var COURSE_ACCESS = null;
+  var CURRENT_COURSE = null;
   var NUTRITION = null;
   var EMOTION_STORAGE_KEY = "emotion_navigator_state";
   var DESIGNER_XP_TOAST_KEY = "designer_xp_last_gain_v1";
@@ -580,6 +581,213 @@
       hasAvatar: false,
       isTelegram: false
     };
+  }
+
+  function safeLocalStorageGet(key) {
+    try { return window.localStorage ? window.localStorage.getItem(key) : null; } catch (error) { return null; }
+  }
+
+  function safeLocalStorageSet(key, value) {
+    try { if (window.localStorage) window.localStorage.setItem(key, value); } catch (error) { console.warn("localStorage set failed:", error); }
+  }
+
+  function getStableGuestId() {
+    var key = "mindcore_guest_id";
+    var existing = safeLocalStorageGet(key);
+    if (existing) return existing;
+
+    var randomPart = "";
+    try {
+      if (window.crypto && typeof window.crypto.randomUUID === "function") {
+        randomPart = window.crypto.randomUUID();
+      }
+    } catch (error) {
+      randomPart = "";
+    }
+    if (!randomPart) {
+      randomPart = String(Date.now()) + "_" + Math.random().toString(36).slice(2, 12);
+    }
+
+    var guestId = "guest_" + randomPart;
+    safeLocalStorageSet(key, guestId);
+    return guestId;
+  }
+
+  function getDisplayNameFromProfile(profile) {
+    profile = profile || {};
+    var fullName = [profile.firstName, profile.lastName].filter(Boolean).join(" ").trim();
+    return fullName || profile.fullName || profile.username || "Студент";
+  }
+
+  function addMonths(date, months) {
+    var next = new Date(date.getTime());
+    next.setMonth(next.getMonth() + months);
+    return next;
+  }
+
+  function resolveCourseTitle(course) {
+    course = course || {};
+    return course.title || course.course_title || course.name || getConfig().brandName || "";
+  }
+
+  function resolveExpertName(course) {
+    course = course || {};
+    return course.expert_name || course.expertName || course.author_name || course.author || course.teacher_name || course.instructor_name || "";
+  }
+
+  async function fetchCurrentCourseInfo() {
+    var client = window.getSupabaseClient();
+    var courseId = getActiveCourseId();
+    if (!client || !courseId) return null;
+
+    var result = await client
+      .from("courses")
+      .select("*")
+      .eq("course_id", courseId)
+      .maybeSingle();
+
+    if (result.error) {
+      console.warn("Supabase current course load error:", result.error);
+      return null;
+    }
+
+    return result.data || null;
+  }
+
+  async function ensureWebAppUser() {
+    var client = window.getSupabaseClient();
+    if (!client) return null;
+
+    try {
+      var profile = APP_PROFILE || await getProfile();
+      var platformApi = globalThis.CourseAppPlatform || {};
+      var platform = profile.platform || (platformApi.detectPlatform && platformApi.detectPlatform()) || "browser";
+      var rawUserId = profile.userId != null ? profile.userId : profile.id;
+      var platformUserId = rawUserId != null && String(rawUserId).trim() ? String(rawUserId).trim() : getStableGuestId();
+      var displayName = getDisplayNameFromProfile(profile);
+      var now = new Date().toISOString();
+      var payload = {
+        platform: platform,
+        platform_user_id: platformUserId,
+        telegram_id: platform === "telegram" ? platformUserId : null,
+        vk_id: platform === "vk" ? platformUserId : null,
+        max_id: platform === "max" ? platformUserId : null,
+        first_name: profile.firstName || "",
+        last_name: profile.lastName || "",
+        username: profile.username || "",
+        display_name: displayName,
+        avatar_url: profile.avatarUrl || profile.photoUrl || "",
+        last_seen_at: now,
+        metadata: {
+          source: "mindcore_webapp",
+          storage: STORAGE_DEBUG,
+          course_id: getActiveCourseId(),
+          has_platform_user: Boolean(rawUserId != null && String(rawUserId).trim())
+        }
+      };
+
+      var result = await client
+        .from("webapp_users")
+        .upsert(payload, { onConflict: "platform,platform_user_id" })
+        .select("*")
+        .single();
+
+      if (result.error) {
+        console.warn("Supabase webapp_users save error:", result.error);
+        return null;
+      }
+
+      console.log("[MindCore] WebApp user saved", result.data);
+      return result.data || null;
+    } catch (error) {
+      console.warn("Supabase webapp_users save error:", error);
+      return null;
+    }
+  }
+
+  async function ensureProductUser(webappUser) {
+    var client = window.getSupabaseClient();
+    var courseId = getActiveCourseId();
+    if (!client || !webappUser || !webappUser.id || !courseId) return null;
+
+    try {
+      var course = CURRENT_COURSE || await fetchCurrentCourseInfo() || {};
+      if (!CURRENT_COURSE && course && Object.keys(course).length) CURRENT_COURSE = course;
+
+      var nowDate = new Date();
+      var now = nowDate.toISOString();
+      var displayName = webappUser.display_name || getDisplayNameFromProfile(APP_PROFILE);
+      var basePayload = {
+        course_id: courseId,
+        webapp_user_id: webappUser.id,
+        expert_name: resolveExpertName(course),
+        course_title: resolveCourseTitle(course),
+        user_display_name: displayName,
+        status: "active",
+        last_seen_at: now,
+        metadata: {
+          source: "mindcore_webapp",
+          platform: webappUser.platform || (APP_PROFILE && APP_PROFILE.platform) || "browser",
+          platform_user_id: webappUser.platform_user_id || "",
+          course_found: Boolean(course && Object.keys(course).length),
+          storage: STORAGE_DEBUG
+        }
+      };
+
+      var existingResult = await client
+        .from("product_users")
+        .select("*")
+        .eq("course_id", courseId)
+        .eq("webapp_user_id", webappUser.id)
+        .maybeSingle();
+
+      if (existingResult.error) {
+        console.warn("Supabase product_users lookup error:", existingResult.error);
+        return null;
+      }
+
+      var saveResult;
+      if (existingResult.data) {
+        saveResult = await client
+          .from("product_users")
+          .update(basePayload)
+          .eq("id", existingResult.data.id)
+          .select("*")
+          .single();
+      } else {
+        saveResult = await client
+          .from("product_users")
+          .insert(Object.assign({}, basePayload, {
+            access_started_at: now,
+            access_expires_at: addMonths(nowDate, 4).toISOString(),
+            created_at: now,
+            updated_at: now
+          }))
+          .select("*")
+          .single();
+      }
+
+      if (saveResult.error) {
+        console.warn("Supabase product_users save error:", saveResult.error);
+        return null;
+      }
+
+      console.log("[MindCore] Product user saved", saveResult.data);
+      console.log("[MindCore] Product access expires at:", saveResult.data && saveResult.data.access_expires_at);
+      return saveResult.data || null;
+    } catch (error) {
+      console.warn("Supabase product_users save error:", error);
+      return null;
+    }
+  }
+
+  async function saveWebAppAccess() {
+    try {
+      var webappUser = await ensureWebAppUser();
+      if (webappUser) await ensureProductUser(webappUser);
+    } catch (error) {
+      console.warn("Supabase webapp access save error:", error);
+    }
   }
 
   function normalizeLesson(raw) {
@@ -1644,6 +1852,8 @@
     try {
       var lessons = await fetchLessons(config);
       LAST_LESSONS = lessons.slice();
+      CURRENT_COURSE = await fetchCurrentCourseInfo();
+      await saveWebAppAccess();
       if (page === "dashboard") await renderDashboard(lessons, config);
       if (page === "lesson") await renderLesson(lessons);
     } catch (error) {
@@ -1718,6 +1928,7 @@ document.addEventListener("click", function (e) {
 
       var lessons = await fetchLessons(config);
       LAST_LESSONS = lessons.slice();
+      CURRENT_COURSE = await fetchCurrentCourseInfo();
 
       if (page === "dashboard") {
         await renderDashboard(lessons, config);
