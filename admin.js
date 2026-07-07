@@ -23,7 +23,13 @@
       originalOrder: null,
       dropHappened: false
     },
-    activeAdminTab: "content"
+    activeAdminTab: "content",
+    students: [],
+    studentsLoading: false,
+    studentsError: null,
+    studentsLoaded: false,
+    studentsSearch: "",
+    studentsStatusFilter: "all"
   };
   state.savedThemeId = "dark_premium";
   var tooltipState = {
@@ -260,7 +266,7 @@
 function getDefaultAdminTab() {
     try {
       var stored = window.localStorage.getItem("admin_active_tab");
-      if (stored === "appearance" || stored === "lesson_settings" || stored === "content" || stored === "connections") {
+      if (stored === "appearance" || stored === "lesson_settings" || stored === "content" || stored === "students" || stored === "connections") {
         return stored;
       }
     } catch (error) {}
@@ -268,7 +274,7 @@ function getDefaultAdminTab() {
   }
 
   function setActiveAdminTab(tabId) {
-    var nextTab = (tabId === "lesson_settings" || tabId === "content" || tabId === "connections") ? tabId : "appearance";
+    var nextTab = (tabId === "lesson_settings" || tabId === "content" || tabId === "students" || tabId === "connections") ? tabId : "appearance";
     state.activeAdminTab = nextTab;
 
     var mobilePreviewToggleBtn = document.getElementById("mobilePreviewToggleBtn");
@@ -299,6 +305,10 @@ function getDefaultAdminTab() {
     });
 
     updateLessonEditorPanelsVisibility();
+
+    if (nextTab === "students" && !state.studentsLoading && !state.studentsLoaded) {
+      void loadCourseStudents(getActiveCourseId()).catch(function () {});
+    }
 
     try {
       window.localStorage.setItem("admin_active_tab", nextTab);
@@ -345,6 +355,197 @@ function getDefaultAdminTab() {
       "Кнопка: " + (integration.telegram_button_title || "—"),
       "Ссылка: " + (integration.telegram_webapp_url || "—")
     ].join("\n"), false);
+  }
+
+
+  function getStudentAccessState(student) {
+    var productUser = student && student.productUser ? student.productUser : student || {};
+    var status = String(productUser.status || "").toLowerCase();
+    var expiresAt = productUser.access_expires_at ? new Date(productUser.access_expires_at) : null;
+    var isExpiredByDate = expiresAt instanceof Date && !Number.isNaN(expiresAt.getTime()) && expiresAt.getTime() < Date.now();
+
+    if (status === "blocked") return "blocked";
+    if (status === "expired" || isExpiredByDate) return "expired";
+    if (status === "completed") return "completed";
+    if (status === "active") return "active";
+    return status || "unknown";
+  }
+
+  function getStudentStatusLabel(student) {
+    var stateName = getStudentAccessState(student);
+    var labels = {
+      active: "Активен",
+      expired: "Истёк доступ",
+      blocked: "Заблокирован",
+      completed: "Завершил"
+    };
+    return labels[stateName] || stateName || "—";
+  }
+
+  function formatStudentDate(value) {
+    if (!value) return "—";
+    var date = new Date(value);
+    if (Number.isNaN(date.getTime())) return "—";
+    return date.toLocaleDateString("ru-RU", { day: "2-digit", month: "2-digit", year: "numeric" });
+  }
+
+  function mergeProductUserWithWebAppUser(productUser, webappUsersById) {
+    var webappUser = webappUsersById[String(productUser.webapp_user_id)] || null;
+    return { productUser: productUser, webappUser: webappUser };
+  }
+
+  async function loadCourseStudents(courseId) {
+    var client = getClient();
+    if (!client) throw new Error("Supabase client not initialized");
+    if (!courseId) throw new Error("Курс не выбран");
+
+    state.studentsLoading = true;
+    state.studentsError = null;
+    state.studentsLoaded = false;
+    renderStudentsSection();
+
+    try {
+      var productResult = await client
+        .from("product_users")
+        .select("id,course_id,webapp_user_id,user_display_name,status,access_started_at,access_expires_at,created_at,updated_at,last_seen_at")
+        .eq("course_id", courseId)
+        .order("created_at", { ascending: false });
+
+      if (productResult.error) throw productResult.error;
+
+      var productUsers = productResult.data || [];
+      var userIds = productUsers
+        .map(function (student) { return student.webapp_user_id; })
+        .filter(function (id, index, list) { return id && list.indexOf(id) === index; });
+      var webappUsersById = {};
+
+      if (userIds.length) {
+        var usersResult = await client
+          .from("webapp_users")
+          .select("id,platform,platform_user_id,telegram_id,vk_id,max_id,first_name,last_name,username,display_name,avatar_url,last_seen_at")
+          .in("id", userIds);
+
+        if (usersResult.error) throw usersResult.error;
+        (usersResult.data || []).forEach(function (user) {
+          webappUsersById[String(user.id)] = user;
+        });
+      }
+
+      state.students = productUsers.map(function (productUser) {
+        return mergeProductUserWithWebAppUser(productUser, webappUsersById);
+      });
+      state.studentsLoaded = true;
+    } catch (error) {
+      console.warn("Не удалось загрузить учеников курса", error);
+      state.students = [];
+      state.studentsError = "Не удалось загрузить учеников. Попробуйте обновить страницу.";
+      state.studentsLoaded = true;
+      throw error;
+    } finally {
+      state.studentsLoading = false;
+      renderStudentsSection();
+    }
+
+    return state.students;
+  }
+
+  function getStudentSearchText(student) {
+    var productUser = student.productUser || {};
+    var webappUser = student.webappUser || {};
+    return [
+      productUser.user_display_name,
+      webappUser.display_name,
+      webappUser.username,
+      webappUser.platform_user_id,
+      webappUser.telegram_id,
+      webappUser.vk_id,
+      webappUser.max_id
+    ].join(" ").toLowerCase();
+  }
+
+  function filterStudents(students) {
+    var query = String(state.studentsSearch || "").trim().toLowerCase();
+    var statusFilter = state.studentsStatusFilter || "all";
+    return (students || []).filter(function (student) {
+      var matchesSearch = !query || getStudentSearchText(student).indexOf(query) !== -1;
+      var matchesStatus = statusFilter === "all" || getStudentAccessState(student) === statusFilter;
+      return matchesSearch && matchesStatus;
+    });
+  }
+
+  function renderStudentsMetrics(students) {
+    var container = document.getElementById("studentsMetrics");
+    if (!container) return;
+    var totals = { total: students.length, active: 0, expired: 0, blocked: 0 };
+    students.forEach(function (student) {
+      var accessState = getStudentAccessState(student);
+      if (accessState === "active") totals.active += 1;
+      if (accessState === "expired") totals.expired += 1;
+      if (accessState === "blocked") totals.blocked += 1;
+    });
+    var cards = [
+      ["Всего учеников", totals.total],
+      ["Активных", totals.active],
+      ["Доступ истёк", totals.expired],
+      ["Заблокированных", totals.blocked]
+    ];
+    container.innerHTML = cards.map(function (card) {
+      return '<article class="admin-students-metric"><span>' + escapeHtml(card[0]) + '</span><strong>' + escapeHtml(card[1]) + '</strong></article>';
+    }).join("");
+  }
+
+  function renderStudentsSection() {
+    renderStudentsMetrics(state.students || []);
+    var stateNode = document.getElementById("studentsState");
+    var tableWrap = document.querySelector(".admin-students-table-wrap");
+    var tbody = document.getElementById("studentsTableBody");
+    if (!stateNode || !tableWrap || !tbody) return;
+
+    if (state.studentsLoading) {
+      stateNode.textContent = "Загружаем учеников...";
+      stateNode.hidden = false;
+      tableWrap.hidden = true;
+      tbody.innerHTML = "";
+      return;
+    }
+
+    if (state.studentsError) {
+      stateNode.textContent = state.studentsError;
+      stateNode.hidden = false;
+      tableWrap.hidden = true;
+      tbody.innerHTML = "";
+      return;
+    }
+
+    var filteredStudents = filterStudents(state.students || []);
+    if (!filteredStudents.length) {
+      stateNode.textContent = state.students.length ? "По выбранным условиям ученики не найдены." : "Пока нет учеников. Они появятся здесь после первого входа в WebApp.";
+      stateNode.hidden = false;
+      tableWrap.hidden = true;
+      tbody.innerHTML = "";
+      return;
+    }
+
+    stateNode.hidden = true;
+    tableWrap.hidden = false;
+    tbody.innerHTML = filteredStudents.map(function (student) {
+      var productUser = student.productUser || {};
+      var webappUser = student.webappUser || {};
+      var name = productUser.user_display_name || webappUser.display_name || [webappUser.first_name, webappUser.last_name].filter(Boolean).join(" ") || "—";
+      var username = webappUser.username ? "@" + String(webappUser.username).replace(/^@/, "") : "—";
+      var lastSeen = productUser.last_seen_at || webappUser.last_seen_at;
+      return [
+        '<tr>',
+        '<td><strong>' + escapeHtml(name) + '</strong></td>',
+        '<td>' + escapeHtml(webappUser.platform || "—") + '</td>',
+        '<td>' + escapeHtml(username) + '</td>',
+        '<td><span class="admin-student-status admin-student-status--' + escapeAttr(getStudentAccessState(student)) + '">' + escapeHtml(getStudentStatusLabel(student)) + '</span></td>',
+        '<td>' + escapeHtml(formatStudentDate(productUser.access_started_at)) + '</td>',
+        '<td>' + escapeHtml(formatStudentDate(productUser.access_expires_at)) + '</td>',
+        '<td>' + escapeHtml(formatStudentDate(lastSeen)) + '</td>',
+        '</tr>'
+      ].join("");
+    }).join("");
   }
 
   function renderConnectionScreen() {
@@ -3646,6 +3847,22 @@ function getDefaultAdminTab() {
         setActiveAdminTab(btn.getAttribute("data-admin-tab"));
       });
     });
+    var studentsSearchInput = document.getElementById("studentsSearchInput");
+    if (studentsSearchInput) {
+      studentsSearchInput.addEventListener("input", function () {
+        state.studentsSearch = studentsSearchInput.value || "";
+        renderStudentsSection();
+      });
+    }
+
+    var studentsStatusFilter = document.getElementById("studentsStatusFilter");
+    if (studentsStatusFilter) {
+      studentsStatusFilter.addEventListener("change", function () {
+        state.studentsStatusFilter = studentsStatusFilter.value || "all";
+        renderStudentsSection();
+      });
+    }
+
     var connectTelegramBtn = document.getElementById("connectTelegramBtn");
     if (connectTelegramBtn) {
       connectTelegramBtn.addEventListener("click", function () {

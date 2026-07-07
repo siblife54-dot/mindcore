@@ -65,6 +65,7 @@
         <button class="admin-top-tab is-active" type="button" data-admin-tab="appearance">Внешний вид</button>
         <button class="admin-top-tab" type="button" data-admin-tab="lesson_settings">Настройки модуля</button>
         <button class="admin-top-tab" type="button" data-admin-tab="content">Наполнение</button>
+        <button class="admin-top-tab" type="button" data-admin-tab="students">Ученики</button>
         <button class="admin-top-tab" type="button" data-admin-tab="connections">Подключение</button>
       </nav>
 
@@ -192,6 +193,54 @@
         </section>
 
       </div>
+      </section>
+
+      <section class="admin-tab-panel" data-admin-panel="students" hidden>
+        <section class="admin-card admin-students-card">
+          <div class="admin-card__header admin-card__header--compact">
+            <div>
+              <p class="admin-card__eyebrow">Участники курса</p>
+              <h2>Ученики</h2>
+              <p class="admin-hint">Список формируется только из записей product_users текущего курса.</p>
+            </div>
+          </div>
+
+          <div id="studentsMetrics" class="admin-students-metrics" aria-label="Метрики учеников"></div>
+
+          <div class="admin-students-controls">
+            <label class="admin-students-search">
+              Поиск
+              <input id="studentsSearchInput" type="search" placeholder="Имя, username, ID платформы" autocomplete="off" />
+            </label>
+            <label class="admin-students-filter">
+              Статус
+              <select id="studentsStatusFilter">
+                <option value="all">Все</option>
+                <option value="active">Активные</option>
+                <option value="expired">Истёк доступ</option>
+                <option value="blocked">Заблокированные</option>
+              </select>
+            </label>
+          </div>
+
+          <div id="studentsState" class="admin-students-state" hidden></div>
+          <div class="admin-students-table-wrap">
+            <table class="admin-students-table">
+              <thead>
+                <tr>
+                  <th>Имя</th>
+                  <th>Платформа</th>
+                  <th>Username</th>
+                  <th>Статус</th>
+                  <th>Доступ с</th>
+                  <th>Доступ до</th>
+                  <th>Последний вход</th>
+                </tr>
+              </thead>
+              <tbody id="studentsTableBody"></tbody>
+            </table>
+          </div>
+        </section>
       </section>
 
       <section class="admin-tab-panel" data-admin-panel="connections" hidden>
