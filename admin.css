@@ -2455,3 +2455,139 @@ body[data-page="admin"] {
   color: var(--text);
   padding: 10px 12px;
 }
+
+.admin-students-card {
+  display: grid;
+  gap: 18px;
+}
+
+.admin-students-metrics {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+}
+
+.admin-students-metric {
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: rgba(8, 18, 34, 0.42);
+  padding: 14px;
+}
+
+.admin-students-metric span {
+  display: block;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.admin-students-metric strong {
+  display: block;
+  margin-top: 8px;
+  font-size: 28px;
+  line-height: 1;
+}
+
+.admin-students-controls {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: minmax(220px, 1fr) minmax(180px, 240px);
+  align-items: end;
+}
+
+.admin-students-search,
+.admin-students-filter {
+  display: grid;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.admin-students-search input,
+.admin-students-filter select {
+  width: 100%;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: rgba(13, 24, 40, 0.9);
+  color: var(--text);
+  padding: 11px 12px;
+}
+
+.admin-students-state {
+  border: 1px dashed var(--border);
+  border-radius: 16px;
+  color: var(--muted);
+  padding: 18px;
+  text-align: center;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.admin-students-table-wrap {
+  width: 100%;
+  overflow-x: auto;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+}
+
+.admin-students-table {
+  width: 100%;
+  min-width: 760px;
+  border-collapse: collapse;
+}
+
+.admin-students-table th,
+.admin-students-table td {
+  padding: 13px 14px;
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+  vertical-align: middle;
+}
+
+.admin-students-table th {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  background: rgba(8, 18, 34, 0.54);
+}
+
+.admin-students-table tr:last-child td {
+  border-bottom: 0;
+}
+
+.admin-student-status {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 5px 10px;
+  color: var(--muted);
+  background: rgba(255, 255, 255, 0.04);
+  white-space: nowrap;
+}
+
+.admin-student-status--active {
+  border-color: color-mix(in srgb, var(--accent) 55%, transparent);
+  color: color-mix(in srgb, var(--accent) 72%, #ffffff 28%);
+  background: color-mix(in srgb, var(--accent) 16%, transparent);
+}
+
+.admin-student-status--expired {
+  border-color: color-mix(in srgb, var(--muted) 45%, transparent);
+}
+
+.admin-student-status--blocked {
+  border-color: color-mix(in srgb, #ff8f8f 55%, transparent);
+  color: #ffb7b7;
+  background: rgba(255, 143, 143, 0.1);
+}
+
+@media (max-width: 640px) {
+  .admin-students-controls {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-students-metric strong {
+    font-size: 24px;
+  }
+}
