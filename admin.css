@@ -2482,7 +2482,50 @@ body[data-page="admin"] {
 
 .admin-students-card {
   display: grid;
-  gap: 18px;
+  gap: 22px;
+  border-radius: calc(var(--radius-lg) + 4px);
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--card) 86%, transparent), color-mix(in srgb, var(--card-2) 56%, transparent)),
+    var(--card);
+  box-shadow: 0 18px 52px color-mix(in srgb, var(--bg) 72%, transparent);
+}
+
+.admin-students-hero {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding-bottom: 2px;
+}
+
+.admin-students-hero h2 {
+  margin: 0;
+  font-size: clamp(28px, 3vw, 36px);
+  line-height: 1.05;
+  letter-spacing: -0.04em;
+}
+
+.admin-students-hero p {
+  margin: 8px 0 0;
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.admin-students-count-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 34px;
+  border: 1px solid color-mix(in srgb, var(--border) 72%, transparent);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--card-2) 54%, transparent);
+  color: color-mix(in srgb, var(--text) 84%, var(--muted));
+  padding: 7px 12px;
+  font-size: 12px;
+  font-weight: 650;
+  line-height: 1;
+  white-space: nowrap;
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--text) 10%, transparent);
 }
 
 .admin-students-metrics {
@@ -2492,23 +2535,29 @@ body[data-page="admin"] {
 }
 
 .admin-students-metric {
-  border: 1px solid var(--border);
-  border-radius: 16px;
-  background: rgba(8, 18, 34, 0.42);
-  padding: 14px;
+  border: 1px solid color-mix(in srgb, var(--border) 78%, transparent);
+  border-radius: 22px;
+  background:
+    radial-gradient(circle at top right, color-mix(in srgb, var(--accent) 12%, transparent), transparent 42%),
+    linear-gradient(180deg, color-mix(in srgb, var(--card-2) 66%, transparent), color-mix(in srgb, var(--card) 40%, transparent));
+  padding: 16px;
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--text) 8%, transparent);
 }
 
 .admin-students-metric span {
   display: block;
-  color: var(--muted);
-  font-size: 13px;
+  color: color-mix(in srgb, var(--muted) 88%, var(--text));
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
 }
 
 .admin-students-metric strong {
   display: block;
-  margin-top: 8px;
-  font-size: 28px;
+  margin-top: 10px;
+  font-size: 30px;
   line-height: 1;
+  letter-spacing: -0.04em;
 }
 
 .admin-students-controls {
@@ -2521,58 +2570,81 @@ body[data-page="admin"] {
 .admin-students-search,
 .admin-students-filter {
   display: grid;
-  gap: 6px;
-  color: var(--muted);
-  font-size: 13px;
+  gap: 8px;
+  color: color-mix(in srgb, var(--muted) 90%, var(--text));
+  font-size: 12px;
+  font-weight: 600;
 }
 
 .admin-students-search input,
 .admin-students-filter select {
   width: 100%;
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  background: rgba(13, 24, 40, 0.9);
+  border: 1px solid color-mix(in srgb, var(--border) 76%, transparent);
+  border-radius: 16px;
+  background: color-mix(in srgb, var(--card-2) 62%, transparent);
   color: var(--text);
-  padding: 11px 12px;
+  padding: 13px 14px;
+  outline: none;
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--text) 7%, transparent);
+  transition: border-color 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
+}
+
+.admin-students-search input:focus,
+.admin-students-filter select:focus {
+  border-color: color-mix(in srgb, var(--accent) 54%, var(--border));
+  box-shadow:
+    0 0 0 4px color-mix(in srgb, var(--accent) 14%, transparent),
+    inset 0 1px 0 color-mix(in srgb, var(--text) 9%, transparent);
 }
 
 .admin-students-state {
-  border: 1px dashed var(--border);
-  border-radius: 16px;
+  border: 1px dashed color-mix(in srgb, var(--border) 82%, transparent);
+  border-radius: 20px;
   color: var(--muted);
-  padding: 18px;
+  padding: 20px;
   text-align: center;
-  background: rgba(255, 255, 255, 0.03);
+  background: color-mix(in srgb, var(--card-2) 36%, transparent);
 }
 
 .admin-students-table-wrap {
   width: 100%;
   overflow-x: auto;
-  border: 1px solid var(--border);
-  border-radius: 16px;
+  border: 1px solid color-mix(in srgb, var(--border) 74%, transparent);
+  border-radius: 22px;
+  background: color-mix(in srgb, var(--card) 52%, transparent);
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--text) 7%, transparent);
 }
 
 .admin-students-table {
   width: 100%;
   min-width: 760px;
-  border-collapse: collapse;
+  border-collapse: separate;
+  border-spacing: 0;
 }
 
 .admin-students-table th,
 .admin-students-table td {
-  padding: 13px 14px;
-  border-bottom: 1px solid var(--border);
+  padding: 14px 16px;
+  border-bottom: 1px solid color-mix(in srgb, var(--border) 68%, transparent);
   text-align: left;
   vertical-align: middle;
 }
 
 .admin-students-table th {
-  color: var(--muted);
-  font-size: 12px;
-  font-weight: 600;
+  color: color-mix(in srgb, var(--muted) 88%, var(--text));
+  font-size: 11px;
+  font-weight: 650;
   text-transform: uppercase;
-  letter-spacing: 0.04em;
-  background: rgba(8, 18, 34, 0.54);
+  letter-spacing: 0.06em;
+  background: color-mix(in srgb, var(--card-2) 42%, transparent);
+}
+
+.admin-students-table tbody tr {
+  transition: background 0.16s ease;
+}
+
+.admin-students-table tbody tr:hover {
+  background: color-mix(in srgb, var(--accent) 7%, transparent);
 }
 
 .admin-students-table tr:last-child td {
@@ -2582,31 +2654,42 @@ body[data-page="admin"] {
 .admin-student-status {
   display: inline-flex;
   align-items: center;
-  border: 1px solid var(--border);
+  border: 1px solid color-mix(in srgb, var(--border) 78%, transparent);
   border-radius: 999px;
   padding: 5px 10px;
-  color: var(--muted);
-  background: rgba(255, 255, 255, 0.04);
+  color: color-mix(in srgb, var(--muted) 86%, var(--text));
+  background: color-mix(in srgb, var(--card-2) 48%, transparent);
+  font-size: 12px;
+  font-weight: 650;
+  line-height: 1;
   white-space: nowrap;
 }
 
 .admin-student-status--active {
-  border-color: color-mix(in srgb, var(--accent) 55%, transparent);
-  color: color-mix(in srgb, var(--accent) 72%, #ffffff 28%);
-  background: color-mix(in srgb, var(--accent) 16%, transparent);
+  border-color: color-mix(in srgb, var(--accent) 48%, transparent);
+  color: color-mix(in srgb, var(--accent) 72%, var(--text));
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
 }
 
 .admin-student-status--expired {
-  border-color: color-mix(in srgb, var(--muted) 45%, transparent);
+  border-color: color-mix(in srgb, var(--muted) 36%, transparent);
 }
 
 .admin-student-status--blocked {
-  border-color: color-mix(in srgb, #ff8f8f 55%, transparent);
-  color: #ffb7b7;
-  background: rgba(255, 143, 143, 0.1);
+  border-color: color-mix(in srgb, var(--accent) 48%, transparent);
+  color: color-mix(in srgb, var(--text) 88%, var(--muted));
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
 }
 
 @media (max-width: 640px) {
+  .admin-students-hero {
+    display: grid;
+  }
+
+  .admin-students-count-badge {
+    width: fit-content;
+  }
+
   .admin-students-controls {
     grid-template-columns: 1fr;
   }

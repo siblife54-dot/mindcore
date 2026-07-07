@@ -490,8 +490,22 @@ function getDefaultAdminTab() {
     });
   }
 
+  function getStudentsCountLabel(count) {
+    var value = Math.abs(Number(count) || 0);
+    var lastTwo = value % 100;
+    var last = value % 10;
+    if (lastTwo >= 11 && lastTwo <= 14) return count + " учеников";
+    if (last === 1) return count + " ученик";
+    if (last >= 2 && last <= 4) return count + " ученика";
+    return count + " учеников";
+  }
+
   function renderStudentsMetrics(students) {
     var container = document.getElementById("studentsMetrics");
+    var countBadge = document.getElementById("studentsCountBadge");
+    if (countBadge) {
+      countBadge.textContent = state.studentsLoading ? "Обновляется автоматически" : getStudentsCountLabel((students || []).length);
+    }
     if (!container) return;
     var totals = { total: students.length, active: 0, expired: 0, blocked: 0 };
     students.forEach(function (student) {
