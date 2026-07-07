@@ -277,8 +277,25 @@ function getDefaultAdminTab() {
     var nextTab = (tabId === "lesson_settings" || tabId === "content" || tabId === "students" || tabId === "connections") ? tabId : "appearance";
     state.activeAdminTab = nextTab;
 
+    var isStudentsTab = nextTab === "students";
+    var layout = document.querySelector(".admin-layout");
+    if (layout) {
+      layout.classList.toggle("admin-layout--students", isStudentsTab);
+      layout.setAttribute("data-admin-layout-mode", isStudentsTab ? "students" : "default");
+    }
+
+    var livePreviewColumn = document.querySelector(".admin-live-preview-column");
+    if (livePreviewColumn) {
+      livePreviewColumn.setAttribute("aria-hidden", isStudentsTab ? "true" : "false");
+    }
+
     var mobilePreviewToggleBtn = document.getElementById("mobilePreviewToggleBtn");
     if (mobilePreviewToggleBtn) {
+      mobilePreviewToggleBtn.hidden = isStudentsTab;
+      mobilePreviewToggleBtn.setAttribute("aria-hidden", isStudentsTab ? "true" : "false");
+      if (isStudentsTab) {
+        closeMobilePreviewModal();
+      }
       mobilePreviewToggleBtn.addEventListener("click", function () {
         openMobilePreviewModal();
       });

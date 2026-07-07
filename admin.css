@@ -1992,6 +1992,30 @@ body[data-page="admin"] {
   grid-template-columns: 320px minmax(0, 1fr) minmax(320px, 420px);
 }
 
+.admin-layout.admin-layout--students {
+  grid-template-columns: 320px minmax(0, 1fr);
+}
+
+.admin-layout--students .admin-main {
+  min-width: 0;
+}
+
+.admin-layout--students .admin-live-preview-column {
+  display: none;
+}
+
+.admin-layout--students .admin-students-card {
+  width: 100%;
+}
+
+.admin-layout--students .admin-students-table-wrap {
+  max-width: 100%;
+}
+
+.admin-layout--students ~ .admin-mobile-preview-fab {
+  display: none;
+}
+
 .admin-live-preview-column {
   border-left: 1px solid var(--border);
   padding: 20px 18px;
