@@ -637,7 +637,7 @@ function getDefaultAdminTab() {
       var detailsId = 'student-details-' + studentKey.replace(/[^a-zA-Z0-9_-]/g, '-');
       return [
         '<tr class="admin-students-row' + (isSelected ? ' is-selected' : '') + '" data-student-key="' + escapeAttr(studentKey) + '" tabindex="0" aria-expanded="' + (isSelected ? 'true' : 'false') + '"' + (isSelected ? ' aria-controls="' + escapeAttr(detailsId) + '"' : '') + '>',
-        '<td><strong>' + escapeHtml(name) + '</strong></td>',
+        '<td><span class="admin-student-row-title"><span class="admin-student-row-chevron" aria-hidden="true"><svg viewBox="0 0 16 16" focusable="false"><path d="M6 4l4 4-4 4" /></svg></span><strong>' + escapeHtml(name) + '</strong></span></td>',
         '<td>' + escapeHtml(webappUser.platform || "—") + '</td>',
         '<td>' + escapeHtml(username) + '</td>',
         '<td><span class="admin-student-status admin-student-status--' + escapeAttr(getStudentAccessState(student)) + '">' + escapeHtml(getStudentStatusLabel(student)) + '</span></td>',
