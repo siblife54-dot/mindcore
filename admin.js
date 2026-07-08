@@ -31,7 +31,10 @@
     studentsSearch: "",
     studentsStatusFilter: "all",
     selectedStudentKey: null,
-    studentAccessDrafts: {}
+    studentAccessDrafts: {},
+    courseAccessSettings: null,
+    savedCourseAccessSettings: null,
+    courseAccessSaving: false
   };
   state.savedThemeId = "dark_premium";
   var tooltipState = {
@@ -1400,6 +1403,131 @@ function getDefaultAdminTab() {
     if (dirtyNode) dirtyNode.hidden = state.selectedThemeId === state.savedThemeId;
   }
 
+
+  function getDefaultCourseAccessSettings() {
+    return {
+      access_control_enabled: false,
+      access_duration_days: null,
+      access_expired_title: "",
+      access_expired_text: "",
+      access_expired_button_text: "",
+      access_expired_button_url: ""
+    };
+  }
+
+  function normalizeCourseAccessSettings(settings) {
+    var source = settings || {};
+    var duration = source.access_duration_days;
+    var parsedDuration = duration === null || typeof duration === "undefined" || duration === "" ? null : Number(duration);
+    return {
+      access_control_enabled: Boolean(source.access_control_enabled),
+      access_duration_days: Number.isFinite(parsedDuration) && parsedDuration > 0 ? Math.floor(parsedDuration) : null,
+      access_expired_title: source.access_expired_title || "",
+      access_expired_text: source.access_expired_text || "",
+      access_expired_button_text: source.access_expired_button_text || "",
+      access_expired_button_url: source.access_expired_button_url || ""
+    };
+  }
+
+  function getCourseAccessDraftFromInputs() {
+    var enabled = document.getElementById("accessControlEnabledInput");
+    var duration = document.getElementById("accessDurationDaysInput");
+    var title = document.getElementById("accessExpiredTitleInput");
+    var text = document.getElementById("accessExpiredTextInput");
+    var buttonText = document.getElementById("accessExpiredButtonTextInput");
+    var buttonUrl = document.getElementById("accessExpiredButtonUrlInput");
+    return normalizeCourseAccessSettings({
+      access_control_enabled: enabled && enabled.checked,
+      access_duration_days: duration && duration.value ? duration.value : null,
+      access_expired_title: title ? title.value : "",
+      access_expired_text: text ? text.value : "",
+      access_expired_button_text: buttonText ? buttonText.value : "",
+      access_expired_button_url: buttonUrl ? buttonUrl.value : ""
+    });
+  }
+
+  function isCourseAccessDirty() {
+    return JSON.stringify(normalizeCourseAccessSettings(state.courseAccessSettings)) !== JSON.stringify(normalizeCourseAccessSettings(state.savedCourseAccessSettings));
+  }
+
+  function setCourseAccessStatus(message, type) {
+    var node = document.getElementById("courseAccessStatus");
+    if (!node) return;
+    node.hidden = !message;
+    node.textContent = message || "";
+    node.classList.toggle("is-error", type === "error");
+    node.classList.toggle("is-success", type === "success");
+  }
+
+  function renderCourseAccessSettings() {
+    var settings = normalizeCourseAccessSettings(state.courseAccessSettings || getDefaultCourseAccessSettings());
+    var enabled = document.getElementById("accessControlEnabledInput");
+    var duration = document.getElementById("accessDurationDaysInput");
+    var title = document.getElementById("accessExpiredTitleInput");
+    var text = document.getElementById("accessExpiredTextInput");
+    var buttonText = document.getElementById("accessExpiredButtonTextInput");
+    var buttonUrl = document.getElementById("accessExpiredButtonUrlInput");
+    var fields = document.getElementById("courseAccessFields");
+    var hint = document.getElementById("courseAccessDisabledHint");
+    var actions = document.getElementById("courseAccessActions");
+    var saveBtn = document.getElementById("saveCourseAccessBtn");
+
+    if (enabled) enabled.checked = settings.access_control_enabled;
+    if (duration) duration.value = settings.access_duration_days || "";
+    if (title) title.value = settings.access_expired_title;
+    if (text) text.value = settings.access_expired_text;
+    if (buttonText) buttonText.value = settings.access_expired_button_text;
+    if (buttonUrl) buttonUrl.value = settings.access_expired_button_url;
+    if (fields) fields.classList.toggle("is-muted", !settings.access_control_enabled);
+    if (hint) hint.hidden = settings.access_control_enabled;
+    if (actions) actions.hidden = !isCourseAccessDirty();
+    if (saveBtn) saveBtn.disabled = state.courseAccessSaving || !isCourseAccessDirty();
+  }
+
+  function updateCourseAccessDraft() {
+    state.courseAccessSettings = getCourseAccessDraftFromInputs();
+    setCourseAccessStatus("", "");
+    renderCourseAccessSettings();
+  }
+
+  async function fetchCourseAccessSettings() {
+    var client = getClient();
+    if (!client) throw new Error("Supabase client not initialized");
+    var result = await client
+      .from("course_settings")
+      .select("access_control_enabled, access_duration_days, access_expired_title, access_expired_text, access_expired_button_text, access_expired_button_url")
+      .eq("course_id", getActiveCourseId())
+      .maybeSingle();
+    if (result.error) throw result.error;
+    return normalizeCourseAccessSettings(result.data || getDefaultCourseAccessSettings());
+  }
+
+  async function saveCourseAccessSettings() {
+    var client = getClient();
+    if (!client) throw new Error("Supabase client not initialized");
+    var courseId = getActiveCourseId();
+    var payload = normalizeCourseAccessSettings(state.courseAccessSettings);
+    state.courseAccessSaving = true;
+    renderCourseAccessSettings();
+    var result = await client
+      .from("course_settings")
+      .update(payload)
+      .eq("course_id", courseId)
+      .select("access_control_enabled, access_duration_days, access_expired_title, access_expired_text, access_expired_button_text, access_expired_button_url")
+      .maybeSingle();
+    state.courseAccessSaving = false;
+    if (result.error) {
+      console.warn("Не удалось сохранить настройки доступа курса:", result.error);
+      setCourseAccessStatus("Не удалось сохранить настройки доступа. Попробуйте ещё раз.", "error");
+      renderCourseAccessSettings();
+      return;
+    }
+    state.courseAccessSettings = normalizeCourseAccessSettings(result.data || payload);
+    state.savedCourseAccessSettings = normalizeCourseAccessSettings(state.courseAccessSettings);
+    setCourseAccessStatus("Настройки доступа сохранены", "success");
+    renderCourseAccessSettings();
+  }
+
   async function fetchCourseThemeId() {
     var client = getClient();
     var config = getConfig();
@@ -2017,10 +2145,12 @@ function getDefaultAdminTab() {
 
   function updateLessonEditorPanelsVisibility() {
     var settingsPanel = document.querySelector(".lesson-settings-panel");
+    var courseAccessPanel = document.querySelector(".course-access-panel");
     var materialsPanel = document.querySelector(".lesson-materials-panel");
     var isLessonSettings = state.activeAdminTab === "lesson_settings";
 
     if (settingsPanel) settingsPanel.hidden = !isLessonSettings;
+    if (courseAccessPanel) courseAccessPanel.hidden = !isLessonSettings;
     if (materialsPanel) materialsPanel.hidden = isLessonSettings;
   }
 
@@ -4159,6 +4289,35 @@ function getDefaultAdminTab() {
     }
 
 
+    [
+      "accessControlEnabledInput",
+      "accessDurationDaysInput",
+      "accessExpiredTitleInput",
+      "accessExpiredTextInput",
+      "accessExpiredButtonTextInput",
+      "accessExpiredButtonUrlInput"
+    ].forEach(function (inputId) {
+      var input = document.getElementById(inputId);
+      if (!input) return;
+      input.addEventListener(inputId === "accessControlEnabledInput" ? "change" : "input", updateCourseAccessDraft);
+    });
+
+    var cancelCourseAccessBtn = document.getElementById("cancelCourseAccessBtn");
+    if (cancelCourseAccessBtn) {
+      cancelCourseAccessBtn.addEventListener("click", function () {
+        state.courseAccessSettings = normalizeCourseAccessSettings(state.savedCourseAccessSettings);
+        setCourseAccessStatus("", "");
+        renderCourseAccessSettings();
+      });
+    }
+
+    var saveCourseAccessBtn = document.getElementById("saveCourseAccessBtn");
+    if (saveCourseAccessBtn) {
+      saveCourseAccessBtn.addEventListener("click", function () {
+        void saveCourseAccessSettings();
+      });
+    }
+
     var connectTelegramBtn = document.getElementById("connectTelegramBtn");
     if (connectTelegramBtn) {
       connectTelegramBtn.addEventListener("click", function () {
@@ -4712,6 +4871,9 @@ function getDefaultAdminTab() {
     setActiveAdminTab(getDefaultAdminTab());
     renderConnectionScreen();
     await loadTelegramIntegration();
+    state.courseAccessSettings = await fetchCourseAccessSettings();
+    state.savedCourseAccessSettings = normalizeCourseAccessSettings(state.courseAccessSettings);
+    renderCourseAccessSettings();
     state.selectedThemeId = await fetchCourseThemeId();
     state.savedThemeId = state.selectedThemeId;
     currentPreviewThemeId = state.selectedThemeId;
