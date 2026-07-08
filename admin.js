@@ -29,7 +29,8 @@
     studentsError: null,
     studentsLoaded: false,
     studentsSearch: "",
-    studentsStatusFilter: "all"
+    studentsStatusFilter: "all",
+    selectedStudentKey: null
   };
   state.savedThemeId = "dark_premium";
   var tooltipState = {
@@ -406,6 +407,34 @@ function getDefaultAdminTab() {
     return date.toLocaleDateString("ru-RU", { day: "2-digit", month: "2-digit", year: "numeric" });
   }
 
+  function formatStudentDetailDate(value) {
+    if (!value) return "—";
+    var date = new Date(value);
+    if (Number.isNaN(date.getTime())) return "—";
+    return date.toLocaleDateString("ru-RU", { day: "numeric", month: "long", year: "numeric" });
+  }
+
+  function getStudentKey(student) {
+    var productUser = student && student.productUser ? student.productUser : {};
+    return String(productUser.id || productUser.webapp_user_id || "");
+  }
+
+  function getStudentDisplayName(student) {
+    var productUser = student && student.productUser ? student.productUser : {};
+    var webappUser = student && student.webappUser ? student.webappUser : {};
+    return productUser.user_display_name || webappUser.display_name || [webappUser.first_name, webappUser.last_name].filter(Boolean).join(" ") || "—";
+  }
+
+  function getStudentUsername(student) {
+    var webappUser = student && student.webappUser ? student.webappUser : {};
+    return webappUser.username ? "@" + String(webappUser.username).replace(/^@/, "") : "—";
+  }
+
+  function getStudentPlatformLabel(student) {
+    var webappUser = student && student.webappUser ? student.webappUser : {};
+    return webappUser.platform || "—";
+  }
+
   function mergeProductUserWithWebAppUser(productUser, webappUsersById) {
     var webappUser = webappUsersById[String(productUser.webapp_user_id)] || null;
     return { productUser: productUser, webappUser: webappUser };
@@ -525,6 +554,51 @@ function getDefaultAdminTab() {
     }).join("");
   }
 
+
+  function StudentDetailsPanel(student) {
+    if (!student) return "";
+    var productUser = student.productUser || {};
+    var webappUser = student.webappUser || {};
+    var name = getStudentDisplayName(student);
+    var username = getStudentUsername(student);
+    var platform = getStudentPlatformLabel(student);
+    var avatarUrl = webappUser.avatar_url || "";
+    var initials = name === "—" ? "?" : name.split(" ").filter(Boolean).slice(0, 2).map(function (part) { return part.charAt(0); }).join("").toUpperCase();
+    var lastSeen = productUser.last_seen_at || webappUser.last_seen_at;
+    var sections = [
+      ["Точка А", "Пока нет данных"],
+      ["Домашние задания", "Пока нет данных"],
+      ["Аналитика", "Будет доступна позже"]
+    ];
+    return [
+      '<aside class="admin-student-details-panel" aria-label="Карточка ученика">',
+      '<button class="admin-student-details-close" type="button" data-student-details-close aria-label="Закрыть карточку">×</button>',
+      '<header class="admin-student-details-header">',
+      '<div class="admin-student-details-avatar">' + (avatarUrl ? '<img src="' + escapeAttr(avatarUrl) + '" alt="">' : escapeHtml(initials)) + '</div>',
+      '<div class="admin-student-details-title"><span>' + escapeHtml(platform) + '</span><h3>' + escapeHtml(name) + '</h3><p>' + escapeHtml(username) + '</p><span class="admin-student-status admin-student-status--' + escapeAttr(getStudentAccessState(student)) + '">● ' + escapeHtml(getStudentStatusLabel(student)) + '</span></div>',
+      '</header>',
+      '<dl class="admin-student-details-dates">',
+      '<div><dt>Первый вход</dt><dd>' + escapeHtml(formatStudentDetailDate(productUser.created_at)) + '</dd></div>',
+      '<div><dt>Последний вход</dt><dd>' + escapeHtml(formatStudentDetailDate(lastSeen)) + '</dd></div>',
+      '<div><dt>Доступ с</dt><dd>' + escapeHtml(formatStudentDetailDate(productUser.access_started_at)) + '</dd></div>',
+      '<div><dt>Доступ до</dt><dd>' + escapeHtml(formatStudentDetailDate(productUser.access_expires_at)) + '</dd></div>',
+      '</dl>',
+      '<div class="admin-student-details-sections">' + sections.map(function (section) { return '<article class="admin-student-details-section"><strong>' + escapeHtml(section[0]) + '</strong><span>' + escapeHtml(section[1]) + '</span></article>'; }).join("") + '</div>',
+      '</aside>'
+    ].join("");
+  }
+
+  function renderStudentDetailsPanel(filteredStudents) {
+    var shell = document.getElementById("studentsWorkspace");
+    var panel = document.getElementById("studentDetailsPanel");
+    if (!shell || !panel) return;
+    var selectedStudent = (filteredStudents || state.students || []).find(function (student) { return getStudentKey(student) === state.selectedStudentKey; }) || null;
+    if (!selectedStudent) state.selectedStudentKey = null;
+    shell.classList.toggle("has-student-details", Boolean(selectedStudent));
+    panel.hidden = !selectedStudent;
+    panel.innerHTML = selectedStudent ? StudentDetailsPanel(selectedStudent) : "";
+  }
+
   function renderStudentsSection() {
     renderStudentsMetrics(state.students || []);
     var stateNode = document.getElementById("studentsState");
@@ -537,6 +611,7 @@ function getDefaultAdminTab() {
       stateNode.hidden = false;
       tableWrap.hidden = true;
       tbody.innerHTML = "";
+      renderStudentDetailsPanel([]);
       return;
     }
 
@@ -545,6 +620,7 @@ function getDefaultAdminTab() {
       stateNode.hidden = false;
       tableWrap.hidden = true;
       tbody.innerHTML = "";
+      renderStudentDetailsPanel([]);
       return;
     }
 
@@ -554,6 +630,7 @@ function getDefaultAdminTab() {
       stateNode.hidden = false;
       tableWrap.hidden = true;
       tbody.innerHTML = "";
+      renderStudentDetailsPanel(filteredStudents);
       return;
     }
 
@@ -562,11 +639,11 @@ function getDefaultAdminTab() {
     tbody.innerHTML = filteredStudents.map(function (student) {
       var productUser = student.productUser || {};
       var webappUser = student.webappUser || {};
-      var name = productUser.user_display_name || webappUser.display_name || [webappUser.first_name, webappUser.last_name].filter(Boolean).join(" ") || "—";
-      var username = webappUser.username ? "@" + String(webappUser.username).replace(/^@/, "") : "—";
+      var name = getStudentDisplayName(student);
+      var username = getStudentUsername(student);
       var lastSeen = productUser.last_seen_at || webappUser.last_seen_at;
       return [
-        '<tr>',
+        '<tr class="admin-students-row' + (getStudentKey(student) === state.selectedStudentKey ? ' is-selected' : '') + '" data-student-key="' + escapeAttr(getStudentKey(student)) + '" tabindex="0">',
         '<td><strong>' + escapeHtml(name) + '</strong></td>',
         '<td>' + escapeHtml(webappUser.platform || "—") + '</td>',
         '<td>' + escapeHtml(username) + '</td>',
@@ -577,6 +654,7 @@ function getDefaultAdminTab() {
         '</tr>'
       ].join("");
     }).join("");
+    renderStudentDetailsPanel(filteredStudents);
   }
 
   function renderConnectionScreen() {
@@ -3890,6 +3968,33 @@ function getDefaultAdminTab() {
     if (studentsStatusFilter) {
       studentsStatusFilter.addEventListener("change", function () {
         state.studentsStatusFilter = studentsStatusFilter.value || "all";
+        renderStudentsSection();
+      });
+    }
+
+    var studentsTableBody = document.getElementById("studentsTableBody");
+    if (studentsTableBody) {
+      studentsTableBody.addEventListener("click", function (event) {
+        var row = event.target.closest("[data-student-key]");
+        if (!row) return;
+        state.selectedStudentKey = row.getAttribute("data-student-key");
+        renderStudentsSection();
+      });
+      studentsTableBody.addEventListener("keydown", function (event) {
+        if (event.key !== "Enter" && event.key !== " ") return;
+        var row = event.target.closest("[data-student-key]");
+        if (!row) return;
+        event.preventDefault();
+        state.selectedStudentKey = row.getAttribute("data-student-key");
+        renderStudentsSection();
+      });
+    }
+
+    var studentDetailsPanel = document.getElementById("studentDetailsPanel");
+    if (studentDetailsPanel) {
+      studentDetailsPanel.addEventListener("click", function (event) {
+        if (!event.target.closest("[data-student-details-close]")) return;
+        state.selectedStudentKey = null;
         renderStudentsSection();
       });
     }
