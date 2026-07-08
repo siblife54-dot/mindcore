@@ -223,9 +223,11 @@
             </label>
           </div>
 
-          <div id="studentsState" class="admin-students-state" hidden></div>
-          <div class="admin-students-table-wrap">
-            <table class="admin-students-table">
+          <div id="studentsWorkspace" class="admin-students-workspace">
+            <div class="admin-students-list-pane">
+              <div id="studentsState" class="admin-students-state" hidden></div>
+              <div class="admin-students-table-wrap">
+                <table class="admin-students-table">
               <thead>
                 <tr>
                   <th>Имя</th>
@@ -237,8 +239,11 @@
                   <th>Последний вход</th>
                 </tr>
               </thead>
-              <tbody id="studentsTableBody"></tbody>
-            </table>
+                  <tbody id="studentsTableBody"></tbody>
+                </table>
+              </div>
+            </div>
+            <div id="studentDetailsPanel" class="admin-student-details-slot" hidden></div>
           </div>
         </section>
       </section>
