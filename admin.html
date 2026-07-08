@@ -86,6 +86,59 @@
       </section>
 
       <section class="admin-tab-panel" data-admin-panel="content" hidden>
+      <section class="admin-card admin-course-access-card course-access-panel" hidden>
+        <div class="admin-card__header">
+          <div>
+            <p class="admin-card__eyebrow">Настройки доступа</p>
+            <h2>Доступ к курсу</h2>
+            <p class="admin-hint">Настройте срок доступа и экран, который увидит ученик после окончания доступа.</p>
+          </div>
+        </div>
+
+        <div class="admin-access-form" id="courseAccessForm">
+          <label class="admin-access-switch-row">
+            <span>
+              <span class="admin-access-switch-row__title">Ограничивать доступ</span>
+              <span class="admin-hint" id="courseAccessDisabledHint">Ограничение выключено — курс открыт для всех учеников.</span>
+            </span>
+            <span class="admin-ios-switch">
+              <input id="accessControlEnabledInput" type="checkbox" />
+              <span class="admin-ios-switch__track"><span></span></span>
+            </span>
+          </label>
+
+          <div class="admin-access-fields" id="courseAccessFields">
+            <label>
+              Срок доступа, дней
+              <input id="accessDurationDaysInput" type="number" min="1" placeholder="120" />
+            </label>
+            <label>
+              Заголовок экрана окончания доступа
+              <input id="accessExpiredTitleInput" type="text" />
+            </label>
+            <label class="admin-access-field--wide">
+              Текст экрана окончания доступа
+              <textarea id="accessExpiredTextInput" rows="4"></textarea>
+            </label>
+            <label>
+              Текст кнопки
+              <input id="accessExpiredButtonTextInput" type="text" />
+            </label>
+            <label>
+              Ссылка кнопки
+              <input id="accessExpiredButtonUrlInput" type="text" />
+              <span class="admin-hint">Если ссылка пустая, кнопка не будет отображаться.</span>
+            </label>
+          </div>
+
+          <p id="courseAccessStatus" class="admin-access-status" hidden></p>
+          <div id="courseAccessActions" class="admin-access-actions" hidden>
+            <button id="cancelCourseAccessBtn" class="admin-btn-ghost" type="button">Отменить</button>
+            <button id="saveCourseAccessBtn" class="btn btn-primary" type="button">Сохранить настройки</button>
+          </div>
+        </div>
+      </section>
+
       <div id="editorEmpty" class="admin-empty">Выберите урок слева</div>
 
       <div id="editorPanel" class="admin-builder" hidden>

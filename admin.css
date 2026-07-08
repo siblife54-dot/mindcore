@@ -3195,3 +3195,154 @@ body[data-page="admin"] {
     border-bottom: 0;
   }
 }
+
+.admin-course-access-card {
+  margin-bottom: 18px;
+}
+
+.admin-course-access-card .admin-card__header {
+  align-items: flex-start;
+}
+
+.admin-course-access-card .admin-hint {
+  margin: 6px 0 0;
+}
+
+.admin-access-form {
+  display: grid;
+  gap: 18px;
+}
+
+.admin-access-switch-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  border: 1px solid color-mix(in srgb, var(--border) 82%, transparent);
+  border-radius: 18px;
+  background: color-mix(in srgb, var(--card) 72%, transparent);
+  padding: 14px 16px;
+}
+
+.admin-access-switch-row__title {
+  display: block;
+  color: var(--text);
+  font-weight: 700;
+}
+
+.admin-ios-switch {
+  display: inline-flex;
+  cursor: pointer;
+  user-select: none;
+}
+
+.admin-ios-switch input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.admin-ios-switch__track {
+  position: relative;
+  width: 54px;
+  height: 32px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--border) 54%, transparent);
+  background: color-mix(in srgb, var(--muted) 18%, var(--card));
+  box-shadow: inset 0 1px 2px color-mix(in srgb, var(--bg) 32%, transparent);
+  transition: background 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.admin-ios-switch__track span {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--text);
+  box-shadow: 0 6px 14px color-mix(in srgb, var(--bg) 42%, transparent);
+  transition: transform 0.22s cubic-bezier(0.16, 1, 0.3, 1), background 0.2s ease;
+}
+
+.admin-ios-switch input:checked + .admin-ios-switch__track {
+  border-color: color-mix(in srgb, var(--accent) 42%, transparent);
+  background: color-mix(in srgb, var(--accent) 64%, var(--card));
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--text) 10%, transparent), 0 0 0 4px color-mix(in srgb, var(--accent) 8%, transparent);
+}
+
+.admin-ios-switch input:checked + .admin-ios-switch__track span {
+  transform: translateX(22px);
+  background: var(--card);
+}
+
+.admin-ios-switch input:focus-visible + .admin-ios-switch__track {
+  outline: 2px solid color-mix(in srgb, var(--accent) 55%, transparent);
+  outline-offset: 3px;
+}
+
+.admin-access-fields {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  gap: 14px;
+  transition: opacity 0.2s ease, filter 0.2s ease;
+}
+
+.admin-access-fields.is-muted {
+  opacity: 0.62;
+}
+
+.admin-access-fields label {
+  display: grid;
+  gap: 8px;
+  color: color-mix(in srgb, var(--text) 88%, var(--muted));
+  font-size: 13px;
+}
+
+.admin-access-field--wide {
+  grid-column: 1 / -1;
+}
+
+.admin-access-fields input,
+.admin-access-fields textarea {
+  width: 100%;
+  border-radius: 14px;
+  border: 1px solid var(--border);
+  background: rgba(13, 24, 40, 0.9);
+  color: var(--text);
+  padding: 12px 13px;
+  font: inherit;
+}
+
+.admin-access-fields textarea {
+  min-height: 110px;
+  resize: vertical;
+  line-height: 1.5;
+}
+
+.admin-access-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.admin-access-status {
+  margin: 0;
+  border-radius: 14px;
+  padding: 10px 12px;
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  color: color-mix(in srgb, var(--text) 86%, var(--accent));
+  font-size: 13px;
+}
+
+.admin-access-status.is-error {
+  background: rgba(255, 107, 129, 0.12);
+  color: #ffc8d0;
+}
+
+.admin-access-status.is-success {
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+}
