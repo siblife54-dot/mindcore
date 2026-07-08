@@ -566,9 +566,9 @@ function getDefaultAdminTab() {
     var initials = name === "—" ? "?" : name.split(" ").filter(Boolean).slice(0, 2).map(function (part) { return part.charAt(0); }).join("").toUpperCase();
     var lastSeen = productUser.last_seen_at || webappUser.last_seen_at;
     var sections = [
-      ["Точка А", "Пока нет данных"],
-      ["Домашние задания", "Пока нет данных"],
-      ["Аналитика", "Будет доступна позже"]
+      ["⌁", "Точка А", "Пока нет данных"],
+      ["✓", "Домашние задания", "Пока нет данных"],
+      ["↗", "Аналитика", "Будет доступна позже"]
     ];
     return [
       '<article class="admin-student-details-panel" aria-label="Карточка ученика">',
@@ -583,7 +583,7 @@ function getDefaultAdminTab() {
       '<div><dt>Доступ с</dt><dd>' + escapeHtml(formatStudentDetailDate(productUser.access_started_at)) + '</dd></div>',
       '<div><dt>Доступ до</dt><dd>' + escapeHtml(formatStudentDetailDate(productUser.access_expires_at)) + '</dd></div>',
       '</dl>',
-      '<div class="admin-student-details-sections">' + sections.map(function (section) { return '<article class="admin-student-details-section"><strong>' + escapeHtml(section[0]) + '</strong><span>' + escapeHtml(section[1]) + '</span></article>'; }).join("") + '</div>',
+      '<div class="admin-student-details-sections">' + sections.map(function (section) { return '<article class="admin-student-details-section"><span class="admin-student-details-section-icon" aria-hidden="true">' + escapeHtml(section[0]) + '</span><span><strong>' + escapeHtml(section[1]) + '</strong><em>' + escapeHtml(section[2]) + '</em></span></article>'; }).join("") + '</div>',
       '</article>'
     ].join("");
   }
