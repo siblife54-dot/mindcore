@@ -2640,11 +2640,11 @@ body[data-page="admin"] {
 }
 
 .admin-students-table tbody tr {
-  transition: background 0.16s ease;
+  transition: background 0.2s ease, box-shadow 0.2s ease;
 }
 
 .admin-students-table tbody tr:hover {
-  background: color-mix(in srgb, var(--accent) 7%, transparent);
+  background: color-mix(in srgb, var(--accent) 4%, transparent);
 }
 
 .admin-students-table tr:last-child td {
@@ -2712,9 +2712,54 @@ body[data-page="admin"] {
   outline: none;
 }
 
+.admin-students-row:hover {
+  background: color-mix(in srgb, var(--accent) 5%, transparent);
+}
+
+.admin-student-row-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.admin-student-row-chevron {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 18px;
+  width: 18px;
+  height: 18px;
+  border-radius: 6px;
+  color: color-mix(in srgb, var(--muted) 82%, var(--text));
+  background: color-mix(in srgb, var(--card-2) 44%, transparent);
+  transition: transform 0.22s cubic-bezier(0.16, 1, 0.3, 1), color 0.2s ease, background 0.2s ease;
+}
+
+.admin-student-row-chevron svg {
+  width: 13px;
+  height: 13px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.admin-students-row:hover .admin-student-row-chevron {
+  color: color-mix(in srgb, var(--text) 78%, var(--muted));
+  background: color-mix(in srgb, var(--accent) 7%, var(--card-2));
+}
+
 .admin-students-row.is-selected {
-  background: color-mix(in srgb, var(--accent) 12%, var(--card));
-  box-shadow: inset 3px 0 0 color-mix(in srgb, var(--accent) 74%, transparent);
+  background: color-mix(in srgb, var(--accent) 8%, var(--card));
+  box-shadow: inset 3px 0 0 color-mix(in srgb, var(--accent) 44%, transparent);
+}
+
+.admin-students-row.is-selected .admin-student-row-chevron {
+  transform: rotate(90deg);
+  color: color-mix(in srgb, var(--accent) 64%, var(--text));
+  background: color-mix(in srgb, var(--accent) 10%, var(--card));
 }
 
 .admin-students-row.is-selected td {
@@ -2731,7 +2776,7 @@ body[data-page="admin"] {
 }
 
 .admin-student-details-row {
-  animation: adminStudentAccordionIn 0.34s cubic-bezier(0.16, 1, 0.3, 1);
+  animation: adminStudentAccordionIn 0.38s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .admin-student-details-row:hover {
@@ -2740,12 +2785,16 @@ body[data-page="admin"] {
 
 .admin-student-details-row td {
   padding: 0 18px 20px;
-  background: color-mix(in srgb, var(--accent) 3%, transparent);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 8%, var(--card)) 0%, color-mix(in srgb, var(--accent) 3%, transparent) 100%);
+  border-bottom-color: color-mix(in srgb, var(--accent) 16%, var(--border));
 }
 
 .admin-student-details-accordion {
   overflow: hidden;
+  max-height: 640px;
   padding-top: 14px;
+  transform-origin: top;
+  animation: adminStudentDetailsReveal 0.38s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
 .admin-student-details-panel {
@@ -2935,6 +2984,20 @@ body[data-page="admin"] {
     opacity: 1;
     transform: translateY(0);
     clip-path: inset(0 0 0 0 round 24px);
+  }
+}
+
+
+@keyframes adminStudentDetailsReveal {
+  from {
+    opacity: 0;
+    max-height: 0;
+    transform: translateY(-8px) scaleY(0.98);
+  }
+  to {
+    opacity: 1;
+    max-height: 640px;
+    transform: translateY(0) scaleY(1);
   }
 }
 
