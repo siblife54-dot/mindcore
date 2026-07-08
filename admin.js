@@ -555,7 +555,7 @@ function getDefaultAdminTab() {
   }
 
 
-  function StudentDetailsPanel(student) {
+  function StudentDetailsCard(student) {
     if (!student) return "";
     var productUser = student.productUser || {};
     var webappUser = student.webappUser || {};
@@ -571,7 +571,7 @@ function getDefaultAdminTab() {
       ["Аналитика", "Будет доступна позже"]
     ];
     return [
-      '<aside class="admin-student-details-panel" aria-label="Карточка ученика">',
+      '<article class="admin-student-details-panel" aria-label="Карточка ученика">',
       '<button class="admin-student-details-close" type="button" data-student-details-close aria-label="Закрыть карточку">×</button>',
       '<header class="admin-student-details-header">',
       '<div class="admin-student-details-avatar">' + (avatarUrl ? '<img src="' + escapeAttr(avatarUrl) + '" alt="">' : escapeHtml(initials)) + '</div>',
@@ -584,19 +584,8 @@ function getDefaultAdminTab() {
       '<div><dt>Доступ до</dt><dd>' + escapeHtml(formatStudentDetailDate(productUser.access_expires_at)) + '</dd></div>',
       '</dl>',
       '<div class="admin-student-details-sections">' + sections.map(function (section) { return '<article class="admin-student-details-section"><strong>' + escapeHtml(section[0]) + '</strong><span>' + escapeHtml(section[1]) + '</span></article>'; }).join("") + '</div>',
-      '</aside>'
+      '</article>'
     ].join("");
-  }
-
-  function renderStudentDetailsPanel(filteredStudents) {
-    var shell = document.getElementById("studentsWorkspace");
-    var panel = document.getElementById("studentDetailsPanel");
-    if (!shell || !panel) return;
-    var selectedStudent = (filteredStudents || state.students || []).find(function (student) { return getStudentKey(student) === state.selectedStudentKey; }) || null;
-    if (!selectedStudent) state.selectedStudentKey = null;
-    shell.classList.toggle("has-student-details", Boolean(selectedStudent));
-    panel.hidden = !selectedStudent;
-    panel.innerHTML = selectedStudent ? StudentDetailsPanel(selectedStudent) : "";
   }
 
   function renderStudentsSection() {
@@ -611,7 +600,7 @@ function getDefaultAdminTab() {
       stateNode.hidden = false;
       tableWrap.hidden = true;
       tbody.innerHTML = "";
-      renderStudentDetailsPanel([]);
+      state.selectedStudentKey = null;
       return;
     }
 
@@ -620,7 +609,7 @@ function getDefaultAdminTab() {
       stateNode.hidden = false;
       tableWrap.hidden = true;
       tbody.innerHTML = "";
-      renderStudentDetailsPanel([]);
+      state.selectedStudentKey = null;
       return;
     }
 
@@ -630,20 +619,24 @@ function getDefaultAdminTab() {
       stateNode.hidden = false;
       tableWrap.hidden = true;
       tbody.innerHTML = "";
-      renderStudentDetailsPanel(filteredStudents);
+      state.selectedStudentKey = null;
       return;
     }
 
     stateNode.hidden = true;
     tableWrap.hidden = false;
+    if (!filteredStudents.some(function (student) { return getStudentKey(student) === state.selectedStudentKey; })) state.selectedStudentKey = null;
     tbody.innerHTML = filteredStudents.map(function (student) {
       var productUser = student.productUser || {};
       var webappUser = student.webappUser || {};
       var name = getStudentDisplayName(student);
       var username = getStudentUsername(student);
       var lastSeen = productUser.last_seen_at || webappUser.last_seen_at;
+      var studentKey = getStudentKey(student);
+      var isSelected = studentKey === state.selectedStudentKey;
+      var detailsId = 'student-details-' + studentKey.replace(/[^a-zA-Z0-9_-]/g, '-');
       return [
-        '<tr class="admin-students-row' + (getStudentKey(student) === state.selectedStudentKey ? ' is-selected' : '') + '" data-student-key="' + escapeAttr(getStudentKey(student)) + '" tabindex="0">',
+        '<tr class="admin-students-row' + (isSelected ? ' is-selected' : '') + '" data-student-key="' + escapeAttr(studentKey) + '" tabindex="0" aria-expanded="' + (isSelected ? 'true' : 'false') + '"' + (isSelected ? ' aria-controls="' + escapeAttr(detailsId) + '"' : '') + '>',
         '<td><strong>' + escapeHtml(name) + '</strong></td>',
         '<td>' + escapeHtml(webappUser.platform || "—") + '</td>',
         '<td>' + escapeHtml(username) + '</td>',
@@ -651,10 +644,10 @@ function getDefaultAdminTab() {
         '<td>' + escapeHtml(formatStudentDate(productUser.access_started_at)) + '</td>',
         '<td>' + escapeHtml(formatStudentDate(productUser.access_expires_at)) + '</td>',
         '<td>' + escapeHtml(formatStudentDate(lastSeen)) + '</td>',
-        '</tr>'
+        '</tr>',
+        isSelected ? '<tr id="' + escapeAttr(detailsId) + '" class="admin-student-details-row"><td colspan="7"><div class="admin-student-details-accordion">' + StudentDetailsCard(student) + '</div></td></tr>' : ''
       ].join("");
     }).join("");
-    renderStudentDetailsPanel(filteredStudents);
   }
 
   function renderConnectionScreen() {
@@ -3975,9 +3968,15 @@ function getDefaultAdminTab() {
     var studentsTableBody = document.getElementById("studentsTableBody");
     if (studentsTableBody) {
       studentsTableBody.addEventListener("click", function (event) {
+        if (event.target.closest("[data-student-details-close]")) {
+          state.selectedStudentKey = null;
+          renderStudentsSection();
+          return;
+        }
         var row = event.target.closest("[data-student-key]");
         if (!row) return;
-        state.selectedStudentKey = row.getAttribute("data-student-key");
+        var studentKey = row.getAttribute("data-student-key");
+        state.selectedStudentKey = state.selectedStudentKey === studentKey ? null : studentKey;
         renderStudentsSection();
       });
       studentsTableBody.addEventListener("keydown", function (event) {
@@ -3985,19 +3984,17 @@ function getDefaultAdminTab() {
         var row = event.target.closest("[data-student-key]");
         if (!row) return;
         event.preventDefault();
-        state.selectedStudentKey = row.getAttribute("data-student-key");
+        if (event.target.closest("[data-student-details-close]")) {
+          state.selectedStudentKey = null;
+          renderStudentsSection();
+          return;
+        }
+        var studentKey = row.getAttribute("data-student-key");
+        state.selectedStudentKey = state.selectedStudentKey === studentKey ? null : studentKey;
         renderStudentsSection();
       });
     }
 
-    var studentDetailsPanel = document.getElementById("studentDetailsPanel");
-    if (studentDetailsPanel) {
-      studentDetailsPanel.addEventListener("click", function (event) {
-        if (!event.target.closest("[data-student-details-close]")) return;
-        state.selectedStudentKey = null;
-        renderStudentsSection();
-      });
-    }
 
     var connectTelegramBtn = document.getElementById("connectTelegramBtn");
     if (connectTelegramBtn) {
