@@ -30,7 +30,8 @@
     studentsLoaded: false,
     studentsSearch: "",
     studentsStatusFilter: "all",
-    selectedStudentKey: null
+    selectedStudentKey: null,
+    studentAccessDrafts: {}
   };
   state.savedThemeId = "dark_premium";
   var tooltipState = {
@@ -414,6 +415,83 @@ function getDefaultAdminTab() {
     return date.toLocaleDateString("ru-RU", { day: "numeric", month: "long", year: "numeric" });
   }
 
+
+  function normalizeAccessDateInput(value) {
+    if (!value) return "";
+    var date = new Date(value);
+    if (Number.isNaN(date.getTime())) return "";
+    var year = date.getFullYear();
+    var month = String(date.getMonth() + 1).padStart(2, "0");
+    var day = String(date.getDate()).padStart(2, "0");
+    return year + "-" + month + "-" + day;
+  }
+
+  function getStudentAccessOriginal(student) {
+    var productUser = student && student.productUser ? student.productUser : {};
+    return {
+      isOpen: String(productUser.status || "").toLowerCase() !== "blocked",
+      date: normalizeAccessDateInput(productUser.access_expires_at)
+    };
+  }
+
+  function getStudentAccessDraft(student) {
+    var key = getStudentKey(student);
+    var original = getStudentAccessOriginal(student);
+    var draft = key && state.studentAccessDrafts ? state.studentAccessDrafts[key] : null;
+    if (!draft) return { isOpen: original.isOpen, date: original.date, dirty: false, saving: false, message: "", error: "" };
+    return {
+      isOpen: typeof draft.isOpen === "boolean" ? draft.isOpen : original.isOpen,
+      date: typeof draft.date === "string" ? draft.date : original.date,
+      dirty: Boolean(draft.dirty),
+      saving: Boolean(draft.saving),
+      message: draft.message || "",
+      error: draft.error || ""
+    };
+  }
+
+  function setStudentAccessDraft(studentKey, patch) {
+    if (!studentKey) return;
+    var student = (state.students || []).find(function (item) { return getStudentKey(item) === studentKey; });
+    if (!student) return;
+    var current = getStudentAccessDraft(student);
+    var next = Object.assign({}, current, patch || {});
+    var original = getStudentAccessOriginal(student);
+    next.dirty = next.isOpen !== original.isOpen || next.date !== original.date;
+    if (!next.dirty && !next.saving && !next.message && !next.error) {
+      delete state.studentAccessDrafts[studentKey];
+      return;
+    }
+    state.studentAccessDrafts[studentKey] = next;
+  }
+
+  function getAccessDateHint(dateValue) {
+    if (!dateValue) return "Доступ без даты окончания";
+    var selected = new Date(dateValue + "T23:59:59");
+    if (Number.isNaN(selected.getTime())) return "Доступ без даты окончания";
+    var now = new Date();
+    var diffDays = Math.ceil((selected.getTime() - now.getTime()) / 86400000);
+    if (diffDays >= 0) return "Осталось: " + diffDays + " " + getRussianDaysLabel(diffDays);
+    var pastDays = Math.abs(diffDays);
+    return "Истёк " + pastDays + " " + getRussianDaysLabel(pastDays) + " назад";
+  }
+
+  function getRussianDaysLabel(value) {
+    var number = Math.abs(Number(value) || 0);
+    var lastTwo = number % 100;
+    var last = number % 10;
+    if (lastTwo >= 11 && lastTwo <= 14) return "дней";
+    if (last === 1) return "день";
+    if (last >= 2 && last <= 4) return "дня";
+    return "дней";
+  }
+
+  function serializeAccessExpiresAt(dateValue) {
+    if (!dateValue) return null;
+    var parts = String(dateValue).split("-").map(Number);
+    if (parts.length !== 3 || parts.some(function (part) { return !Number.isFinite(part); })) return null;
+    return new Date(parts[0], parts[1] - 1, parts[2], 23, 59, 59, 999).toISOString();
+  }
+
   function getStudentKey(student) {
     var productUser = student && student.productUser ? student.productUser : {};
     return String(productUser.id || productUser.webapp_user_id || "");
@@ -448,6 +526,7 @@ function getDefaultAdminTab() {
     state.studentsLoading = true;
     state.studentsError = null;
     state.studentsLoaded = false;
+    state.studentAccessDrafts = {};
     renderStudentsSection();
 
     try {
@@ -583,9 +662,70 @@ function getDefaultAdminTab() {
       '<div><dt>Доступ с</dt><dd>' + escapeHtml(formatStudentDetailDate(productUser.access_started_at)) + '</dd></div>',
       '<div><dt>Доступ до</dt><dd>' + escapeHtml(formatStudentDetailDate(productUser.access_expires_at)) + '</dd></div>',
       '</dl>',
+      StudentAccessControl(student),
       '<div class="admin-student-details-sections">' + sections.map(function (section) { return '<article class="admin-student-details-section"><span class="admin-student-details-section-icon" aria-hidden="true">' + escapeHtml(section[0]) + '</span><span><strong>' + escapeHtml(section[1]) + '</strong><em>' + escapeHtml(section[2]) + '</em></span></article>'; }).join("") + '</div>',
       '</article>'
     ].join("");
+  }
+
+
+  function StudentAccessControl(student) {
+    var studentKey = getStudentKey(student);
+    var draft = getStudentAccessDraft(student);
+    var switchId = "student-access-switch-" + studentKey.replace(/[^a-zA-Z0-9_-]/g, "-");
+    var dateId = "student-access-date-" + studentKey.replace(/[^a-zA-Z0-9_-]/g, "-");
+    return [
+      '<section class="admin-student-access-control" data-student-access-control data-student-key="' + escapeAttr(studentKey) + '">',
+      '<div class="admin-student-access-control__head"><span>Управление доступом</span></div>',
+      '<div class="admin-student-access-control__grid">',
+      '<label class="admin-student-access-switch" for="' + escapeAttr(switchId) + '">',
+      '<input id="' + escapeAttr(switchId) + '" type="checkbox" data-student-access-status' + (draft.isOpen ? ' checked' : '') + (draft.saving ? ' disabled' : '') + ' />',
+      '<span class="admin-student-access-switch__track" aria-hidden="true"><span></span></span>',
+      '<strong>' + escapeHtml(draft.isOpen ? "Доступ открыт" : "Доступ заблокирован") + '</strong>',
+      '</label>',
+      '<label class="admin-student-access-date" for="' + escapeAttr(dateId) + '">',
+      '<span>Доступ до</span>',
+      '<input id="' + escapeAttr(dateId) + '" type="date" data-student-access-date value="' + escapeAttr(draft.date) + '"' + (draft.saving ? ' disabled' : '') + ' />',
+      '</label>',
+      '</div>',
+      '<p class="admin-student-access-hint">' + escapeHtml(getAccessDateHint(draft.date)) + (draft.date ? '' : ' · Без ограничения по дате') + '</p>',
+      (draft.dirty || draft.saving ? '<div class="admin-student-access-actions"><button class="admin-btn-ghost" type="button" data-student-access-cancel' + (draft.saving ? ' disabled' : '') + '>Отменить</button><button class="admin-btn-ghost admin-student-access-save" type="button" data-student-access-save' + (draft.saving ? ' disabled' : '') + '>' + (draft.saving ? 'Сохраняем…' : 'Сохранить') + '</button></div>' : ''),
+      (draft.message || draft.error ? '<p class="admin-student-access-message' + (draft.error ? ' is-error' : ' is-success') + '">' + escapeHtml(draft.error || draft.message) + '</p>' : ''),
+      '</section>'
+    ].join("");
+  }
+
+  async function saveStudentAccess(studentKey) {
+    var client = getClient();
+    var courseId = getActiveCourseId();
+    var student = (state.students || []).find(function (item) { return getStudentKey(item) === studentKey; });
+    if (!client || !courseId || !student || !student.productUser || !student.productUser.id) return;
+    var draft = getStudentAccessDraft(student);
+    setStudentAccessDraft(studentKey, { saving: true, message: "", error: "" });
+    renderStudentsSection();
+    var payload = {
+      status: draft.isOpen ? "active" : "blocked",
+      access_expires_at: serializeAccessExpiresAt(draft.date),
+      updated_at: new Date().toISOString()
+    };
+    try {
+      var result = await client
+        .from("product_users")
+        .update(payload)
+        .eq("id", student.productUser.id)
+        .eq("course_id", courseId)
+        .select("id,course_id,webapp_user_id,user_display_name,status,access_started_at,access_expires_at,created_at,updated_at,last_seen_at")
+        .maybeSingle();
+      if (result.error) throw result.error;
+      if (!result.data) throw new Error("Запись ученика не найдена в текущем курсе.");
+      student.productUser = result.data;
+      state.studentAccessDrafts[studentKey] = { isOpen: payload.status !== "blocked", date: normalizeAccessDateInput(payload.access_expires_at), dirty: false, saving: false, message: "Изменения сохранены", error: "" };
+      renderStudentsSection();
+    } catch (error) {
+      console.warn("Не удалось сохранить доступ ученика", error);
+      setStudentAccessDraft(studentKey, { saving: false, error: "Не удалось сохранить изменения. Попробуйте ещё раз.", message: "" });
+      renderStudentsSection();
+    }
   }
 
   function renderStudentsSection() {
@@ -3968,6 +4108,17 @@ function getDefaultAdminTab() {
     var studentsTableBody = document.getElementById("studentsTableBody");
     if (studentsTableBody) {
       studentsTableBody.addEventListener("click", function (event) {
+        var accessControl = event.target.closest("[data-student-access-control]");
+        if (accessControl) {
+          var accessStudentKey = accessControl.getAttribute("data-student-key");
+          if (event.target.closest("[data-student-access-cancel]")) {
+            delete state.studentAccessDrafts[accessStudentKey];
+            renderStudentsSection();
+          } else if (event.target.closest("[data-student-access-save]")) {
+            void saveStudentAccess(accessStudentKey);
+          }
+          return;
+        }
         if (event.target.closest("[data-student-details-close]")) {
           state.selectedStudentKey = null;
           renderStudentsSection();
@@ -3978,6 +4129,18 @@ function getDefaultAdminTab() {
         var studentKey = row.getAttribute("data-student-key");
         state.selectedStudentKey = state.selectedStudentKey === studentKey ? null : studentKey;
         renderStudentsSection();
+      });
+      studentsTableBody.addEventListener("change", function (event) {
+        var accessControl = event.target.closest("[data-student-access-control]");
+        if (!accessControl) return;
+        var accessStudentKey = accessControl.getAttribute("data-student-key");
+        if (event.target.matches("[data-student-access-status]")) {
+          setStudentAccessDraft(accessStudentKey, { isOpen: event.target.checked, message: "", error: "" });
+          renderStudentsSection();
+        } else if (event.target.matches("[data-student-access-date]")) {
+          setStudentAccessDraft(accessStudentKey, { date: event.target.value || "", message: "", error: "" });
+          renderStudentsSection();
+        }
       });
       studentsTableBody.addEventListener("keydown", function (event) {
         if (event.key !== "Enter" && event.key !== " ") return;

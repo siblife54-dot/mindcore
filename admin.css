@@ -2803,6 +2803,7 @@ body[data-page="admin"] {
   grid-template-columns: minmax(210px, 0.82fr) minmax(320px, 1.18fr);
   grid-template-areas:
     "profile dates"
+    "access access"
     "sections sections";
   gap: 24px 34px;
   border: 1px solid color-mix(in srgb, var(--border) 44%, transparent);
@@ -2930,6 +2931,161 @@ body[data-page="admin"] {
   font-weight: 720;
 }
 
+.admin-student-access-control {
+  grid-area: access;
+  display: grid;
+  gap: 12px;
+  padding: 16px;
+  border: 1px solid color-mix(in srgb, var(--border) 42%, transparent);
+  border-radius: 20px;
+  background: color-mix(in srgb, var(--card-2) 34%, transparent);
+}
+
+.admin-student-access-control__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.admin-student-access-control__head span {
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 760;
+  letter-spacing: -0.01em;
+}
+
+.admin-student-access-control__grid {
+  display: grid;
+  grid-template-columns: minmax(210px, 0.8fr) minmax(180px, 1fr);
+  gap: 12px;
+  align-items: center;
+}
+
+.admin-student-access-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  cursor: pointer;
+  user-select: none;
+}
+
+.admin-student-access-switch input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.admin-student-access-switch__track {
+  position: relative;
+  flex: 0 0 48px;
+  width: 48px;
+  height: 28px;
+  border: 1px solid color-mix(in srgb, var(--border) 54%, transparent);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--muted) 18%, var(--card));
+  box-shadow: inset 0 1px 2px color-mix(in srgb, var(--bg) 32%, transparent);
+  transition: background 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.admin-student-access-switch__track span {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--text);
+  box-shadow: 0 4px 10px color-mix(in srgb, var(--bg) 38%, transparent);
+  transition: transform 0.22s cubic-bezier(0.16, 1, 0.3, 1), background 0.2s ease;
+}
+
+.admin-student-access-switch input:checked + .admin-student-access-switch__track {
+  border-color: color-mix(in srgb, var(--accent) 42%, transparent);
+  background: color-mix(in srgb, var(--accent) 62%, var(--card));
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--text) 10%, transparent), 0 0 0 4px color-mix(in srgb, var(--accent) 8%, transparent);
+}
+
+.admin-student-access-switch input:checked + .admin-student-access-switch__track span {
+  transform: translateX(20px);
+  background: var(--card);
+}
+
+.admin-student-access-switch input:focus-visible + .admin-student-access-switch__track,
+.admin-student-access-date input:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--accent) 55%, transparent);
+  outline-offset: 3px;
+}
+
+.admin-student-access-switch strong {
+  overflow-wrap: anywhere;
+  font-size: 13px;
+  font-weight: 720;
+}
+
+.admin-student-access-date {
+  display: grid;
+  gap: 7px;
+  min-width: 0;
+}
+
+.admin-student-access-date span {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.admin-student-access-date input {
+  width: 100%;
+  min-height: 38px;
+  border: 1px solid color-mix(in srgb, var(--border) 60%, transparent);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--card) 72%, transparent);
+  color: var(--text);
+  padding: 8px 11px;
+  font: inherit;
+  color-scheme: dark;
+}
+
+.admin-student-access-hint,
+.admin-student-access-message {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.admin-student-access-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.admin-student-access-actions .admin-btn-ghost:disabled,
+.admin-student-access-switch input:disabled + .admin-student-access-switch__track,
+.admin-student-access-date input:disabled {
+  cursor: wait;
+  opacity: 0.65;
+}
+
+.admin-student-access-save {
+  border-color: color-mix(in srgb, var(--accent) 58%, transparent);
+  background: color-mix(in srgb, var(--accent) 18%, var(--card));
+}
+
+.admin-student-access-message.is-success {
+  color: color-mix(in srgb, var(--accent) 72%, var(--text));
+}
+
+.admin-student-access-message.is-error {
+  color: color-mix(in srgb, #ff6b6b 82%, var(--text));
+}
+
 .admin-student-details-sections {
   grid-area: sections;
   display: grid;
@@ -3007,6 +3163,7 @@ body[data-page="admin"] {
     grid-template-areas:
       "profile"
       "dates"
+      "access"
       "sections";
   }
 }
@@ -3023,7 +3180,8 @@ body[data-page="admin"] {
 
   .admin-student-details-header,
   .admin-student-details-dates,
-  .admin-student-details-sections {
+  .admin-student-details-sections,
+  .admin-student-access-control__grid {
     grid-template-columns: 1fr;
   }
 
