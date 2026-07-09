@@ -1741,22 +1741,41 @@ body[data-page="admin"] {
 .admin-inner-tabs {
   display: flex;
   gap: 8px;
-  margin: 4px 0 10px;
+  margin: 4px 0 16px;
+  padding: 6px;
+  width: fit-content;
+  max-width: 100%;
+  border: 1px solid color-mix(in srgb, var(--border) 78%, transparent);
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--card-2) 54%, transparent);
+  overflow-x: auto;
 }
 
 .admin-inner-tab {
   border: 1px solid transparent;
-  border-radius: 999px;
-  padding: 7px 12px;
-  background: rgba(255, 255, 255, 0.04);
+  border-radius: 10px;
+  padding: 9px 13px;
+  background: color-mix(in srgb, var(--text) 5%, transparent);
   color: var(--muted);
+  white-space: nowrap;
   cursor: pointer;
+  transition: border-color 0.18s ease, background 0.18s ease, color 0.18s ease;
 }
 
 .admin-inner-tab.is-active {
   border-color: color-mix(in srgb, var(--accent) 65%, transparent);
-  background: color-mix(in srgb, var(--accent) 24%, rgba(255,255,255,0.06));
+  background: color-mix(in srgb, var(--accent) 24%, color-mix(in srgb, var(--text) 6%, transparent));
   color: var(--text);
+}
+
+.admin-inner-panel[hidden],
+.admin-students-inner-panel[hidden] {
+  display: none !important;
+}
+
+.admin-students-section {
+  display: grid;
+  gap: 0;
 }
 
 .admin-connections-grid {

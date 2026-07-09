@@ -24,6 +24,7 @@
       dropHappened: false
     },
     activeAdminTab: "content",
+    activeStudentsTab: "list",
     students: [],
     studentsLoading: false,
     studentsError: null,
@@ -278,6 +279,39 @@ function getDefaultAdminTab() {
     return "appearance";
   }
 
+  function getDefaultStudentsTab() {
+    try {
+      var stored = window.localStorage.getItem("admin_students_active_tab");
+      if (stored === "list" || stored === "access_settings") {
+        return stored;
+      }
+    } catch (error) {}
+    return "list";
+  }
+
+  function setActiveStudentsTab(tabId) {
+    var nextTab = tabId === "access_settings" ? "access_settings" : "list";
+    state.activeStudentsTab = nextTab;
+
+    document.querySelectorAll("[data-students-tab]").forEach(function (btn) {
+      var isActive = btn.getAttribute("data-students-tab") === nextTab;
+      btn.classList.toggle("is-active", isActive);
+      btn.setAttribute("aria-selected", isActive ? "true" : "false");
+    });
+
+    document.querySelectorAll("[data-students-panel]").forEach(function (panel) {
+      panel.hidden = panel.getAttribute("data-students-panel") !== nextTab;
+    });
+
+    if (nextTab === "list" && state.activeAdminTab === "students" && !state.studentsLoading && !state.studentsLoaded) {
+      void loadCourseStudents(getActiveCourseId()).catch(function () {});
+    }
+
+    try {
+      window.localStorage.setItem("admin_students_active_tab", nextTab);
+    } catch (error) {}
+  }
+
   function setActiveAdminTab(tabId) {
     var nextTab = (tabId === "lesson_settings" || tabId === "content" || tabId === "students" || tabId === "connections") ? tabId : "appearance";
     state.activeAdminTab = nextTab;
@@ -328,8 +362,8 @@ function getDefaultAdminTab() {
 
     updateLessonEditorPanelsVisibility();
 
-    if (nextTab === "students" && !state.studentsLoading && !state.studentsLoaded) {
-      void loadCourseStudents(getActiveCourseId()).catch(function () {});
+    if (nextTab === "students") {
+      setActiveStudentsTab(state.activeStudentsTab || getDefaultStudentsTab());
     }
 
     try {
@@ -2145,12 +2179,10 @@ function getDefaultAdminTab() {
 
   function updateLessonEditorPanelsVisibility() {
     var settingsPanel = document.querySelector(".lesson-settings-panel");
-    var courseAccessPanel = document.querySelector(".course-access-panel");
     var materialsPanel = document.querySelector(".lesson-materials-panel");
     var isLessonSettings = state.activeAdminTab === "lesson_settings";
 
     if (settingsPanel) settingsPanel.hidden = !isLessonSettings;
-    if (courseAccessPanel) courseAccessPanel.hidden = !isLessonSettings;
     if (materialsPanel) materialsPanel.hidden = isLessonSettings;
   }
 
@@ -4219,6 +4251,12 @@ function getDefaultAdminTab() {
         setActiveAdminTab(btn.getAttribute("data-admin-tab"));
       });
     });
+
+    document.querySelectorAll("[data-students-tab]").forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        setActiveStudentsTab(btn.getAttribute("data-students-tab"));
+      });
+    });
     var studentsSearchInput = document.getElementById("studentsSearchInput");
     if (studentsSearchInput) {
       studentsSearchInput.addEventListener("input", function () {
@@ -4868,6 +4906,8 @@ function getDefaultAdminTab() {
     initTooltips();
     bindEvents();
     initPreviewIframe();
+    state.activeStudentsTab = getDefaultStudentsTab();
+    setActiveStudentsTab(state.activeStudentsTab);
     setActiveAdminTab(getDefaultAdminTab());
     renderConnectionScreen();
     await loadTelegramIntegration();
