@@ -86,59 +86,6 @@
       </section>
 
       <section class="admin-tab-panel" data-admin-panel="content" hidden>
-      <section class="admin-card admin-course-access-card course-access-panel" hidden>
-        <div class="admin-card__header">
-          <div>
-            <p class="admin-card__eyebrow">Настройки доступа</p>
-            <h2>Доступ к курсу</h2>
-            <p class="admin-hint">Настройте срок доступа и экран, который увидит ученик после окончания доступа.</p>
-          </div>
-        </div>
-
-        <div class="admin-access-form" id="courseAccessForm">
-          <label class="admin-access-switch-row">
-            <span>
-              <span class="admin-access-switch-row__title">Ограничивать доступ</span>
-              <span class="admin-hint" id="courseAccessDisabledHint">Ограничение выключено — курс открыт для всех учеников.</span>
-            </span>
-            <span class="admin-ios-switch">
-              <input id="accessControlEnabledInput" type="checkbox" />
-              <span class="admin-ios-switch__track"><span></span></span>
-            </span>
-          </label>
-
-          <div class="admin-access-fields" id="courseAccessFields">
-            <label>
-              Срок доступа, дней
-              <input id="accessDurationDaysInput" type="number" min="1" placeholder="120" />
-            </label>
-            <label>
-              Заголовок экрана окончания доступа
-              <input id="accessExpiredTitleInput" type="text" />
-            </label>
-            <label class="admin-access-field--wide">
-              Текст экрана окончания доступа
-              <textarea id="accessExpiredTextInput" rows="4"></textarea>
-            </label>
-            <label>
-              Текст кнопки
-              <input id="accessExpiredButtonTextInput" type="text" />
-            </label>
-            <label>
-              Ссылка кнопки
-              <input id="accessExpiredButtonUrlInput" type="text" />
-              <span class="admin-hint">Если ссылка пустая, кнопка не будет отображаться.</span>
-            </label>
-          </div>
-
-          <p id="courseAccessStatus" class="admin-access-status" hidden></p>
-          <div id="courseAccessActions" class="admin-access-actions" hidden>
-            <button id="cancelCourseAccessBtn" class="admin-btn-ghost" type="button">Отменить</button>
-            <button id="saveCourseAccessBtn" class="btn btn-primary" type="button">Сохранить настройки</button>
-          </div>
-        </div>
-      </section>
-
       <div id="editorEmpty" class="admin-empty">Выберите урок слева</div>
 
       <div id="editorPanel" class="admin-builder" hidden>
@@ -249,55 +196,119 @@
       </section>
 
       <section class="admin-tab-panel" data-admin-panel="students" hidden>
-        <section class="admin-card admin-students-card">
-          <div class="admin-students-hero">
-            <div>
-              <h2>Ученики</h2>
-              <p>Участники этого курса и их доступ</p>
-            </div>
-            <span id="studentsCountBadge" class="admin-students-count-badge">Обновляется автоматически</span>
-          </div>
+        <div class="admin-students-section">
+          <nav class="admin-inner-tabs admin-students-inner-tabs" aria-label="Подразделы учеников">
+            <button class="admin-inner-tab is-active" type="button" data-students-tab="list">Список учеников</button>
+            <button class="admin-inner-tab" type="button" data-students-tab="access_settings">Настройки доступа</button>
+          </nav>
 
-          <div id="studentsMetrics" class="admin-students-metrics" aria-label="Метрики учеников"></div>
-
-          <div class="admin-students-controls">
-            <label class="admin-students-search">
-              Поиск
-              <input id="studentsSearchInput" type="search" placeholder="Имя, username, ID платформы" autocomplete="off" />
-            </label>
-            <label class="admin-students-filter">
-              Статус
-              <select id="studentsStatusFilter">
-                <option value="all">Все</option>
-                <option value="active">Активные</option>
-                <option value="expired">Истёк доступ</option>
-                <option value="blocked">Заблокированные</option>
-              </select>
-            </label>
-          </div>
-
-          <div id="studentsWorkspace" class="admin-students-workspace">
-            <div class="admin-students-list-pane">
-              <div id="studentsState" class="admin-students-state" hidden></div>
-              <div class="admin-students-table-wrap">
-                <table class="admin-students-table">
-              <thead>
-                <tr>
-                  <th>Имя</th>
-                  <th>Платформа</th>
-                  <th>Username</th>
-                  <th>Статус</th>
-                  <th>Доступ с</th>
-                  <th>Доступ до</th>
-                  <th>Последний вход</th>
-                </tr>
-              </thead>
-                  <tbody id="studentsTableBody"></tbody>
-                </table>
+          <div class="admin-students-inner-panel" data-students-panel="list">
+            <section class="admin-card admin-students-card">
+              <div class="admin-students-hero">
+                <div>
+                  <h2>Ученики</h2>
+                  <p>Участники этого курса и их доступ</p>
+                </div>
+                <span id="studentsCountBadge" class="admin-students-count-badge">Обновляется автоматически</span>
               </div>
-            </div>
+
+              <div id="studentsMetrics" class="admin-students-metrics" aria-label="Метрики учеников"></div>
+
+              <div class="admin-students-controls">
+                <label class="admin-students-search">
+                  Поиск
+                  <input id="studentsSearchInput" type="search" placeholder="Имя, username, ID платформы" autocomplete="off" />
+                </label>
+                <label class="admin-students-filter">
+                  Статус
+                  <select id="studentsStatusFilter">
+                    <option value="all">Все</option>
+                    <option value="active">Активные</option>
+                    <option value="expired">Истёк доступ</option>
+                    <option value="blocked">Заблокированные</option>
+                  </select>
+                </label>
+              </div>
+
+              <div id="studentsWorkspace" class="admin-students-workspace">
+                <div class="admin-students-list-pane">
+                  <div id="studentsState" class="admin-students-state" hidden></div>
+                  <div class="admin-students-table-wrap">
+                    <table class="admin-students-table">
+                      <thead>
+                        <tr>
+                          <th>Имя</th>
+                          <th>Платформа</th>
+                          <th>Username</th>
+                          <th>Статус</th>
+                          <th>Доступ с</th>
+                          <th>Доступ до</th>
+                          <th>Последний вход</th>
+                        </tr>
+                      </thead>
+                      <tbody id="studentsTableBody"></tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            </section>
           </div>
-        </section>
+
+          <div class="admin-students-inner-panel" data-students-panel="access_settings" hidden>
+            <section class="admin-card admin-course-access-card course-access-panel">
+              <div class="admin-card__header">
+                <div>
+                  <p class="admin-card__eyebrow">Настройки доступа</p>
+                  <h2>Доступ к курсу</h2>
+                  <p class="admin-hint">Настройте срок доступа и экран, который увидит ученик после окончания доступа.</p>
+                </div>
+              </div>
+
+              <div class="admin-access-form" id="courseAccessForm">
+                <label class="admin-access-switch-row">
+                  <span>
+                    <span class="admin-access-switch-row__title">Ограничивать доступ</span>
+                    <span class="admin-hint" id="courseAccessDisabledHint">Ограничение выключено — курс открыт для всех учеников.</span>
+                  </span>
+                  <span class="admin-ios-switch">
+                    <input id="accessControlEnabledInput" type="checkbox" />
+                    <span class="admin-ios-switch__track"><span></span></span>
+                  </span>
+                </label>
+
+                <div class="admin-access-fields" id="courseAccessFields">
+                  <label>
+                    Срок доступа, дней
+                    <input id="accessDurationDaysInput" type="number" min="1" placeholder="120" />
+                  </label>
+                  <label>
+                    Заголовок экрана окончания доступа
+                    <input id="accessExpiredTitleInput" type="text" />
+                  </label>
+                  <label class="admin-access-field--wide">
+                    Текст экрана окончания доступа
+                    <textarea id="accessExpiredTextInput" rows="4"></textarea>
+                  </label>
+                  <label>
+                    Текст кнопки
+                    <input id="accessExpiredButtonTextInput" type="text" />
+                  </label>
+                  <label>
+                    Ссылка кнопки
+                    <input id="accessExpiredButtonUrlInput" type="text" />
+                    <span class="admin-hint">Если ссылка пустая, кнопка не будет отображаться.</span>
+                  </label>
+                </div>
+
+                <p id="courseAccessStatus" class="admin-access-status" hidden></p>
+                <div id="courseAccessActions" class="admin-access-actions" hidden>
+                  <button id="cancelCourseAccessBtn" class="admin-btn-ghost" type="button">Отменить</button>
+                  <button id="saveCourseAccessBtn" class="btn btn-primary" type="button">Сохранить настройки</button>
+                </div>
+              </div>
+            </section>
+          </div>
+        </div>
       </section>
 
       <section class="admin-tab-panel" data-admin-panel="connections" hidden>
