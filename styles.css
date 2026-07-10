@@ -1654,3 +1654,132 @@ body.theme-emerald-gold .status.locked {
   margin: 0;
   color: var(--muted);
 }
+
+/* Course Forms modal */
+.course-form-modal {
+  align-items: center;
+  padding: max(12px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right)) max(12px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left));
+}
+
+.course-form-modal .nutrition-modal__sheet {
+  display: flex;
+  flex-direction: column;
+  max-width: 560px;
+  max-height: calc(100vh - 24px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+  max-height: calc(100dvh - 24px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+  margin: 0;
+  overflow: hidden;
+  border-radius: 24px;
+  padding: 0;
+}
+
+.course-form-modal .nutrition-modal__content,
+.course-form-modal .course-form {
+  min-height: 0;
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+}
+
+.course-form-modal__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 20px 20px 14px;
+  border-bottom: 1px solid var(--border);
+}
+
+.course-form-modal__heading {
+  min-width: 0;
+  display: grid;
+  gap: 6px;
+}
+
+.course-form-modal__header .nutrition-title,
+.course-form-modal__header .nutrition-text {
+  margin: 0;
+}
+
+.course-form-modal .nutrition-modal__close {
+  position: static;
+  flex: 0 0 auto;
+  margin: 0;
+}
+
+.course-form-modal__body {
+  min-height: 0;
+  flex: 1 1 auto;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding: 18px 20px;
+}
+
+.course-form-modal__footer {
+  flex: 0 0 auto;
+  padding: 14px 20px max(16px, env(safe-area-inset-bottom));
+  border-top: 1px solid var(--border);
+  background: linear-gradient(180deg, rgba(255,255,255,0.02), var(--card-2));
+}
+
+.course-form-modal__footer .nutrition-submit {
+  margin-top: 0;
+}
+
+.course-form {
+  gap: 0;
+}
+
+.course-form .nutrition-field + .nutrition-field,
+.course-form .nutrition-field + .course-form-fieldset,
+.course-form .course-form-fieldset + .nutrition-field,
+.course-form .course-form-fieldset + .course-form-fieldset {
+  margin-top: 18px;
+}
+
+.course-form-fieldset legend {
+  margin-bottom: 10px;
+  line-height: 1.35;
+}
+
+.course-form-option {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: start;
+  column-gap: 10px;
+  padding: 9px 0;
+  line-height: 1.45;
+}
+
+.course-form-option input {
+  width: auto;
+  margin: 3px 0 0;
+}
+
+.course-form-option span {
+  min-width: 0;
+}
+
+@media (max-width: 480px) {
+  .course-form-modal {
+    padding: max(10px, env(safe-area-inset-top)) max(10px, env(safe-area-inset-right)) max(10px, env(safe-area-inset-bottom)) max(10px, env(safe-area-inset-left));
+  }
+
+  .course-form-modal .nutrition-modal__sheet {
+    border-radius: 22px;
+    max-height: calc(100vh - 20px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+    max-height: calc(100dvh - 20px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+  }
+
+  .course-form-modal__header {
+    padding: 18px 16px 12px;
+  }
+
+  .course-form-modal__body {
+    padding: 16px;
+  }
+
+  .course-form-modal__footer {
+    padding: 12px 16px max(14px, env(safe-area-inset-bottom));
+  }
+}
