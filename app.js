@@ -18,6 +18,8 @@
   var EMOTION_STORAGE_KEY = "emotion_navigator_state";
   var DESIGNER_XP_TOAST_KEY = "designer_xp_last_gain_v1";
   var LAST_LESSONS = [];
+  var COURSE_FORMS = [];
+  var COURSE_FORM_ANSWERS = {};
   var STORAGE_DEBUG = {
     platform: "browser",
     telegramDetected: false,
@@ -161,7 +163,7 @@
 
     var result = await client
       .from("course_settings")
-      .select("theme_id, course_structure, addon_nutrition_calculator, addon_eva_calculator, addon_emotion_navigator, addon_designer_xp, access_control_enabled, access_duration_days, access_expired_title, access_expired_text, access_expired_button_text, access_expired_button_url")
+      .select("theme_id, course_structure, addon_nutrition_calculator, addon_eva_calculator, addon_emotion_navigator, addon_designer_xp, addon_forms_enabled, access_control_enabled, access_duration_days, access_expired_title, access_expired_text, access_expired_button_text, access_expired_button_url")
       .eq("course_id", getActiveCourseId())
       .maybeSingle();
 
@@ -174,6 +176,7 @@
         course_structure: "classic",
         addon_emotion_navigator: false,
         addon_designer_xp: false,
+        addon_forms_enabled: false,
         access_control_enabled: false,
         access_duration_days: null,
         access_expired_title: "",
@@ -190,6 +193,7 @@
       addon_eva_calculator: Boolean(result.data && result.data.addon_eva_calculator === true),
       addon_emotion_navigator: Boolean(result.data && result.data.addon_emotion_navigator === true),
       addon_designer_xp: Boolean(result.data && result.data.addon_designer_xp === true),
+      addon_forms_enabled: Boolean(result.data && result.data.addon_forms_enabled === true),
       access_control_enabled: Boolean(result.data && result.data.access_control_enabled === true),
       access_duration_days: result.data ? result.data.access_duration_days : null,
       access_expired_title: (result.data && result.data.access_expired_title) || "",
@@ -257,6 +261,10 @@
 
   function isDesignerXpEnabled(courseSettings) {
     return Boolean(courseSettings && courseSettings.addon_designer_xp === true);
+  }
+
+  function isFormsEnabled(courseSettings) {
+    return Boolean(courseSettings && courseSettings.addon_forms_enabled === true);
   }
 
   function getDesignerLevelByXp(xp) {
@@ -1207,6 +1215,295 @@
     renderDesignerXpToast(host);
   }
 
+  function normalizeFormSchema(schema) {
+    var parsed = schema;
+    if (typeof parsed === "string") {
+      try { parsed = JSON.parse(parsed); } catch (error) { parsed = null; }
+    }
+    var questions = Array.isArray(parsed) ? parsed : (parsed && Array.isArray(parsed.questions) ? parsed.questions : []);
+    return questions.map(function (question, index) {
+      var type = String(question.type || "").trim();
+      if (["text", "single_choice", "multiple_choice"].indexOf(type) === -1) return null;
+      var id = String(question.id || question.name || ("question_" + (index + 1))).trim();
+      var options = Array.isArray(question.options) ? question.options : [];
+      return {
+        id: id,
+        type: type,
+        title: question.title || question.label || question.question || ("Вопрос " + (index + 1)),
+        required: question.required === true,
+        options: options.map(function (option) {
+          if (option && typeof option === "object") return { value: String(option.value || option.label || ""), label: String(option.label || option.value || "") };
+          return { value: String(option), label: String(option) };
+        }).filter(function (option) { return option.value || option.label; })
+      };
+    }).filter(Boolean);
+  }
+
+  function normalizeFormSettings(settings) {
+    if (typeof settings === "string") {
+      try { settings = JSON.parse(settings); } catch (error) { settings = {}; }
+    }
+    return settings && typeof settings === "object" ? settings : {};
+  }
+
+  function getAnswerSummaryItems(answer) {
+    var summary = answer && answer.summary;
+    if (Array.isArray(summary)) return summary.map(String).filter(Boolean);
+    if (typeof summary === "string" && summary.trim()) {
+      try {
+        var parsed = JSON.parse(summary);
+        if (Array.isArray(parsed)) return parsed.map(String).filter(Boolean);
+      } catch (error) {
+        return [summary.trim()];
+      }
+      return [summary.trim()];
+    }
+    return [];
+  }
+
+  function buildFormSummary(form, answers) {
+    var items = [];
+    normalizeFormSchema(form.form_schema).forEach(function (question) {
+      var value = answers[question.id];
+      if (question.type === "multiple_choice" && Array.isArray(value)) {
+        value.forEach(function (item) { if (String(item || "").trim()) items.push(String(item).trim()); });
+      } else if (Array.isArray(value)) {
+        value.forEach(function (item) { if (String(item || "").trim()) items.push(String(item).trim()); });
+      } else if (String(value || "").trim()) {
+        items.push(String(value).trim());
+      }
+    });
+    return items;
+  }
+
+  async function fetchCourseForms() {
+    COURSE_FORMS = [];
+    COURSE_FORM_ANSWERS = {};
+    if (!isFormsEnabled(COURSE_SETTINGS)) return [];
+
+    var client = window.getSupabaseClient();
+    var courseId = getActiveCourseId();
+    if (!client || !courseId) return [];
+
+    var formsResult = await client
+      .from("course_forms")
+      .select("*")
+      .eq("course_id", courseId)
+      .eq("is_enabled", true)
+      .order("sort_order", { ascending: true });
+
+    if (formsResult.error) {
+      console.warn("Supabase course_forms load error:", formsResult.error);
+      return [];
+    }
+
+    COURSE_FORMS = formsResult.data || [];
+
+    if (COURSE_FORMS.length && (PRODUCT_USER || (APP_PROFILE && APP_PROFILE.id))) {
+      var answerQuery = client
+        .from("course_form_answers")
+        .select("*")
+        .eq("course_id", courseId);
+      if (PRODUCT_USER && PRODUCT_USER.id) {
+        answerQuery = answerQuery.eq("product_user_id", PRODUCT_USER.id);
+      } else if (PRODUCT_USER && PRODUCT_USER.webapp_user_id) {
+        answerQuery = answerQuery.eq("webapp_user_id", PRODUCT_USER.webapp_user_id);
+      }
+      var answersResult = await answerQuery.order("created_at", { ascending: false });
+      if (answersResult.error) {
+        console.warn("Supabase course_form_answers load error:", answersResult.error);
+      } else {
+        (answersResult.data || []).forEach(function (answer) {
+          if (answer && answer.form_id && !COURSE_FORM_ANSWERS[answer.form_id]) COURSE_FORM_ANSWERS[answer.form_id] = answer;
+        });
+      }
+    }
+
+    return COURSE_FORMS;
+  }
+
+  function getFormAnswerValue(answer, questionId) {
+    var answersJson = answer && answer.answers_json;
+    if (typeof answersJson === "string") {
+      try { answersJson = JSON.parse(answersJson); } catch (error) { answersJson = {}; }
+    }
+    return answersJson && Object.prototype.hasOwnProperty.call(answersJson, questionId) ? answersJson[questionId] : "";
+  }
+
+  function getFormFieldSelector(questionId) {
+    if (window.CSS && typeof window.CSS.escape === "function") {
+      return '[name="' + CSS.escape(questionId) + '"]';
+    }
+    return '[name="' + String(questionId).replace(/\\/g, "\\\\").replace(/"/g, '\\"') + '"]';
+  }
+
+  function createFormsModal() {
+    var modal = document.getElementById("courseFormsModal");
+    if (modal) return modal;
+    modal = document.createElement("div");
+    modal.id = "courseFormsModal";
+    modal.className = "nutrition-modal course-form-modal";
+    modal.hidden = true;
+    modal.setAttribute("aria-hidden", "true");
+    modal.innerHTML = [
+      '<div class="nutrition-modal__backdrop" data-course-form-close></div>',
+      '<div class="nutrition-modal__sheet" role="dialog" aria-modal="true" aria-label="Форма курса">',
+      '<button class="nutrition-modal__close" type="button" data-course-form-close aria-label="Закрыть">×</button>',
+      '<div class="nutrition-modal__content"></div>',
+      '</div>'
+    ].join("");
+    modal.addEventListener("click", function (event) {
+      if (event.target && event.target.hasAttribute("data-course-form-close")) closeCourseFormModal();
+    });
+    document.body.appendChild(modal);
+    return modal;
+  }
+
+  function openCourseFormModal() {
+    var modal = createFormsModal();
+    modal.hidden = false;
+    modal.removeAttribute("hidden");
+    modal.offsetHeight;
+    modal.classList.add("is-open");
+    modal.setAttribute("aria-hidden", "false");
+    document.body.classList.add("modal-open", "calculator-modal-open");
+    return modal.querySelector(".nutrition-modal__content");
+  }
+
+  function closeCourseFormModal() {
+    var modal = document.getElementById("courseFormsModal");
+    if (!modal || modal.hidden) return;
+    modal.classList.remove("is-open");
+    modal.setAttribute("aria-hidden", "true");
+    setTimeout(function () {
+      modal.hidden = true;
+      document.body.classList.remove("modal-open", "calculator-modal-open");
+    }, 180);
+  }
+
+  function renderCourseFormView(form, answer) {
+    var content = openCourseFormModal();
+    var items = getAnswerSummaryItems(answer);
+    var settings = normalizeFormSettings(form.settings);
+    content.innerHTML = [
+      '<h2 class="nutrition-title">' + escapeHtml("Ваша " + (form.title || "форма").toLowerCase()) + '</h2>',
+      '<div class="course-form-summary">',
+      (items.length ? '<ul>' + items.map(function (item) { return '<li>' + escapeHtml(item) + '</li>'; }).join("") + '</ul>' : '<p>Ответ сохранён.</p>'),
+      '</div>',
+      '<div class="nutrition-actions">',
+      (settings.allow_edit === true ? '<button type="button" class="btn btn-primary" id="courseFormEditBtn">Редактировать</button>' : ''),
+      '<button type="button" class="btn" data-course-form-close>Закрыть</button>',
+      '</div>'
+    ].join("");
+    var editBtn = document.getElementById("courseFormEditBtn");
+    if (editBtn) editBtn.addEventListener("click", function () { renderCourseFormEditor(form, answer); });
+  }
+
+  function renderCourseFormEditor(form, existingAnswer) {
+    var content = openCourseFormModal();
+    var questions = normalizeFormSchema(form.form_schema);
+    content.innerHTML = [
+      '<h2 class="nutrition-title">' + escapeHtml(form.title || "Форма") + '</h2>',
+      (form.description ? '<p class="nutrition-text">' + escapeHtml(form.description) + '</p>' : ''),
+      '<form class="nutrition-form course-form" id="courseFormEditor">',
+      questions.map(function (question) {
+        var saved = getFormAnswerValue(existingAnswer, question.id);
+        if (question.type === "text") {
+          return '<label class="nutrition-field"><span>' + escapeHtml(question.title) + '</span><input name="' + escapeAttr(question.id) + '" type="text" value="' + escapeAttr(saved || "") + '"' + (question.required ? ' required' : '') + '></label>';
+        }
+        return '<fieldset class="nutrition-field course-form-fieldset"><legend>' + escapeHtml(question.title) + '</legend>' + question.options.map(function (option) {
+          var checked = question.type === "multiple_choice" ? (Array.isArray(saved) && saved.indexOf(option.value) !== -1) : saved === option.value;
+          return '<label class="course-form-option"><input name="' + escapeAttr(question.id) + '" type="' + (question.type === "multiple_choice" ? "checkbox" : "radio") + '" value="' + escapeAttr(option.value) + '"' + (checked ? ' checked' : '') + (question.required && question.type === "single_choice" ? ' required' : '') + '> <span>' + escapeHtml(option.label) + '</span></label>';
+        }).join("") + '</fieldset>';
+      }).join(""),
+      '<button type="submit" class="btn btn-primary nutrition-submit">Сохранить</button>',
+      '</form>'
+    ].join("");
+    document.getElementById("courseFormEditor").addEventListener("submit", function (event) {
+      event.preventDefault();
+      void saveCourseFormAnswer(form, questions, existingAnswer);
+    });
+  }
+
+  async function saveCourseFormAnswer(form, questions, existingAnswer) {
+    var client = window.getSupabaseClient();
+    if (!client) return;
+    var formElement = document.getElementById("courseFormEditor");
+    var answers = {};
+    questions.forEach(function (question) {
+      var selector = getFormFieldSelector(question.id);
+      if (question.type === "multiple_choice") {
+        answers[question.id] = Array.from(formElement.querySelectorAll(selector + ':checked')).map(function (input) { return input.value; });
+      } else {
+        var field = formElement.querySelector(selector);
+        answers[question.id] = field ? field.value : "";
+      }
+    });
+    var summary = buildFormSummary(form, answers);
+    var payload = {
+      form_id: form.id,
+      course_id: getActiveCourseId(),
+      product_user_id: PRODUCT_USER && PRODUCT_USER.id ? PRODUCT_USER.id : null,
+      webapp_user_id: PRODUCT_USER && PRODUCT_USER.webapp_user_id ? PRODUCT_USER.webapp_user_id : null,
+      answers_json: answers,
+      summary: summary,
+      status: "submitted"
+    };
+    var result = existingAnswer && existingAnswer.id
+      ? await client.from("course_form_answers").update(payload).eq("id", existingAnswer.id).select("*").single()
+      : await client.from("course_form_answers").insert(payload).select("*").single();
+    if (result.error) {
+      console.warn("Supabase course_form_answers save error:", result.error);
+      return;
+    }
+    COURSE_FORM_ANSWERS[form.id] = result.data;
+    await renderCourseForms();
+    renderCourseFormView(form, result.data);
+  }
+
+  async function renderCourseForms() {
+    var section = document.getElementById("courseFormsSection");
+    var host = document.getElementById("courseFormsHost");
+    if (!section || !host) return;
+    if (!isFormsEnabled(COURSE_SETTINGS)) {
+      section.hidden = true;
+      host.innerHTML = "";
+      return;
+    }
+    if (!COURSE_FORMS.length) await fetchCourseForms();
+    if (!COURSE_FORMS.length) {
+      section.hidden = true;
+      host.innerHTML = "";
+      return;
+    }
+    section.hidden = false;
+    host.innerHTML = COURSE_FORMS.map(function (form) {
+      var answer = COURSE_FORM_ANSWERS[form.id];
+      var settings = normalizeFormSettings(form.settings);
+      var showSubmitted = answer && settings.submission_mode === "once";
+      var items = getAnswerSummaryItems(answer);
+      return [
+        '<section class="card course-form-card">',
+        '<h3>' + escapeHtml(showSubmitted ? ("Ваша " + String(form.title || "форма").toLowerCase()) : (form.title || "Форма")) + '</h3>',
+        (showSubmitted
+          ? '<ul class="course-form-card__summary">' + items.map(function (item) { return '<li>' + escapeHtml(item) + '</li>'; }).join("") + '</ul>'
+          : '<p>' + escapeHtml(form.description || "") + '</p>'),
+        '<button type="button" class="btn btn-primary course-form-open" data-form-id="' + escapeAttr(form.id) + '">' + escapeHtml(showSubmitted ? "Посмотреть" : (form.button_text || "Заполнить")) + '</button>',
+        '</section>'
+      ].join("");
+    }).join("");
+    host.querySelectorAll(".course-form-open").forEach(function (button) {
+      button.addEventListener("click", function () {
+        var form = COURSE_FORMS.find(function (item) { return String(item.id) === String(button.getAttribute("data-form-id")); });
+        if (!form) return;
+        var answer = form && COURSE_FORM_ANSWERS[form.id];
+        var settings = normalizeFormSettings(form && form.settings);
+        if (answer && settings.submission_mode === "once") renderCourseFormView(form, answer);
+        else renderCourseFormEditor(form, null);
+      });
+    });
+  }
+
   function getNutritionLessonLink() {
     if (!LAST_LESSONS || !LAST_LESSONS.length) return null;
     var nutritionLesson = LAST_LESSONS.find(function (lesson) {
@@ -1380,6 +1677,7 @@
     await renderNutritionCard();
     renderEmotionNavigator();
     await renderDesignerXpCard(lessons);
+    await renderCourseForms();
     renderDashboardWatermark(COURSE_ACCESS);
 
     var courseAccessResult = await checkCourseAccess();
@@ -1945,7 +2243,7 @@
     console.log("activeCourseId:", getActiveCourseId());
     var config = getConfig();
     var themeId = "dark_premium";
-    var courseSettings = { theme_id: "dark_premium", addon_nutrition_calculator: false, addon_eva_calculator: false, addon_emotion_navigator: false, addon_designer_xp: false };
+    var courseSettings = { theme_id: "dark_premium", addon_nutrition_calculator: false, addon_eva_calculator: false, addon_emotion_navigator: false, addon_designer_xp: false, addon_forms_enabled: false };
     try {
       courseSettings = await fetchCourseSettings(config);
       themeId = courseSettings.theme_id;
@@ -1992,6 +2290,7 @@
       LAST_LESSONS = lessons.slice();
       CURRENT_COURSE = await fetchCurrentCourseInfo();
       await saveWebAppAccess();
+      if (page === "dashboard") await fetchCourseForms();
       if (page === "dashboard") await renderDashboard(lessons, config);
       if (page === "lesson") await renderLesson(lessons);
     } catch (error) {
@@ -2029,7 +2328,7 @@ document.addEventListener("click", function (e) {
 
     try {
       var themeId = "dark_premium";
-      var courseSettings = { theme_id: "dark_premium", addon_nutrition_calculator: false, addon_eva_calculator: false, addon_emotion_navigator: false, addon_designer_xp: false };
+      var courseSettings = { theme_id: "dark_premium", addon_nutrition_calculator: false, addon_eva_calculator: false, addon_emotion_navigator: false, addon_designer_xp: false, addon_forms_enabled: false };
       try {
         courseSettings = await fetchCourseSettings(config);
         themeId = courseSettings.theme_id;

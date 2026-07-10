@@ -1576,3 +1576,71 @@ body.theme-emerald-gold .status.locked {
 .access-expired-btn {
   margin-top: 4px;
 }
+
+/* Course Forms module */
+#courseFormsHost {
+  display: grid;
+  gap: 12px;
+}
+
+.course-form-card {
+  display: grid;
+  gap: 10px;
+  padding: 16px;
+}
+
+.course-form-card h3 {
+  margin: 0;
+  color: var(--text);
+}
+
+.course-form-card p {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.5;
+  white-space: pre-line;
+}
+
+.course-form-card__summary,
+.course-form-summary ul {
+  margin: 0;
+  padding-left: 20px;
+  color: var(--text);
+  line-height: 1.6;
+}
+
+.course-form-fieldset {
+  border: 0;
+  margin: 0;
+  padding: 0;
+}
+
+.course-form-fieldset legend {
+  margin-bottom: 6px;
+  color: var(--text);
+}
+
+.course-form-option {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 8px 0;
+  color: var(--text);
+}
+
+.course-form-option input {
+  margin-top: 3px;
+}
+
+.course-form-summary {
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 12px;
+  margin: 8px 0 12px;
+  background: rgba(255,255,255,0.03);
+}
+
+.course-form-summary p {
+  margin: 0;
+  color: var(--muted);
+}
