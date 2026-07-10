@@ -1348,7 +1348,6 @@
     modal.innerHTML = [
       '<div class="nutrition-modal__backdrop" data-course-form-close></div>',
       '<div class="nutrition-modal__sheet" role="dialog" aria-modal="true" aria-label="Форма курса">',
-      '<button class="nutrition-modal__close" type="button" data-course-form-close aria-label="Закрыть">×</button>',
       '<div class="nutrition-modal__content"></div>',
       '</div>'
     ].join("");
@@ -1386,11 +1385,19 @@
     var items = getAnswerSummaryItems(answer);
     var settings = normalizeFormSettings(form.settings);
     content.innerHTML = [
+      '<div class="course-form-modal__header">',
+      '<div class="course-form-modal__heading">',
       '<h2 class="nutrition-title">' + escapeHtml("Ваша " + (form.title || "форма").toLowerCase()) + '</h2>',
+      (form.description ? '<p class="nutrition-text">' + escapeHtml(form.description) + '</p>' : '<p class="nutrition-text">Ответы по форме сохранены.</p>'),
+      '</div>',
+      '<button class="nutrition-modal__close" type="button" data-course-form-close aria-label="Закрыть">×</button>',
+      '</div>',
+      '<div class="course-form-modal__body">',
       '<div class="course-form-summary">',
       (items.length ? '<ul>' + items.map(function (item) { return '<li>' + escapeHtml(item) + '</li>'; }).join("") + '</ul>' : '<p>Ответ сохранён.</p>'),
       '</div>',
-      '<div class="nutrition-actions">',
+      '</div>',
+      '<div class="nutrition-actions course-form-modal__footer">',
       (settings.allow_edit === true ? '<button type="button" class="btn btn-primary" id="courseFormEditBtn">Редактировать</button>' : ''),
       '<button type="button" class="btn" data-course-form-close>Закрыть</button>',
       '</div>'
@@ -1403,9 +1410,15 @@
     var content = openCourseFormModal();
     var questions = normalizeFormSchema(form.form_schema);
     content.innerHTML = [
+      '<div class="course-form-modal__header">',
+      '<div class="course-form-modal__heading">',
       '<h2 class="nutrition-title">' + escapeHtml(form.title || "Форма") + '</h2>',
       (form.description ? '<p class="nutrition-text">' + escapeHtml(form.description) + '</p>' : ''),
+      '</div>',
+      '<button class="nutrition-modal__close" type="button" data-course-form-close aria-label="Закрыть">×</button>',
+      '</div>',
       '<form class="nutrition-form course-form" id="courseFormEditor">',
+      '<div class="course-form-modal__body">',
       questions.map(function (question) {
         var saved = getFormAnswerValue(existingAnswer, question.id);
         if (question.type === "text") {
@@ -1416,7 +1429,10 @@
           return '<label class="course-form-option"><input name="' + escapeAttr(question.id) + '" type="' + (question.type === "multiple_choice" ? "checkbox" : "radio") + '" value="' + escapeAttr(option.value) + '"' + (checked ? ' checked' : '') + (question.required && question.type === "single_choice" ? ' required' : '') + '> <span>' + escapeHtml(option.label) + '</span></label>';
         }).join("") + '</fieldset>';
       }).join(""),
+      '</div>',
+      '<div class="course-form-modal__footer">',
       '<button type="submit" class="btn btn-primary nutrition-submit">Сохранить</button>',
+      '</div>',
       '</form>'
     ].join("");
     document.getElementById("courseFormEditor").addEventListener("submit", function (event) {
