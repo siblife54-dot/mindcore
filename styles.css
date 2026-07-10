@@ -10,6 +10,8 @@
   --shadow: 0 14px 28px rgba(0, 0, 0, 0.35);
   --radius-lg: 20px;
   --radius-md: 18px;
+  --dashboard-section-gap: 22px;
+  --dashboard-section-title-gap: 10px;
 }
 
 body.theme-dark-premium {
@@ -250,9 +252,17 @@ a { color: inherit; }
 }
 
 .section-title {
-  margin: 22px 4px 10px;
+  margin: var(--dashboard-section-gap) 4px var(--dashboard-section-title-gap);
   font-size: 16px;
   letter-spacing: 0.01em;
+}
+
+.dashboard-addon-section:not([hidden]) {
+  margin-top: var(--dashboard-section-gap);
+}
+
+.dashboard-addon-section:not([hidden]) > .section-title:first-child {
+  margin-top: 0;
 }
 
 .progress-wrap { padding: 14px; }
