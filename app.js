@@ -1237,7 +1237,10 @@
         options: options.map(function (option) {
           if (option && typeof option === "object") return { value: String(option.value || option.label || ""), label: String(option.label || option.value || "") };
           return { value: String(option), label: String(option) };
-        }).filter(function (option) { return option.value || option.label; })
+        }).filter(function (option) { return option.value || option.label; }),
+        allowOther: question.allow_other === true,
+        otherLabel: String(question.other_label || "").trim() || "Другое",
+        otherPlaceholder: String(question.other_placeholder || "").trim() || "Напишите свой вариант"
       };
     }).filter(Boolean);
   }
@@ -1264,12 +1267,34 @@
     return [];
   }
 
+  function normalizeMultipleChoiceAnswer(value) {
+    if (Array.isArray(value)) return { selected: value.map(String).filter(Boolean), other: "" };
+    if (value && typeof value === "object") {
+      return {
+        selected: Array.isArray(value.selected) ? value.selected.map(String).filter(Boolean) : [],
+        other: String(value.other || "").trim()
+      };
+    }
+    return { selected: [], other: "" };
+  }
+
+  function getFormAnswerSummaryItems(form, answer) {
+    var answersJson = answer && answer.answers_json;
+    if (typeof answersJson === "string") {
+      try { answersJson = JSON.parse(answersJson); } catch (error) { answersJson = null; }
+    }
+    if (answersJson && typeof answersJson === "object") return buildFormSummary(form, answersJson);
+    return getAnswerSummaryItems(answer);
+  }
+
   function buildFormSummary(form, answers) {
     var items = [];
     normalizeFormSchema(form.form_schema).forEach(function (question) {
       var value = answers[question.id];
-      if (question.type === "multiple_choice" && Array.isArray(value)) {
-        value.forEach(function (item) { if (String(item || "").trim()) items.push(String(item).trim()); });
+      if (question.type === "multiple_choice") {
+        var normalized = normalizeMultipleChoiceAnswer(value);
+        normalized.selected.forEach(function (item) { if (String(item || "").trim()) items.push(String(item).trim()); });
+        if (normalized.other) items.push(normalized.other);
       } else if (Array.isArray(value)) {
         value.forEach(function (item) { if (String(item || "").trim()) items.push(String(item).trim()); });
       } else if (String(value || "").trim()) {
@@ -1373,6 +1398,13 @@
     return '[name="' + String(questionId).replace(/\\/g, "\\\\").replace(/"/g, '\\"') + '"]';
   }
 
+  function getCourseFormDataSelector(attribute, value) {
+    if (window.CSS && typeof window.CSS.escape === "function") {
+      return '[' + attribute + '="' + CSS.escape(value) + '"]';
+    }
+    return '[' + attribute + '="' + String(value).replace(/\\/g, "\\\\").replace(/"/g, '\\"') + '"]';
+  }
+
   function createFormsModal() {
     var modal = document.getElementById("courseFormsModal");
     if (modal) return modal;
@@ -1448,7 +1480,7 @@
 
   function renderCourseFormView(form, answer) {
     var content = openCourseFormModal();
-    var items = getAnswerSummaryItems(answer);
+    var items = getFormAnswerSummaryItems(form, answer);
     var settings = normalizeFormSettings(form.settings);
     var submittedDate = formatCourseFormSubmittedDate(answer);
     content.innerHTML = [
@@ -1492,10 +1524,17 @@
         if (question.type === "text") {
           return '<label class="nutrition-field"><span>' + escapeHtml(question.title) + '</span><input name="' + escapeAttr(question.id) + '" type="text" value="' + escapeAttr(saved || "") + '"' + (question.required ? ' required' : '') + '></label>';
         }
-        return '<fieldset class="nutrition-field course-form-fieldset"><legend>' + escapeHtml(question.title) + '</legend>' + question.options.map(function (option) {
-          var checked = question.type === "multiple_choice" ? (Array.isArray(saved) && saved.indexOf(option.value) !== -1) : saved === option.value;
+        var savedMultiple = question.type === "multiple_choice" ? normalizeMultipleChoiceAnswer(saved) : null;
+        var optionsHtml = question.options.map(function (option) {
+          var checked = question.type === "multiple_choice" ? (savedMultiple.selected.indexOf(option.value) !== -1) : saved === option.value;
           return '<label class="course-form-option"><input name="' + escapeAttr(question.id) + '" type="' + (question.type === "multiple_choice" ? "checkbox" : "radio") + '" value="' + escapeAttr(option.value) + '"' + (checked ? ' checked' : '') + (question.required && question.type === "single_choice" ? ' required' : '') + '> <span>' + escapeHtml(option.label) + '</span></label>';
-        }).join("") + '</fieldset>';
+        }).join("");
+        if (question.type === "multiple_choice" && question.allowOther) {
+          var otherChecked = !!(savedMultiple && savedMultiple.other);
+          optionsHtml += '<label class="course-form-option"><input type="checkbox" data-course-form-other-toggle="' + escapeAttr(question.id) + '"' + (otherChecked ? ' checked' : '') + '> <span>' + escapeHtml(question.otherLabel) + '</span></label>';
+          optionsHtml += '<label class="nutrition-field course-form-other-field" data-course-form-other-field="' + escapeAttr(question.id) + '"' + (otherChecked ? '' : ' hidden') + '><span class="sr-only">' + escapeHtml(question.otherLabel) + '</span><input type="text" data-course-form-other-input="' + escapeAttr(question.id) + '" value="' + escapeAttr(savedMultiple ? savedMultiple.other : "") + '" placeholder="' + escapeAttr(question.otherPlaceholder) + '"></label>';
+        }
+        return '<fieldset class="nutrition-field course-form-fieldset" data-course-form-question="' + escapeAttr(question.id) + '"><legend>' + escapeHtml(question.title) + '</legend>' + optionsHtml + '<p class="course-form-error" data-course-form-error="' + escapeAttr(question.id) + '" hidden></p></fieldset>';
       }).join(""),
       '</div>',
       '<div class="course-form-modal__footer">',
@@ -1503,6 +1542,15 @@
       '</div>',
       '</form>'
     ].join("");
+    content.querySelectorAll("[data-course-form-other-toggle]").forEach(function (toggle) {
+      toggle.addEventListener("change", function () {
+        var id = toggle.getAttribute("data-course-form-other-toggle");
+        var field = content.querySelector(getCourseFormDataSelector("data-course-form-other-field", id));
+        var input = content.querySelector(getCourseFormDataSelector("data-course-form-other-input", id));
+        if (field) field.hidden = !toggle.checked;
+        if (!toggle.checked && input) input.value = "";
+      });
+    });
     document.getElementById("courseFormEditor").addEventListener("submit", function (event) {
       event.preventDefault();
       void saveCourseFormAnswer(form, questions, existingAnswer);
@@ -1514,15 +1562,40 @@
     if (!client) return;
     var formElement = document.getElementById("courseFormEditor");
     var answers = {};
+    var hasErrors = false;
+    formElement.querySelectorAll("[data-course-form-error]").forEach(function (errorNode) { errorNode.hidden = true; errorNode.textContent = ""; });
     questions.forEach(function (question) {
       var selector = getFormFieldSelector(question.id);
       if (question.type === "multiple_choice") {
-        answers[question.id] = Array.from(formElement.querySelectorAll(selector + ':checked')).map(function (input) { return input.value; });
+        var selected = Array.from(formElement.querySelectorAll(selector + ':checked')).map(function (input) { return input.value; });
+        if (question.allowOther) {
+          var otherToggle = formElement.querySelector(getCourseFormDataSelector("data-course-form-other-toggle", question.id));
+          var otherInput = formElement.querySelector(getCourseFormDataSelector("data-course-form-other-input", question.id));
+          var other = otherToggle && otherToggle.checked && otherInput ? String(otherInput.value || "").trim() : "";
+          answers[question.id] = { selected: selected, other: other };
+          if (otherToggle && otherToggle.checked && !other) {
+            hasErrors = true;
+            var otherError = formElement.querySelector(getCourseFormDataSelector("data-course-form-error", question.id));
+            if (otherError) { otherError.textContent = "Заполните поле «" + question.otherLabel + "» или снимите выбор."; otherError.hidden = false; }
+          } else if (question.required && !selected.length && !other) {
+            hasErrors = true;
+            var requiredError = formElement.querySelector(getCourseFormDataSelector("data-course-form-error", question.id));
+            if (requiredError) { requiredError.textContent = "Выберите хотя бы один вариант ответа."; requiredError.hidden = false; }
+          }
+        } else {
+          answers[question.id] = selected;
+          if (question.required && !selected.length) {
+            hasErrors = true;
+            var errorNode = formElement.querySelector(getCourseFormDataSelector("data-course-form-error", question.id));
+            if (errorNode) { errorNode.textContent = "Выберите хотя бы один вариант ответа."; errorNode.hidden = false; }
+          }
+        }
       } else {
         var field = formElement.querySelector(selector);
         answers[question.id] = field ? field.value : "";
       }
     });
+    if (hasErrors) return;
     var summary = buildFormSummary(form, answers);
     var courseId = getActiveCourseId();
     var productUserId = PRODUCT_USER && PRODUCT_USER.id ? PRODUCT_USER.id : null;
@@ -1615,7 +1688,7 @@
       var answer = COURSE_FORM_ANSWERS[form.id];
       var settings = normalizeFormSettings(form.settings);
       var showSubmitted = answer && settings.submission_mode === "once";
-      var items = getAnswerSummaryItems(answer);
+      var items = getFormAnswerSummaryItems(form, answer);
       var submittedDate = showSubmitted ? formatCourseFormSubmittedDate(answer) : "";
       return [
         '<section class="card course-form-card">',
