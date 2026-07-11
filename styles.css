@@ -1601,22 +1601,18 @@ body.theme-emerald-gold .status.locked {
 
 .course-form-card__header {
   display: flex;
-  align-items: flex-start;
-  gap: 8px;
+  align-items: stretch;
+  gap: 14px;
 }
 
-.course-form-card__icon {
-  width: 20px;
-  height: 20px;
-  flex: 0 0 20px;
-  margin-top: 2px;
-  color: var(--muted);
-  stroke: currentColor;
-  stroke-width: 1.7;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-  fill: none;
-  opacity: 0.82;
+.course-form-card__accent {
+  width: 4px;
+  flex: 0 0 4px;
+  align-self: stretch;
+  min-height: 1.55em;
+  border-radius: 999px;
+  background: var(--accent);
+  box-shadow: 0 0 10px rgba(var(--accent-rgb), 0.16);
 }
 
 .course-form-card__heading {
