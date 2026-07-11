@@ -33,6 +33,7 @@
     studentsStatusFilter: "all",
     selectedStudentKey: null,
     studentAccessDrafts: {},
+    studentFormAnswers: {},
     courseAccessSettings: null,
     savedCourseAccessSettings: null,
     courseAccessSaving: false
@@ -671,6 +672,47 @@ function getDefaultAdminTab() {
   }
 
 
+  function getStudentFormsState(student) {
+    var productUser = student && student.productUser ? student.productUser : {};
+    var key = productUser.id ? String(productUser.id) : "";
+    return state.studentFormAnswers[key] || { loading: false, loaded: false, error: null, forms: [], answersByFormId: {} };
+  }
+
+  function getAnswerSummaryItems(answer) {
+    var summary = answer && answer.summary;
+    if (Array.isArray(summary)) return summary.map(String).filter(Boolean);
+    if (typeof summary === "string" && summary.trim()) {
+      try {
+        var parsed = JSON.parse(summary);
+        if (Array.isArray(parsed)) return parsed.map(String).filter(Boolean);
+      } catch (error) {
+        return [summary.trim()];
+      }
+      return [summary.trim()];
+    }
+    return [];
+  }
+
+  function StudentFormsSections(student) {
+    var formsState = getStudentFormsState(student);
+    if (formsState.loading || !formsState.loaded) {
+      return '<article class="admin-student-details-section"><span class="admin-student-details-section-icon" aria-hidden="true">⌁</span><span><strong>Формы</strong><em>Загружаем ответы…</em></span></article>';
+    }
+    if (formsState.error) {
+      return '<article class="admin-student-details-section"><span class="admin-student-details-section-icon" aria-hidden="true">⌁</span><span><strong>Формы</strong><em>Не удалось загрузить ответы</em></span></article>';
+    }
+    if (!formsState.forms.length) return '';
+    return formsState.forms.map(function (form) {
+      var answer = formsState.answersByFormId[String(form.id)] || null;
+      var items = getAnswerSummaryItems(answer);
+      var submittedAt = answer && (answer.submitted_at || answer.updated_at || answer.created_at);
+      var body = answer
+        ? (items.length ? '<ul>' + items.map(function (item) { return '<li>' + escapeHtml(item) + '</li>'; }).join("") + '</ul>' : '<em>Ответ сохранён</em>') + '<em>Заполнено: ' + escapeHtml(formatStudentDate(submittedAt)) + '</em>'
+        : '<em>Пока не заполнена</em>';
+      return '<article class="admin-student-details-section"><span class="admin-student-details-section-icon" aria-hidden="true">⌁</span><span><strong>' + escapeHtml(form.title || "Форма") + '</strong>' + body + '</span></article>';
+    }).join("");
+  }
+
   function StudentDetailsCard(student) {
     if (!student) return "";
     var productUser = student.productUser || {};
@@ -681,8 +723,8 @@ function getDefaultAdminTab() {
     var avatarUrl = webappUser.avatar_url || "";
     var initials = name === "—" ? "?" : name.split(" ").filter(Boolean).slice(0, 2).map(function (part) { return part.charAt(0); }).join("").toUpperCase();
     var lastSeen = productUser.last_seen_at || webappUser.last_seen_at;
+    var formSectionsHtml = StudentFormsSections(student);
     var sections = [
-      ["⌁", "Точка А", "Пока нет данных"],
       ["✓", "Домашние задания", "Пока нет данных"],
       ["↗", "Аналитика", "Будет доступна позже"]
     ];
@@ -700,7 +742,7 @@ function getDefaultAdminTab() {
       '<div><dt>Доступ до</dt><dd>' + escapeHtml(formatStudentDetailDate(productUser.access_expires_at)) + '</dd></div>',
       '</dl>',
       StudentAccessControl(student),
-      '<div class="admin-student-details-sections">' + sections.map(function (section) { return '<article class="admin-student-details-section"><span class="admin-student-details-section-icon" aria-hidden="true">' + escapeHtml(section[0]) + '</span><span><strong>' + escapeHtml(section[1]) + '</strong><em>' + escapeHtml(section[2]) + '</em></span></article>'; }).join("") + '</div>',
+      '<div class="admin-student-details-sections">' + formSectionsHtml + sections.map(function (section) { return '<article class="admin-student-details-section"><span class="admin-student-details-section-icon" aria-hidden="true">' + escapeHtml(section[0]) + '</span><span><strong>' + escapeHtml(section[1]) + '</strong><em>' + escapeHtml(section[2]) + '</em></span></article>'; }).join("") + '</div>',
       '</article>'
     ].join("");
   }
@@ -765,6 +807,53 @@ function getDefaultAdminTab() {
     }
   }
 
+  async function loadStudentFormAnswers(student) {
+    var client = getClient();
+    var courseId = getActiveCourseId();
+    var productUser = student && student.productUser ? student.productUser : {};
+    var productUserId = productUser.id;
+    if (!client || !courseId || !productUserId) return;
+    var key = String(productUserId);
+    state.studentFormAnswers[key] = { loading: true, loaded: false, error: null, forms: [], answersByFormId: {} };
+    renderStudentsSection();
+    try {
+      var formsResult = await client
+        .from("course_forms")
+        .select("*")
+        .eq("course_id", courseId)
+        .eq("is_enabled", true)
+        .order("sort_order", { ascending: true });
+      if (formsResult.error) throw formsResult.error;
+      var forms = formsResult.data || [];
+      var answersByFormId = {};
+      if (forms.length) {
+        var answersResult = await client
+          .from("course_form_answers")
+          .select("*")
+          .eq("course_id", courseId)
+          .eq("product_user_id", productUserId);
+        if (answersResult.error) throw answersResult.error;
+        (answersResult.data || []).forEach(function (answer) {
+          if (answer && answer.form_id && !answersByFormId[String(answer.form_id)]) answersByFormId[String(answer.form_id)] = answer;
+        });
+      }
+      state.studentFormAnswers[key] = { loading: false, loaded: true, error: null, forms: forms, answersByFormId: answersByFormId };
+    } catch (error) {
+      console.warn("Не удалось загрузить ответы форм ученика", error);
+      state.studentFormAnswers[key] = { loading: false, loaded: true, error: error, forms: [], answersByFormId: {} };
+    }
+    renderStudentsSection();
+  }
+
+  function ensureSelectedStudentFormsLoaded() {
+    if (!state.selectedStudentKey) return;
+    var student = (state.students || []).find(function (item) { return getStudentKey(item) === state.selectedStudentKey; });
+    var productUserId = student && student.productUser && student.productUser.id;
+    if (!student || !productUserId) return;
+    var existing = state.studentFormAnswers[String(productUserId)];
+    if (!existing || (!existing.loading && !existing.loaded)) void loadStudentFormAnswers(student);
+  }
+
   function renderStudentsSection() {
     renderStudentsMetrics(state.students || []);
     var stateNode = document.getElementById("studentsState");
@@ -803,6 +892,7 @@ function getDefaultAdminTab() {
     stateNode.hidden = true;
     tableWrap.hidden = false;
     if (!filteredStudents.some(function (student) { return getStudentKey(student) === state.selectedStudentKey; })) state.selectedStudentKey = null;
+    ensureSelectedStudentFormsLoaded();
     tbody.innerHTML = filteredStudents.map(function (student) {
       var productUser = student.productUser || {};
       var webappUser = student.webappUser || {};
@@ -4297,6 +4387,7 @@ function getDefaultAdminTab() {
         var studentKey = row.getAttribute("data-student-key");
         state.selectedStudentKey = state.selectedStudentKey === studentKey ? null : studentKey;
         renderStudentsSection();
+        ensureSelectedStudentFormsLoaded();
       });
       studentsTableBody.addEventListener("change", function (event) {
         var accessControl = event.target.closest("[data-student-access-control]");
@@ -4323,6 +4414,7 @@ function getDefaultAdminTab() {
         var studentKey = row.getAttribute("data-student-key");
         state.selectedStudentKey = state.selectedStudentKey === studentKey ? null : studentKey;
         renderStudentsSection();
+        ensureSelectedStudentFormsLoaded();
       });
     }
 
