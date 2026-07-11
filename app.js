@@ -1422,21 +1422,51 @@
     return "Ваша " + (form.title || "форма").toLowerCase();
   }
 
+  function getCourseFormIconSvg() {
+    return '<svg class="course-form-card__icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 3v3m0 12v3m9-9h-3M6 12H3m15.07-6.07-2.12 2.12M8.05 15.95l-2.12 2.12m12.14 0-2.12-2.12M8.05 8.05 5.93 5.93"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>';
+  }
+
+  function formatCourseFormSubmittedDate(answer) {
+    var value = answer && answer.submitted_at;
+    if (!value) return "";
+    var date = new Date(value);
+    if (Number.isNaN(date.getTime())) return "";
+    try {
+      return new Intl.DateTimeFormat("ru-RU", { day: "numeric", month: "long", year: "numeric" }).format(date);
+    } catch (error) {
+      return date.toLocaleDateString("ru-RU");
+    }
+  }
+
+  function getSubmittedFormButtonText(settings) {
+    var candidates = [
+      settings && settings.submitted_button_text,
+      settings && settings.view_answers_button_text,
+      settings && settings.result_button_text
+    ];
+    for (var i = 0; i < candidates.length; i += 1) {
+      if (typeof candidates[i] === "string" && candidates[i].trim()) return candidates[i].trim();
+    }
+    return "Посмотреть ответы";
+  }
+
   function renderCourseFormView(form, answer) {
     var content = openCourseFormModal();
     var items = getAnswerSummaryItems(answer);
     var settings = normalizeFormSettings(form.settings);
+    var submittedDate = formatCourseFormSubmittedDate(answer);
     content.innerHTML = [
       '<div class="course-form-modal__header">',
       '<div class="course-form-modal__heading">',
       '<h2 class="nutrition-title">' + escapeHtml(getSubmittedFormTitle(form, settings)) + '</h2>',
+      (submittedDate ? '<p class="nutrition-text course-form-submitted-at">Зафиксировано ' + escapeHtml(submittedDate) + '</p>' : ''),
       (form.description ? '<p class="nutrition-text">' + escapeHtml(form.description) + '</p>' : '<p class="nutrition-text">Ответы по форме сохранены.</p>'),
       '</div>',
       '<button class="nutrition-modal__close" type="button" data-course-form-close aria-label="Закрыть">×</button>',
       '</div>',
       '<div class="course-form-modal__body">',
       '<div class="course-form-summary">',
-      (items.length ? '<ul>' + items.map(function (item) { return '<li>' + escapeHtml(item) + '</li>'; }).join("") + '</ul>' : '<p>Ответ сохранён.</p>'),
+      (items.length ? '<ul class="course-form-answer-list">' + items.map(function (item) { return '<li>' + escapeHtml(item) + '</li>'; }).join("") + '</ul>' : '<p>Ответ сохранён.</p>'),
       '</div>',
       '</div>',
       '<div class="nutrition-actions course-form-modal__footer">',
@@ -1590,13 +1620,20 @@
       var settings = normalizeFormSettings(form.settings);
       var showSubmitted = answer && settings.submission_mode === "once";
       var items = getAnswerSummaryItems(answer);
+      var submittedDate = showSubmitted ? formatCourseFormSubmittedDate(answer) : "";
       return [
         '<section class="card course-form-card">',
+        '<div class="course-form-card__header">',
+        (showSubmitted ? getCourseFormIconSvg() : ''),
+        '<div class="course-form-card__heading">',
         '<h3>' + escapeHtml(showSubmitted ? getSubmittedFormTitle(form, settings) : (form.title || "Форма")) + '</h3>',
+        (submittedDate ? '<p class="course-form-card__meta">Зафиксировано ' + escapeHtml(submittedDate) + '</p>' : ''),
+        '</div>',
+        '</div>',
         (showSubmitted
-          ? '<ul class="course-form-card__summary">' + items.map(function (item) { return '<li>' + escapeHtml(item) + '</li>'; }).join("") + '</ul>'
+          ? '<ul class="course-form-card__summary course-form-answer-list">' + items.map(function (item) { return '<li>' + escapeHtml(item) + '</li>'; }).join("") + '</ul>'
           : '<p>' + escapeHtml(form.description || "") + '</p>'),
-        '<button type="button" class="btn btn-primary course-form-open" data-form-id="' + escapeAttr(form.id) + '">' + escapeHtml(showSubmitted ? "Посмотреть" : (form.button_text || "Заполнить")) + '</button>',
+        '<button type="button" class="btn btn-primary course-form-open" data-form-id="' + escapeAttr(form.id) + '">' + escapeHtml(showSubmitted ? getSubmittedFormButtonText(settings) : (form.button_text || "Заполнить")) + '</button>',
         '</section>'
       ].join("");
     }).join("");
