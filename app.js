@@ -1422,10 +1422,6 @@
     return "Ваша " + (form.title || "форма").toLowerCase();
   }
 
-  function getCourseFormIconSvg() {
-    return '<svg class="course-form-card__icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 3v3m0 12v3m9-9h-3M6 12H3m15.07-6.07-2.12 2.12M8.05 15.95l-2.12 2.12m12.14 0-2.12-2.12M8.05 8.05 5.93 5.93"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>';
-  }
-
   function formatCourseFormSubmittedDate(answer) {
     var value = answer && answer.submitted_at;
     if (!value) return "";
@@ -1624,7 +1620,7 @@
       return [
         '<section class="card course-form-card">',
         '<div class="course-form-card__header">',
-        (showSubmitted ? getCourseFormIconSvg() : ''),
+        (showSubmitted ? '<span class="course-form-card__accent" aria-hidden="true"></span>' : ''),
         '<div class="course-form-card__heading">',
         '<h3>' + escapeHtml(showSubmitted ? getSubmittedFormTitle(form, settings) : (form.title || "Форма")) + '</h3>',
         (submittedDate ? '<p class="course-form-card__meta">Зафиксировано ' + escapeHtml(submittedDate) + '</p>' : ''),
