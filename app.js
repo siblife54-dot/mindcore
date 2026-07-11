@@ -1380,6 +1380,12 @@
     }, 180);
   }
 
+  function getSubmittedFormTitle(form, settings) {
+    var resultTitle = settings && typeof settings.result_title === "string" ? settings.result_title.trim() : "";
+    if (resultTitle) return resultTitle;
+    return "Ваша " + (form.title || "форма").toLowerCase();
+  }
+
   function renderCourseFormView(form, answer) {
     var content = openCourseFormModal();
     var items = getAnswerSummaryItems(answer);
@@ -1387,7 +1393,7 @@
     content.innerHTML = [
       '<div class="course-form-modal__header">',
       '<div class="course-form-modal__heading">',
-      '<h2 class="nutrition-title">' + escapeHtml("Ваша " + (form.title || "форма").toLowerCase()) + '</h2>',
+      '<h2 class="nutrition-title">' + escapeHtml(getSubmittedFormTitle(form, settings)) + '</h2>',
       (form.description ? '<p class="nutrition-text">' + escapeHtml(form.description) + '</p>' : '<p class="nutrition-text">Ответы по форме сохранены.</p>'),
       '</div>',
       '<button class="nutrition-modal__close" type="button" data-course-form-close aria-label="Закрыть">×</button>',
@@ -1500,7 +1506,7 @@
       var items = getAnswerSummaryItems(answer);
       return [
         '<section class="card course-form-card">',
-        '<h3>' + escapeHtml(showSubmitted ? ("Ваша " + String(form.title || "форма").toLowerCase()) : (form.title || "Форма")) + '</h3>',
+        '<h3>' + escapeHtml(showSubmitted ? getSubmittedFormTitle(form, settings) : (form.title || "Форма")) + '</h3>',
         (showSubmitted
           ? '<ul class="course-form-card__summary">' + items.map(function (item) { return '<li>' + escapeHtml(item) + '</li>'; }).join("") + '</ul>'
           : '<p>' + escapeHtml(form.description || "") + '</p>'),
