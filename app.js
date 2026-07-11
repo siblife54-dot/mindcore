@@ -20,6 +20,9 @@
   var LAST_LESSONS = [];
   var COURSE_FORMS = [];
   var COURSE_FORM_ANSWERS = {};
+  var COURSE_FORM_ANSWERS_LOADING = false;
+  var COURSE_FORM_ANSWERS_LOADED = false;
+  var COURSE_FORM_ANSWERS_ERROR = null;
   var STORAGE_DEBUG = {
     platform: "browser",
     telegramDetected: false,
@@ -1276,9 +1279,15 @@
     return items;
   }
 
+  function isUuid(value) {
+    return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(String(value || ""));
+  }
+
   async function fetchCourseForms() {
     COURSE_FORMS = [];
     COURSE_FORM_ANSWERS = {};
+    COURSE_FORM_ANSWERS_LOADED = false;
+    COURSE_FORM_ANSWERS_ERROR = null;
     if (!isFormsEnabled(COURSE_SETTINGS)) return [];
 
     var client = window.getSupabaseClient();
@@ -1298,28 +1307,55 @@
     }
 
     COURSE_FORMS = formsResult.data || [];
-
-    if (COURSE_FORMS.length && (PRODUCT_USER || (APP_PROFILE && APP_PROFILE.id))) {
-      var answerQuery = client
-        .from("course_form_answers")
-        .select("*")
-        .eq("course_id", courseId);
-      if (PRODUCT_USER && PRODUCT_USER.id) {
-        answerQuery = answerQuery.eq("product_user_id", PRODUCT_USER.id);
-      } else if (PRODUCT_USER && PRODUCT_USER.webapp_user_id) {
-        answerQuery = answerQuery.eq("webapp_user_id", PRODUCT_USER.webapp_user_id);
-      }
-      var answersResult = await answerQuery.order("created_at", { ascending: false });
-      if (answersResult.error) {
-        console.warn("Supabase course_form_answers load error:", answersResult.error);
-      } else {
-        (answersResult.data || []).forEach(function (answer) {
-          if (answer && answer.form_id && !COURSE_FORM_ANSWERS[answer.form_id]) COURSE_FORM_ANSWERS[answer.form_id] = answer;
-        });
-      }
-    }
+    await loadSavedCourseFormAnswers();
 
     return COURSE_FORMS;
+  }
+
+  async function loadSavedCourseFormAnswers() {
+    COURSE_FORM_ANSWERS = {};
+    COURSE_FORM_ANSWERS_LOADED = false;
+    COURSE_FORM_ANSWERS_ERROR = null;
+    if (!COURSE_FORMS.length) {
+      COURSE_FORM_ANSWERS_LOADED = true;
+      return COURSE_FORM_ANSWERS;
+    }
+
+    var client = window.getSupabaseClient();
+    var courseId = getActiveCourseId();
+    var productUserId = PRODUCT_USER && PRODUCT_USER.id;
+    console.log("[MindCore Forms] Loading saved answers");
+    console.log("[MindCore Forms] current product_user_id:", productUserId || null);
+    if (!client || !courseId || !productUserId) {
+      COURSE_FORM_ANSWERS_LOADED = true;
+      if (!productUserId) console.warn("[MindCore Forms] Saved answers were not loaded: product_user_id is missing");
+      return COURSE_FORM_ANSWERS;
+    }
+
+    COURSE_FORM_ANSWERS_LOADING = true;
+    var formIds = COURSE_FORMS.map(function (form) { return form && form.id; }).filter(Boolean);
+    var answersResult = await client
+      .from("course_form_answers")
+      .select("*")
+      .eq("course_id", courseId)
+      .eq("product_user_id", productUserId)
+      .in("form_id", formIds)
+      .order("submitted_at", { ascending: false });
+    COURSE_FORM_ANSWERS_LOADING = false;
+
+    if (answersResult.error) {
+      COURSE_FORM_ANSWERS_ERROR = answersResult.error;
+      console.warn("Supabase course_form_answers load error:", answersResult.error);
+      return COURSE_FORM_ANSWERS;
+    }
+
+    (answersResult.data || []).forEach(function (answer) {
+      if (answer && answer.form_id && !COURSE_FORM_ANSWERS[answer.form_id]) COURSE_FORM_ANSWERS[answer.form_id] = answer;
+    });
+    COURSE_FORM_ANSWERS_LOADED = true;
+    console.log("[MindCore Forms] loaded answers:", answersResult.data || []);
+    console.log("[MindCore Forms] completed form ids:", Object.keys(COURSE_FORM_ANSWERS));
+    return COURSE_FORM_ANSWERS;
   }
 
   function getFormAnswerValue(answer, questionId) {
@@ -1462,18 +1498,60 @@
       }
     });
     var summary = buildFormSummary(form, answers);
+    var courseId = getActiveCourseId();
+    var productUserId = PRODUCT_USER && PRODUCT_USER.id ? PRODUCT_USER.id : null;
+    var webappUserId = PRODUCT_USER && PRODUCT_USER.webapp_user_id ? PRODUCT_USER.webapp_user_id : (APP_PROFILE && APP_PROFILE.id ? APP_PROFILE.id : null);
+    console.log("[MindCore Forms] Saving answer:");
+    console.log("[MindCore Forms] form_id:", form.id);
+    console.log("[MindCore Forms] course_id:", courseId);
+    console.log("[MindCore Forms] product_user_id:", productUserId);
+    console.log("[MindCore Forms] webapp_user_id:", webappUserId);
+    if (!isUuid(productUserId)) {
+      console.warn("[MindCore Forms] Answer was not saved: product_user_id is missing or is not a Supabase UUID", productUserId);
+      return;
+    }
+    if (!isUuid(webappUserId)) {
+      console.warn("[MindCore Forms] Answer was not saved: webapp_user_id is missing or is not a Supabase UUID", webappUserId);
+      return;
+    }
     var payload = {
       form_id: form.id,
-      course_id: getActiveCourseId(),
-      product_user_id: PRODUCT_USER && PRODUCT_USER.id ? PRODUCT_USER.id : null,
-      webapp_user_id: PRODUCT_USER && PRODUCT_USER.webapp_user_id ? PRODUCT_USER.webapp_user_id : null,
+      course_id: courseId,
+      product_user_id: productUserId,
+      webapp_user_id: webappUserId,
       answers_json: answers,
       summary: summary,
-      status: "submitted"
+      status: "submitted",
+      submitted_at: new Date().toISOString()
     };
-    var result = existingAnswer && existingAnswer.id
-      ? await client.from("course_form_answers").update(payload).eq("id", existingAnswer.id).select("*").single()
-      : await client.from("course_form_answers").insert(payload).select("*").single();
+    var settings = normalizeFormSettings(form.settings);
+    var storedAnswer = existingAnswer || COURSE_FORM_ANSWERS[form.id] || null;
+    if (!storedAnswer && settings.submission_mode === "once") {
+      var duplicateResult = await client
+        .from("course_form_answers")
+        .select("*")
+        .eq("course_id", courseId)
+        .eq("form_id", form.id)
+        .eq("product_user_id", productUserId)
+        .maybeSingle();
+      if (duplicateResult.error) {
+        console.warn("[MindCore Forms] save error:", duplicateResult.error);
+        return;
+      }
+      storedAnswer = duplicateResult.data || null;
+    }
+    var result;
+    if (storedAnswer && storedAnswer.id) {
+      if (settings.submission_mode === "once" && settings.allow_edit !== true) {
+        result = { data: storedAnswer, error: null };
+      } else {
+        result = await client.from("course_form_answers").update(payload).eq("id", storedAnswer.id).select("*").single();
+      }
+    } else {
+      result = await client.from("course_form_answers").insert(payload).select("*").single();
+    }
+    console.log("[MindCore Forms] save result:", result.data || null);
+    console.log("[MindCore Forms] save error:", result.error || null);
     if (result.error) {
       console.warn("Supabase course_form_answers save error:", result.error);
       return;
@@ -1492,13 +1570,21 @@
       host.innerHTML = "";
       return;
     }
-    if (!COURSE_FORMS.length) await fetchCourseForms();
+    if (!COURSE_FORMS.length && !COURSE_FORM_ANSWERS_LOADED) await fetchCourseForms();
     if (!COURSE_FORMS.length) {
       section.hidden = true;
       host.innerHTML = "";
       return;
     }
     section.hidden = false;
+    if (COURSE_FORM_ANSWERS_LOADING || (!COURSE_FORM_ANSWERS_LOADED && !COURSE_FORM_ANSWERS_ERROR)) {
+      host.innerHTML = '<section class="card course-form-card"><p>Проверяем сохранённые ответы…</p></section>';
+      return;
+    }
+    if (COURSE_FORM_ANSWERS_ERROR) {
+      host.innerHTML = '<section class="card course-form-card"><p>Не удалось загрузить ответы. Попробуйте обновить страницу.</p></section>';
+      return;
+    }
     host.innerHTML = COURSE_FORMS.map(function (form) {
       var answer = COURSE_FORM_ANSWERS[form.id];
       var settings = normalizeFormSettings(form.settings);
