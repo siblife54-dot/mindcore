@@ -678,17 +678,49 @@ function getDefaultAdminTab() {
     return state.studentFormAnswers[key] || { loading: false, loaded: false, error: null, forms: [], answersByFormId: {} };
   }
 
+  function flattenFormAnswerValue(value, items) {
+    if (Array.isArray(value)) {
+      value.forEach(function (item) { if (String(item || "").trim()) items.push(String(item).trim()); });
+      return;
+    }
+    if (value && typeof value === "object") {
+      if (Array.isArray(value.selected)) {
+        value.selected.forEach(function (item) { if (String(item || "").trim()) items.push(String(item).trim()); });
+      }
+      if (String(value.other || "").trim()) items.push(String(value.other).trim());
+      return;
+    }
+    if (String(value || "").trim()) items.push(String(value).trim());
+  }
+
   function getAnswerSummaryItems(answer) {
     var summary = answer && answer.summary;
-    if (Array.isArray(summary)) return summary.map(String).filter(Boolean);
+    if (Array.isArray(summary)) {
+      var arrayItems = [];
+      summary.forEach(function (item) { flattenFormAnswerValue(item, arrayItems); });
+      return arrayItems;
+    }
     if (typeof summary === "string" && summary.trim()) {
       try {
         var parsed = JSON.parse(summary);
-        if (Array.isArray(parsed)) return parsed.map(String).filter(Boolean);
+        if (Array.isArray(parsed)) {
+          var parsedItems = [];
+          parsed.forEach(function (item) { flattenFormAnswerValue(item, parsedItems); });
+          return parsedItems;
+        }
       } catch (error) {
         return [summary.trim()];
       }
       return [summary.trim()];
+    }
+    var answersJson = answer && answer.answers_json;
+    if (typeof answersJson === "string") {
+      try { answersJson = JSON.parse(answersJson); } catch (error) { answersJson = null; }
+    }
+    if (answersJson && typeof answersJson === "object") {
+      var items = [];
+      Object.keys(answersJson).forEach(function (key) { flattenFormAnswerValue(answersJson[key], items); });
+      return items;
     }
     return [];
   }
