@@ -3437,7 +3437,7 @@ body[data-page="admin"] h3,
 body[data-page="admin"] h4,
 body[data-page="admin"] h5 { color: var(--admin-text); letter-spacing: -0.03em; }
 
-.admin-layout { grid-template-columns: 292px minmax(0, 1fr) minmax(310px, 390px); gap: 0; background: transparent; }
+.admin-layout { grid-template-columns: 292px minmax(0, 1fr) minmax(460px, 490px); gap: 0; background: transparent; }
 .admin-layout.admin-layout--students { grid-template-columns: 292px minmax(0, 1fr); }
 
 .admin-sidebar {
@@ -3547,15 +3547,15 @@ body[data-page="admin"] h5 { color: var(--admin-text); letter-spacing: -0.03em; 
 .ql-toolbar .ql-fill { fill: var(--admin-text-secondary) !important; }
 .ql-toolbar .ql-picker-label { color: var(--admin-text-secondary) !important; }
 
-.admin-live-preview-column { border-left: 0; background: transparent; padding: 24px 20px 24px 0; }
-.admin-live-preview-card { top: 24px; border-radius: var(--admin-radius-xl); padding: 18px; background: linear-gradient(180deg, #fff, #fbfaff); box-shadow: var(--admin-shadow); }
+.admin-live-preview-column { border-left: 0; background: transparent; padding: 24px 0; }
+.admin-live-preview-card { top: 24px; border-radius: var(--admin-radius-xl); padding: 16px; background: linear-gradient(180deg, #fff, #fbfaff); box-shadow: var(--admin-shadow); }
 .admin-live-preview-header { min-height: auto; padding: 2px 0 12px; border: 0; align-items: center; }
 .admin-live-preview-title-row { align-items: center; }
 .admin-live-preview-title-row h3 { font: inherit; font-size: 23px; font-weight: 650; line-height: 1.15; color: var(--admin-text); letter-spacing: -0.03em; }
 .admin-live-preview-status { color: var(--admin-success); background: var(--admin-success-soft); border: 0; font-size: 10px; font-weight: 600; line-height: 1; padding: 4px 8px; gap: 5px; }
 .admin-live-preview-status i { width: 6px; height: 6px; background: var(--admin-success); box-shadow: none; }
-.admin-live-preview-shell { margin-top: 0; padding: 16px; border-radius: 24px; background: linear-gradient(135deg, var(--admin-accent-soft), var(--admin-info-soft)); }
-.admin-live-preview-screen-wrap { height: min(76vh, 720px); border: 8px solid #17213a; border-radius: 32px; box-shadow: 0 20px 42px rgba(20,33,61,.18); }
+.admin-live-preview-shell { margin-top: 0; padding: 12px; border-radius: 24px; background: linear-gradient(135deg, var(--admin-accent-soft), var(--admin-info-soft)); }
+.admin-live-preview-screen-wrap { width: 100%; max-width: 436px; height: min(76vh, 720px); border: 8px solid #17213a; border-radius: 32px; box-shadow: 0 20px 42px rgba(20,33,61,.18); }
 
 .admin-students-card { background: var(--admin-surface); box-shadow: var(--admin-shadow); }
 .admin-students-hero h2 { font-size: 32px; }
