@@ -2155,6 +2155,11 @@ function getDefaultAdminTab() {
     }
 
     if (!items.length) {
+      var primaryType = getMaterialPrimaryType(blockId);
+      if (materialTypes.length === 1 && primaryType === "text") {
+        return "";
+      }
+
       return [
         '<div class="admin-section-empty-state">',
         '<p class="admin-section-empty-state__title">Материал пока пустой</p>',
@@ -2185,6 +2190,54 @@ function getDefaultAdminTab() {
 
     renderBlocksList();
     refreshPreviewData();
+  }
+
+  function showAdminNotice(message, type) {
+    var root = document.body;
+    if (!root) return;
+
+    var notice = document.getElementById("adminNoticeToast");
+    if (!notice) {
+      notice = document.createElement("div");
+      notice.id = "adminNoticeToast";
+      notice.className = "admin-notice-toast";
+      notice.setAttribute("role", "status");
+      notice.setAttribute("aria-live", "polite");
+      root.appendChild(notice);
+    }
+
+    if (notice._hideTimer) {
+      window.clearTimeout(notice._hideTimer);
+    }
+
+    notice.textContent = message || "Готово";
+    notice.className = "admin-notice-toast is-visible" + (type === "error" ? " admin-notice-toast--error" : "");
+    notice._hideTimer = window.setTimeout(function () {
+      notice.classList.remove("is-visible");
+    }, 2600);
+  }
+
+  function refreshBlockCardMeta(blockId) {
+    var card = document.querySelector('#blocksList .admin-block-item[data-block-id="' + blockId + '"]');
+    if (!card) return;
+
+    var summary = getSectionSummary(blockId);
+    var summaryNode = card.querySelector(".admin-section-summary");
+    if (summaryNode) {
+      summaryNode.textContent = summary;
+      summaryNode.classList.toggle("admin-section-summary--empty", summary === "Пока контент не добавлен.");
+    }
+
+    var isActive = String(state.activeSectionId) === String(blockId);
+    var isEmptySection = !getSectionContentList(blockId).length;
+    var shouldShowBadges = !(isActive && isEmptySection);
+    var badgesNode = card.querySelector(".admin-content-badges");
+    if (badgesNode) {
+      badgesNode.innerHTML = shouldShowBadges ? getContentBadges(blockId).map(function (badge) {
+        return '<span class="admin-content-badge">' + escapeHtml(badge) + '</span>';
+      }).join("") : "";
+      badgesNode.hidden = !shouldShowBadges;
+    }
   }
 
   function renderLessonsList() {
@@ -3807,7 +3860,7 @@ function getDefaultAdminTab() {
 
     if (result.error) {
       console.error(result.error);
-      alert("Ошибка создания текстового содержимого");
+      showAdminNotice("Ошибка создания текстового содержимого", "error");
       return null;
     }
 
@@ -3838,18 +3891,23 @@ function getDefaultAdminTab() {
 
     if (result.error) {
       console.error(result.error);
-      alert("Ошибка сохранения текста материала");
+      showAdminNotice("Ошибка сохранения текста материала", "error");
       return;
     }
 
     var key = String(blockId);
-    state.blockItemsByBlockId[key] = getItems(blockId).map(function (item) {
+    var nextItems = getItems(blockId).map(function (item) {
       return String(item.id) === String(result.data.id) ? result.data : item;
     });
+    if (!nextItems.some(function (item) { return String(item.id) === String(result.data.id); })) {
+      nextItems.push(result.data);
+    }
+    state.blockItemsByBlockId[key] = nextItems;
 
-    renderBlocksList();
+    quill.root.innerHTML = result.data.text_html || "<p></p>";
+    refreshBlockCardMeta(blockId);
     refreshPreviewData();
-    alert("Текст сохранён");
+    showAdminNotice("Текст сохранён");
   }
 
   async function saveVideoDescription(blockId, description) {
