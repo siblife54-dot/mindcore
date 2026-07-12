@@ -2146,6 +2146,13 @@ function getDefaultAdminTab() {
     return lines;
   }
 
+  function shouldHideEmptyContentState(blockId) {
+    var materialTypes = getMaterialTypes(blockId);
+    var primaryType = getMaterialPrimaryType(blockId);
+
+    return materialTypes.length === 1 && primaryType === "image";
+  }
+
   function renderSectionContentList(blockId) {
     var items = getSectionContentList(blockId);
     var materialTypes = getMaterialTypes(blockId);
@@ -2157,7 +2164,7 @@ function getDefaultAdminTab() {
 
     if (!items.length) {
       var primaryType = getMaterialPrimaryType(blockId);
-      if (materialTypes.length === 1 && primaryType === "text") {
+      if (materialTypes.length === 1 && (primaryType === "text" || shouldHideEmptyContentState(blockId))) {
         return "";
       }
 
