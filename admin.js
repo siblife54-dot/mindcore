@@ -2147,7 +2147,12 @@ function getDefaultAdminTab() {
 
   function renderSectionContentList(blockId) {
     var items = getSectionContentList(blockId);
+    var materialTypes = getMaterialTypes(blockId);
     var limit = 4;
+
+    if (materialTypes.length <= 1 && items.length) {
+      return "";
+    }
 
     if (!items.length) {
       return [
