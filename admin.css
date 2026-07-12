@@ -3627,3 +3627,74 @@ body[data-page="admin"] h5 { color: var(--admin-text); letter-spacing: -0.03em; 
 }
 .admin-connection-card { position: relative; }
 .admin-connection-card:nth-child(n+2) { opacity: .78; }
+
+/* Compact single-material editor header in the lesson content editor. */
+.admin-block-editor-inline .admin-tabs.admin-tabs--single {
+  width: 100%;
+  padding: 10px 0 12px;
+  border-radius: 0;
+  background: transparent;
+  border-bottom: 1px solid var(--admin-border);
+  gap: 12px;
+}
+
+.admin-block-editor-inline .admin-tabs.admin-tabs--single .admin-tabs-title {
+  margin: 0;
+  color: var(--admin-text);
+  font-family: inherit;
+  font-size: clamp(18px, 1.5vw, 20px);
+  font-weight: 650;
+  line-height: 1.25;
+}
+
+.admin-block-editor-inline .admin-tabs.admin-tabs--single .close-inline-editor-btn {
+  min-height: 38px;
+  padding: 8px 14px;
+  border: 1px solid var(--admin-border);
+  border-radius: 12px;
+  background: var(--admin-surface);
+  color: var(--admin-text-secondary);
+  font-size: 14px;
+  font-weight: 600;
+  box-shadow: none;
+}
+
+.admin-block-editor-inline .admin-tabs.admin-tabs--single .close-inline-editor-btn:hover,
+.admin-block-editor-inline .admin-tabs.admin-tabs--single .close-inline-editor-btn:focus,
+.admin-block-editor-inline .admin-tabs.admin-tabs--single .close-inline-editor-btn:focus-visible {
+  background: var(--admin-surface-secondary);
+  color: var(--admin-text);
+  border-color: var(--admin-border-strong);
+  box-shadow: 0 0 0 4px rgba(118, 87, 230, 0.10);
+}
+
+.admin-block-editor-inline .admin-tabs.admin-tabs--single .close-inline-editor-btn:active {
+  background: var(--admin-bg-elevated);
+  color: var(--admin-text);
+  transform: translateY(0);
+}
+
+.admin-panel-actions .admin-tooltip-trigger.admin-tooltip-trigger--link {
+  background: var(--admin-accent-soft);
+  color: var(--admin-accent);
+  border-color: color-mix(in srgb, var(--admin-accent) 24%, var(--admin-border));
+  box-shadow: none;
+}
+
+.admin-panel-actions .admin-tooltip-trigger.admin-tooltip-trigger--link:hover,
+.admin-panel-actions .admin-tooltip-trigger.admin-tooltip-trigger--link:focus,
+.admin-panel-actions .admin-tooltip-trigger.admin-tooltip-trigger--link:focus-visible,
+.admin-panel-actions .admin-tooltip-trigger.admin-tooltip-trigger--link.is-open {
+  background: color-mix(in srgb, var(--admin-accent-soft) 72%, var(--admin-accent) 8%);
+  color: var(--admin-accent);
+  border-color: color-mix(in srgb, var(--admin-accent) 52%, var(--admin-border));
+  box-shadow: 0 6px 14px rgba(118, 87, 230, 0.12), 0 0 0 3px rgba(118, 87, 230, 0.10);
+  transform: translateY(-1px);
+}
+
+.admin-panel-actions .admin-tooltip-trigger.admin-tooltip-trigger--link:active {
+  background: color-mix(in srgb, var(--admin-accent-soft) 62%, var(--admin-accent) 12%);
+  color: var(--admin-text);
+  border-color: color-mix(in srgb, var(--admin-accent) 58%, var(--admin-border));
+  transform: translateY(0);
+}
