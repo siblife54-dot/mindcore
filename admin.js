@@ -36,9 +36,7 @@
     studentFormAnswers: {},
     courseAccessSettings: null,
     savedCourseAccessSettings: null,
-    courseAccessSaving: false,
-    modulesPanelCollapsed: false,
-    previewCollapsed: false
+    courseAccessSaving: false
   };
   state.savedThemeId = "dark_premium";
   var tooltipState = {
@@ -272,76 +270,6 @@
     document.body.classList.remove("is-mobile-preview-open");
   }
 
-  function getStoredBoolean(key, fallback) {
-    try {
-      var value = window.localStorage.getItem(key);
-      if (value === "true") return true;
-      if (value === "false") return false;
-    } catch (error) {}
-    return !!fallback;
-  }
-
-  function setStoredBoolean(key, value) {
-    try {
-      window.localStorage.setItem(key, value ? "true" : "false");
-    } catch (error) {}
-  }
-
-  function getAdminSectionTitle(tabId) {
-    return {
-      appearance: "Внешний вид",
-      lesson_settings: "Настройки модуля",
-      content: "Наполнение",
-      students: "Ученики",
-      connections: "Подключение"
-    }[tabId] || "Внешний вид";
-  }
-
-  function updateAdminShellState() {
-    var layout = document.querySelector(".admin-layout");
-    if (!layout) return;
-    var tab = state.activeAdminTab || "appearance";
-    var hasModules = tab === "lesson_settings" || tab === "content";
-    var hasPreview = tab === "appearance" || tab === "lesson_settings" || tab === "content";
-    layout.classList.toggle("admin-layout--has-modules", hasModules);
-    layout.classList.toggle("admin-layout--modules-collapsed", hasModules && state.modulesPanelCollapsed);
-    layout.classList.toggle("admin-layout--preview-collapsed", hasPreview && state.previewCollapsed);
-    layout.classList.toggle("admin-layout--students", tab === "students");
-    layout.classList.toggle("admin-layout--connections", tab === "connections");
-    layout.setAttribute("data-admin-layout-mode", tab);
-
-    var modulesPanel = document.getElementById("adminModulesPanel");
-    if (modulesPanel) {
-      modulesPanel.hidden = !hasModules;
-      modulesPanel.setAttribute("aria-hidden", hasModules ? "false" : "true");
-      modulesPanel.classList.toggle("is-collapsed", hasModules && state.modulesPanelCollapsed);
-    }
-
-    var previewColumn = document.querySelector(".admin-live-preview-column");
-    if (previewColumn) {
-      previewColumn.hidden = !hasPreview || state.previewCollapsed;
-      previewColumn.setAttribute("aria-hidden", (!hasPreview || state.previewCollapsed) ? "true" : "false");
-    }
-
-    var previewExpandBtn = document.getElementById("previewExpandBtn");
-    if (previewExpandBtn) {
-      previewExpandBtn.hidden = !hasPreview || !state.previewCollapsed;
-    }
-
-    var mobilePreviewToggleBtn = document.getElementById("mobilePreviewToggleBtn");
-    if (mobilePreviewToggleBtn) {
-      mobilePreviewToggleBtn.hidden = !hasPreview;
-      mobilePreviewToggleBtn.setAttribute("aria-hidden", hasPreview ? "false" : "true");
-      if (!hasPreview) closeMobilePreviewModal();
-    }
-
-    var mobileModulesToggleBtn = document.getElementById("mobileModulesToggleBtn");
-    if (mobileModulesToggleBtn) mobileModulesToggleBtn.hidden = !hasModules;
-
-    var title = document.getElementById("adminCurrentSectionTitle");
-    if (title) title.textContent = getAdminSectionTitle(tab);
-  }
-
 function getDefaultAdminTab() {
     try {
       var stored = window.localStorage.getItem("admin_active_tab");
@@ -389,12 +317,39 @@ function getDefaultAdminTab() {
     var nextTab = (tabId === "lesson_settings" || tabId === "content" || tabId === "students" || tabId === "connections") ? tabId : "appearance";
     state.activeAdminTab = nextTab;
 
-    updateAdminShellState();
+    var isStudentsTab = nextTab === "students";
+    var layout = document.querySelector(".admin-layout");
+    if (layout) {
+      layout.classList.toggle("admin-layout--students", isStudentsTab);
+      layout.setAttribute("data-admin-layout-mode", isStudentsTab ? "students" : "default");
+    }
+
+    var livePreviewColumn = document.querySelector(".admin-live-preview-column");
+    if (livePreviewColumn) {
+      livePreviewColumn.setAttribute("aria-hidden", isStudentsTab ? "true" : "false");
+    }
+
+    var mobilePreviewToggleBtn = document.getElementById("mobilePreviewToggleBtn");
+    if (mobilePreviewToggleBtn) {
+      mobilePreviewToggleBtn.hidden = isStudentsTab;
+      mobilePreviewToggleBtn.setAttribute("aria-hidden", isStudentsTab ? "true" : "false");
+      if (isStudentsTab) {
+        closeMobilePreviewModal();
+      }
+      mobilePreviewToggleBtn.addEventListener("click", function () {
+        openMobilePreviewModal();
+      });
+    }
+
+    document.querySelectorAll("[data-mobile-preview-close=\"true\"]").forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        closeMobilePreviewModal();
+      });
+    });
 
     document.querySelectorAll(".admin-top-tab").forEach(function (btn) {
       var isActive = btn.getAttribute("data-admin-tab") === nextTab;
       btn.classList.toggle("is-active", isActive);
-      btn.setAttribute("aria-current", isActive ? "page" : "false");
     });
 
     document.querySelectorAll(".admin-tab-panel").forEach(function (panel) {
@@ -4419,58 +4374,6 @@ function getDefaultAdminTab() {
       });
     });
 
-    var modulesPanelCollapseBtn = document.getElementById("modulesPanelCollapseBtn");
-    if (modulesPanelCollapseBtn) {
-      modulesPanelCollapseBtn.addEventListener("click", function () {
-        state.modulesPanelCollapsed = true;
-        setStoredBoolean("admin_modules_panel_collapsed", true);
-        updateAdminShellState();
-      });
-    }
-    var modulesPanelExpandBtn = document.getElementById("modulesPanelExpandBtn");
-    if (modulesPanelExpandBtn) {
-      modulesPanelExpandBtn.addEventListener("click", function () {
-        state.modulesPanelCollapsed = false;
-        setStoredBoolean("admin_modules_panel_collapsed", false);
-        updateAdminShellState();
-      });
-    }
-    var previewCollapseBtn = document.getElementById("previewCollapseBtn");
-    if (previewCollapseBtn) {
-      previewCollapseBtn.addEventListener("click", function () {
-        state.previewCollapsed = true;
-        setStoredBoolean("admin_preview_collapsed", true);
-        updateAdminShellState();
-      });
-    }
-    var previewExpandBtn = document.getElementById("previewExpandBtn");
-    if (previewExpandBtn) {
-      previewExpandBtn.addEventListener("click", function () {
-        state.previewCollapsed = false;
-        setStoredBoolean("admin_preview_collapsed", false);
-        updateAdminShellState();
-      });
-    }
-
-    var mobileMenuToggleBtn = document.getElementById("mobileMenuToggleBtn");
-    if (mobileMenuToggleBtn) {
-      mobileMenuToggleBtn.addEventListener("click", function () {
-        var layout = document.querySelector(".admin-layout");
-        if (!layout) return;
-        layout.classList.toggle("is-mobile-nav-open");
-        layout.classList.remove("is-mobile-modules-open");
-      });
-    }
-    var mobileModulesToggleBtn = document.getElementById("mobileModulesToggleBtn");
-    if (mobileModulesToggleBtn) {
-      mobileModulesToggleBtn.addEventListener("click", function () {
-        var layout = document.querySelector(".admin-layout");
-        if (!layout) return;
-        layout.classList.toggle("is-mobile-modules-open");
-        layout.classList.remove("is-mobile-nav-open");
-      });
-    }
-
     document.querySelectorAll("[data-students-tab]").forEach(function (btn) {
       btn.addEventListener("click", function () {
         setActiveStudentsTab(btn.getAttribute("data-students-tab"));
@@ -5129,8 +5032,6 @@ function getDefaultAdminTab() {
     initPreviewIframe();
     state.activeStudentsTab = getDefaultStudentsTab();
     setActiveStudentsTab(state.activeStudentsTab);
-    state.modulesPanelCollapsed = getStoredBoolean("admin_modules_panel_collapsed", false);
-    state.previewCollapsed = getStoredBoolean("admin_preview_collapsed", false);
     setActiveAdminTab(getDefaultAdminTab());
     renderConnectionScreen();
     await loadTelegramIntegration();
