@@ -44,30 +44,55 @@
   </section>
 
   <div class="admin-layout" hidden>
-    <aside class="admin-sidebar">
-      <div class="admin-sidebar__header-glass">
-        <div class="admin-sidebar__top">
+    <aside class="admin-sidebar" id="adminPrimarySidebar">
+      <div class="admin-sidebar__brand">
+        <span class="admin-sidebar__logo" aria-hidden="true">M</span>
+        <div>
           <h1>MindCore</h1>
           <p id="adminCourseLabel">Загрузка...</p>
         </div>
-        <button id="addLessonBtn" class="btn btn-primary admin-sidebar__add-lesson" type="button">+ Новый модуль</button>
       </div>
+      <a id="backToCoursesLink" class="admin-back-link admin-sidebar__courses-link" href="admin.html">
+        <span aria-hidden="true">←</span> <span class="admin-sidebar__courses-text">Все курсы</span>
+      </a>
+      <nav class="admin-primary-nav" aria-label="Разделы админки">
+        <button class="admin-top-tab is-active" type="button" data-admin-tab="appearance" data-icon="palette"><span>Внешний вид</span></button>
+        <button class="admin-top-tab" type="button" data-admin-tab="lesson_settings" data-icon="settings"><span>Настройки модуля</span></button>
+        <button class="admin-top-tab" type="button" data-admin-tab="content" data-icon="content"><span>Наполнение</span></button>
+        <button class="admin-top-tab" type="button" data-admin-tab="students" data-icon="students"><span>Ученики</span></button>
+        <button class="admin-top-tab" type="button" data-admin-tab="connections" data-icon="plug"><span>Подключение</span></button>
+      </nav>
+      <div class="admin-sidebar__footer">
+        <button class="admin-btn-ghost js-logout-btn" type="button">Выйти</button>
+      </div>
+    </aside>
 
-      <div id="lessonsList" class="admin-lessons-list"></div>
+    <aside class="admin-modules-panel" id="adminModulesPanel" aria-label="Модули курса">
+      <div class="admin-modules-panel__expanded">
+        <div class="admin-modules-panel__header">
+          <div>
+            <p class="admin-card__eyebrow">Структура курса</p>
+            <h2>Модули</h2>
+          </div>
+          <button id="modulesPanelCollapseBtn" class="admin-btn-ghost admin-panel-icon-btn" type="button" aria-label="Свернуть список модулей">‹</button>
+        </div>
+        <button id="addLessonBtn" class="btn btn-primary admin-sidebar__add-lesson" type="button">+ Новый модуль</button>
+        <div id="lessonsList" class="admin-lessons-list"></div>
+      </div>
+      <button id="modulesPanelExpandBtn" class="admin-modules-panel__rail" type="button" aria-label="Открыть список модулей">
+        <span>Модули</span>
+      </button>
     </aside>
 
     <main class="admin-main">
       <div class="admin-main-header">
-        <a id="backToCoursesLink" class="admin-back-link" href="admin.html">← Все курсы</a>
-        <button class="admin-btn-ghost js-logout-btn" type="button">Выйти</button>
+        <button id="mobileMenuToggleBtn" class="admin-btn-ghost admin-mobile-layout-btn" type="button">Меню</button>
+        <button id="mobileModulesToggleBtn" class="admin-btn-ghost admin-mobile-layout-btn" type="button">Модули</button>
+        <div class="admin-main-title">
+          <p class="admin-card__eyebrow">Кабинет курса</p>
+          <h2 id="adminCurrentSectionTitle">Внешний вид</h2>
+        </div>
       </div>
-      <nav class="admin-top-tabs" aria-label="Разделы админки">
-        <button class="admin-top-tab is-active" type="button" data-admin-tab="appearance">Внешний вид</button>
-        <button class="admin-top-tab" type="button" data-admin-tab="lesson_settings">Настройки модуля</button>
-        <button class="admin-top-tab" type="button" data-admin-tab="content">Наполнение</button>
-        <button class="admin-top-tab" type="button" data-admin-tab="students">Ученики</button>
-        <button class="admin-top-tab" type="button" data-admin-tab="connections">Подключение</button>
-      </nav>
 
       <section class="admin-tab-panel" data-admin-panel="appearance">
         <section class="admin-card admin-theme-card">
@@ -355,6 +380,7 @@
         <div class="admin-card__header admin-card__header--compact admin-live-preview-header">
           <div class="admin-live-preview-title-row">
             <h3>Предпросмотр</h3>
+            <button id="previewCollapseBtn" class="admin-btn-ghost admin-panel-icon-btn" type="button" aria-label="Свернуть предпросмотр">×</button>
             <span class="admin-live-preview-status" aria-label="Live preview active">
               <i aria-hidden="true"></i>Live
             </span>
@@ -369,6 +395,7 @@
     </aside>
   </div>
 
+  <button id="previewExpandBtn" class="admin-preview-expand-btn" type="button" hidden>Предпросмотр</button>
 
   <button id="mobilePreviewToggleBtn" class="admin-mobile-preview-fab" type="button" aria-haspopup="dialog" aria-controls="mobilePreviewModal" aria-expanded="false">
     Предпросмотр
