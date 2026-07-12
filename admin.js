@@ -9,6 +9,7 @@
     blockGroups: [],
     blockItemsByBlockId: {},
     quills: {},
+    editorDraftsByBlockId: {},
     activeSectionId: null,
     activeSectionTab: "text",
     dnd: {
@@ -2181,12 +2182,42 @@ function getDefaultAdminTab() {
     ].join("");
   }
 
+  function getQuillDraft(blockId) {
+    return state.editorDraftsByBlockId[String(blockId)] || null;
+  }
+
+  function captureQuillDraft(blockId) {
+    var key = String(blockId);
+    var quill = state.quills[key];
+    if (!quill || !quill.root) return getQuillDraft(blockId);
+
+    var selection = null;
+    if (typeof quill.getSelection === "function") {
+      selection = quill.getSelection();
+    }
+
+    var draft = {
+      html: quill.root.innerHTML || "<p></p>",
+      selection: selection
+    };
+    state.editorDraftsByBlockId[key] = draft;
+    return draft;
+  }
+
+  function clearQuillDraft(blockId) {
+    delete state.editorDraftsByBlockId[String(blockId)];
+  }
+
+  function resetRenderedQuills() {
+    state.quills = {};
+  }
+
   function openSectionTab(blockId, tabName, options) {
     if (!blockId) return;
 
     state.activeSectionId = String(blockId);
     state.activeSectionTab = tabName || "text";
-    state.quills = {};
+    resetRenderedQuills();
 
     renderBlocksList();
     refreshPreviewData();
@@ -2586,10 +2617,12 @@ function getDefaultAdminTab() {
 
   function renderTextTab(blockId) {
     var textItem = getTextItem(blockId);
+    var draft = getQuillDraft(blockId);
+    var initialHtml = draft && draft.html ? draft.html : (textItem ? textItem.text_html || '<p></p>' : '<p></p>');
     return [
       '<section class="admin-tab-panel">',
       '<h5>Текст</h5>',
-      '<div id="quillEditor-' + blockId + '" class="admin-quill" data-quill-block-id="' + blockId + '" data-initial-html="' + escapeAttr(textItem ? textItem.text_html || '<p></p>' : '<p></p>') + '"></div>',
+      '<div id="quillEditor-' + blockId + '" class="admin-quill" data-quill-block-id="' + blockId + '" data-initial-html="' + escapeAttr(initialHtml) + '"></div>',
       '<div class="admin-form" style="margin-top:12px;">',
       '<button class="btn btn-primary save-text-btn" data-block-id="' + blockId + '" type="button">Сохранить текст</button>',
       '</div>',
@@ -3003,8 +3036,15 @@ function getDefaultAdminTab() {
     });
 
     quill.root.innerHTML = container.getAttribute("data-initial-html") || "<p></p>";
+    var draft = getQuillDraft(blockId);
+    if (draft && draft.selection && typeof quill.setSelection === "function") {
+      var selectionIndex = Math.min(draft.selection.index || 0, Math.max(quill.getLength() - 1, 0));
+      var selectionLength = Math.min(draft.selection.length || 0, Math.max(quill.getLength() - selectionIndex - 1, 0));
+      quill.setSelection(selectionIndex, selectionLength, "silent");
+    }
     quill.on("text-change", function () {
-      });
+      captureQuillDraft(blockId);
+    });
     state.quills[String(blockId)] = quill;
   }
 
@@ -3018,6 +3058,7 @@ function getDefaultAdminTab() {
 
     state.selectedLesson = lesson;
     state.quills = {};
+    state.editorDraftsByBlockId = {};
     state.activeSectionId = null;
     state.activeSectionTab = "text";
 
@@ -3440,6 +3481,7 @@ function getDefaultAdminTab() {
       state.blockItemsByBlockId = {};
       state.blockGroups = [];
       state.quills = {};
+      state.editorDraftsByBlockId = {};
       state.activeSectionId = null;
       state.activeSectionTab = "text";
       renderLessonsList();
@@ -3708,8 +3750,16 @@ function getDefaultAdminTab() {
 
   async function saveBlockGroupSelection(blockId, groupId) {
     var client = getClient();
-    if (!client) return;
+    if (!client) return false;
+
+    var block = getBlockById(blockId);
+    var previousGroupId = block && block.group_id ? String(block.group_id) : "";
     var normalizedGroupId = groupId || null;
+    var wasEditorOpen = String(state.activeSectionId || "") === String(blockId);
+    if (wasEditorOpen) {
+      captureQuillDraft(blockId);
+    }
+
     var payload = { group_id: normalizedGroupId };
     if (normalizedGroupId) {
       var groupBlocks = state.blocks.filter(function (block) {
@@ -3732,18 +3782,26 @@ function getDefaultAdminTab() {
 
     if (result.error) {
       console.error(result.error);
-      alert("Не удалось сохранить группу материала");
-      return;
+      var failedSelect = document.querySelector('.block-group-select[data-block-id="' + blockId + '"]');
+      if (failedSelect) failedSelect.value = previousGroupId;
+      showAdminNotice("Не удалось сохранить группу материала", "error");
+      return false;
     }
 
     state.blocks = state.blocks.map(function (block) {
       return String(block.id) === String(blockId) ? result.data : block;
     });
+    if (wasEditorOpen) {
+      state.activeSectionId = String(blockId);
+    }
     if (!normalizedGroupId) {
       await normalizeLessonDisplayOrder();
     }
+
+    resetRenderedQuills();
     renderEditor();
-    refreshPreviewData();
+    showAdminNotice("Группа изменена");
+    return true;
   }
 
   async function upsertBlockGroup(groupId) {
@@ -3905,6 +3963,7 @@ function getDefaultAdminTab() {
     state.blockItemsByBlockId[key] = nextItems;
 
     quill.root.innerHTML = result.data.text_html || "<p></p>";
+    clearQuillDraft(blockId);
     refreshBlockCardMeta(blockId);
     refreshPreviewData();
     showAdminNotice("Текст сохранён");
@@ -4766,10 +4825,25 @@ function getDefaultAdminTab() {
           });
     });
 
+    ["pointerdown", "mousedown", "click"].forEach(function (eventName) {
+      document.getElementById("blocksList").addEventListener(eventName, function (event) {
+        if (event.target.closest(".block-group-select")) {
+          event.stopPropagation();
+        }
+      });
+    });
+
+    document.getElementById("blocksList").addEventListener("change", function (event) {
+      var groupSelect = event.target.closest(".block-group-select");
+      if (!groupSelect) return;
+      event.stopPropagation();
+      void saveBlockGroupSelection(groupSelect.getAttribute("data-block-id"), groupSelect.value);
+    });
+
     document.getElementById("blocksList").addEventListener("click", async function (event) {
       var groupSelect = event.target.closest(".block-group-select");
       if (groupSelect) {
-        void saveBlockGroupSelection(groupSelect.getAttribute("data-block-id"), groupSelect.value);
+        event.stopPropagation();
         return;
       }
 
@@ -4783,9 +4857,10 @@ function getDefaultAdminTab() {
 
       var closeEditorBtn = event.target.closest(".close-inline-editor-btn");
       if (closeEditorBtn) {
+        if (state.activeSectionId) clearQuillDraft(state.activeSectionId);
         state.activeSectionId = null;
         state.activeSectionTab = "text";
-        state.quills = {};
+        resetRenderedQuills();
         renderBlocksList();
         return;
       }
