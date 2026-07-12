@@ -47,7 +47,7 @@
     <aside class="admin-sidebar">
       <div class="admin-sidebar__header-glass">
         <div class="admin-sidebar__top">
-          <h1>Админ-панель</h1>
+          <h1>MindCore</h1>
           <p id="adminCourseLabel">Загрузка...</p>
         </div>
         <button id="addLessonBtn" class="btn btn-primary admin-sidebar__add-lesson" type="button">+ Новый модуль</button>
@@ -86,7 +86,7 @@
       </section>
 
       <section class="admin-tab-panel" data-admin-panel="content" hidden>
-      <div id="editorEmpty" class="admin-empty">Выберите урок слева</div>
+      <div id="editorEmpty" class="admin-empty">Выберите модуль слева, чтобы настроить материалы и превью.</div>
 
       <div id="editorPanel" class="admin-builder" hidden>
         <section class="admin-builder__center">
@@ -178,12 +178,12 @@
 
           <section class="admin-blocks lesson-materials-panel">
             <div class="admin-blocks-header">
-              <h3>Материалы модуля</h3>
+              <div><h3>Материалы модуля</h3><p class="admin-hint">Соберите урок из текстов, видео, изображений, файлов и групп.</p></div>
               <div class="admin-material-actions">
-                <button class="btn btn-primary add-material-btn" data-material-type="text" type="button">+ Текст</button>
-                <button class="btn btn-primary add-material-btn" data-material-type="video" type="button">+ Видео</button>
-                <button class="btn btn-primary add-material-btn" data-material-type="image" type="button">+ Картинка</button>
-                <button class="btn btn-primary add-material-btn" data-material-type="file" type="button">+ Файл</button>
+                <button class="btn btn-primary add-material-btn" data-material-type="text" type="button">Текст</button>
+                <button class="btn btn-primary add-material-btn" data-material-type="video" type="button">Видео</button>
+                <button class="btn btn-primary add-material-btn" data-material-type="image" type="button">Картинка</button>
+                <button class="btn btn-primary add-material-btn" data-material-type="file" type="button">Файл</button>
               </div>
             </div>
 
@@ -371,7 +371,7 @@
 
 
   <button id="mobilePreviewToggleBtn" class="admin-mobile-preview-fab" type="button" aria-haspopup="dialog" aria-controls="mobilePreviewModal" aria-expanded="false">
-    👁 Предпросмотр
+    Предпросмотр
   </button>
 
   <div id="mobilePreviewModal" class="admin-mobile-preview-modal" hidden>
