@@ -95,6 +95,29 @@ Deno.serve(async (req: Request) => {
 
     const supabase = createClient(supabaseUrl, serviceRoleKey);
 
+    const { error: tokenStoreError } = await supabase.rpc(
+      "store_course_telegram_bot_token",
+      {
+        p_course_id: course_id,
+        p_bot_token: bot_token,
+      }
+    );
+
+    if (tokenStoreError) {
+      console.error("Token store error", {
+        course_id,
+        error: tokenStoreError.message,
+      });
+
+      return jsonResponse(
+        {
+          ok: false,
+          error: "Не удалось безопасно сохранить Telegram Bot Token",
+        },
+        500
+      );
+    }
+
     const { error: upsertError } = await supabase
       .from("course_integrations")
       .upsert(
