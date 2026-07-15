@@ -166,7 +166,7 @@
 
     var result = await client
       .from("course_settings")
-      .select("theme_id, course_structure, addon_nutrition_calculator, addon_eva_calculator, addon_emotion_navigator, addon_designer_xp, addon_forms_enabled, access_control_enabled, access_duration_days, access_expired_title, access_expired_text, access_expired_button_text, access_expired_button_url")
+      .select("theme_id, course_structure, addon_nutrition_calculator, addon_eva_calculator, addon_emotion_navigator, addon_designer_xp, addon_forms_enabled, access_mode, access_control_enabled, access_duration_days, access_expired_title, access_expired_text, access_expired_button_text, access_expired_button_url")
       .eq("course_id", getActiveCourseId())
       .maybeSingle();
 
@@ -180,6 +180,7 @@
         addon_emotion_navigator: false,
         addon_designer_xp: false,
         addon_forms_enabled: false,
+        access_mode: "open",
         access_control_enabled: false,
         access_duration_days: null,
         access_expired_title: "",
@@ -197,6 +198,7 @@
       addon_emotion_navigator: Boolean(result.data && result.data.addon_emotion_navigator === true),
       addon_designer_xp: Boolean(result.data && result.data.addon_designer_xp === true),
       addon_forms_enabled: Boolean(result.data && result.data.addon_forms_enabled === true),
+      access_mode: (result.data && result.data.access_mode) || "open",
       access_control_enabled: Boolean(result.data && result.data.access_control_enabled === true),
       access_duration_days: result.data ? result.data.access_duration_days : null,
       access_expired_title: (result.data && result.data.access_expired_title) || "",
@@ -1817,6 +1819,119 @@
     ].join("");
   }
 
+  function getTelegramInitData() {
+    var platform = globalThis.CourseAppPlatform || {};
+    var tg = typeof platform.getTelegramWebApp === "function"
+      ? platform.getTelegramWebApp()
+      : null;
+
+    return tg && typeof tg.initData === "string"
+      ? tg.initData
+      : "";
+  }
+
+  async function checkCourseEntryAccess() {
+    var settings = COURSE_SETTINGS || {};
+    var accessMode = String(settings.access_mode || "open");
+
+    if (accessMode !== "telegram_channel") {
+      return { allowed: true, reason: "open_access" };
+    }
+
+    var telegramInitData = getTelegramInitData();
+    if (!telegramInitData) {
+      return { allowed: false, reason: "telegram_auth_required" };
+    }
+
+    var courseId = getActiveCourseId();
+    try {
+      var client = window.getSupabaseClient();
+      if (!client || !client.functions || typeof client.functions.invoke !== "function") {
+        throw new Error("Supabase functions client not initialized");
+      }
+
+      var result = await client.functions.invoke("check-course-access", {
+        body: {
+          course_id: courseId,
+          telegram_init_data: telegramInitData
+        }
+      });
+
+      if (result.error) {
+        throw result.error;
+      }
+
+      if (result.data && typeof result.data.allowed === "boolean") {
+        return result.data;
+      }
+
+      throw new Error("Invalid access check response");
+    } catch (error) {
+      console.warn("[MindCore] Course entry access check failed", {
+        course_id: courseId,
+        error: error && error.message ? error.message : String(error || "unknown_error")
+      });
+      return { allowed: false, reason: "access_check_failed" };
+    }
+  }
+
+  function getCourseEntryAccessDeniedModel(accessResult) {
+    var reason = accessResult && accessResult.reason;
+    if (reason === "telegram_auth_required") {
+      return {
+        icon: "🔒",
+        title: "Откройте кабинет в Telegram",
+        text: "Для проверки доступа откройте личный кабинет через кнопку в закрытом Telegram-канале."
+      };
+    }
+
+    if (reason === "not_telegram_channel_member") {
+      return {
+        icon: "🚫",
+        title: "Доступ не найден",
+        text: "Этот кабинет доступен только участникам программы."
+      };
+    }
+
+    return {
+      icon: "⚠️",
+      title: "Не удалось проверить доступ",
+      text: "Закройте кабинет и попробуйте открыть его снова чуть позже."
+    };
+  }
+
+  function renderCourseEntryAccessDenied(accessResult) {
+    var model = getCourseEntryAccessDeniedModel(accessResult);
+    var page = document.body.getAttribute("data-page");
+    var host = page === "lesson"
+      ? document.getElementById("lessonState")
+      : document.getElementById("lessonsContainer");
+    var stateBox = document.getElementById("stateBox");
+    var main = document.getElementById("lessonMain");
+
+    if (page === "dashboard") {
+      setDashboardCourseContentBlocked(true);
+      if (stateBox) stateBox.hidden = true;
+    }
+
+    if (page === "lesson") {
+      if (main) main.hidden = true;
+      if (host) {
+        host.hidden = false;
+        host.classList.remove("skeleton");
+      }
+    }
+
+    if (!host) return;
+    host.innerHTML = [
+      '<section class="card access-expired-card" role="status" aria-live="polite">',
+      '<div class="access-expired-icon" aria-hidden="true">' + escapeHtml(model.icon) + '</div>',
+      '<h2>' + escapeHtml(model.title) + '</h2>',
+      '<p>' + escapeHtml(model.text) + '</p>',
+      '</section>'
+    ].join("");
+  }
+
   async function checkCourseAccess() {
     var settings = COURSE_SETTINGS || {};
     var enabled = Boolean(settings.access_control_enabled === true);
@@ -2457,7 +2572,7 @@
     console.log("activeCourseId:", getActiveCourseId());
     var config = getConfig();
     var themeId = "dark_premium";
-    var courseSettings = { theme_id: "dark_premium", addon_nutrition_calculator: false, addon_eva_calculator: false, addon_emotion_navigator: false, addon_designer_xp: false, addon_forms_enabled: false };
+    var courseSettings = { theme_id: "dark_premium", addon_nutrition_calculator: false, addon_eva_calculator: false, addon_emotion_navigator: false, addon_designer_xp: false, addon_forms_enabled: false, access_mode: "open" };
     try {
       courseSettings = await fetchCourseSettings(config);
       themeId = courseSettings.theme_id;
@@ -2500,6 +2615,12 @@
     }
 
     try {
+      var entryAccess = await checkCourseEntryAccess();
+      if (entryAccess.allowed !== true) {
+        renderCourseEntryAccessDenied(entryAccess);
+        return;
+      }
+
       var lessons = await fetchLessons(config);
       LAST_LESSONS = lessons.slice();
       CURRENT_COURSE = await fetchCurrentCourseInfo();
@@ -2542,7 +2663,7 @@ document.addEventListener("click", function (e) {
 
     try {
       var themeId = "dark_premium";
-      var courseSettings = { theme_id: "dark_premium", addon_nutrition_calculator: false, addon_eva_calculator: false, addon_emotion_navigator: false, addon_designer_xp: false, addon_forms_enabled: false };
+      var courseSettings = { theme_id: "dark_premium", addon_nutrition_calculator: false, addon_eva_calculator: false, addon_emotion_navigator: false, addon_designer_xp: false, addon_forms_enabled: false, access_mode: "open" };
       try {
         courseSettings = await fetchCourseSettings(config);
         themeId = courseSettings.theme_id;
