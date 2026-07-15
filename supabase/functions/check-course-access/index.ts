@@ -300,8 +300,8 @@ Deno.serve(async (req: Request) => {
       platform: "telegram",
     });
   } catch (error) {
-    console.error("Check course access error", {
-      error: error instanceof Error ? error.message : "Unknown error",
+    console.error("Check course access internal error", {
+      error_type: error instanceof Error ? error.name : "UnknownError",
     });
 
     return jsonResponse(
