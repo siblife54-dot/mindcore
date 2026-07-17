@@ -2,14 +2,18 @@
   position: fixed;
   inset: 0;
   width: 100%;
-  height: 100%;
+  height: 100vh;
+  min-height: 100vh;
+  height: 100dvh;
+  min-height: 100dvh;
   z-index: 10000;
   display: none;
-  align-items: center;
+  align-items: flex-start;
   justify-content: center;
-  padding: max(16px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) max(16px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));
-  overflow: auto;
+  padding: max(16px, env(safe-area-inset-top)) 16px max(16px, env(safe-area-inset-bottom));
+  overflow-y: auto;
   overscroll-behavior: contain;
+  box-sizing: border-box;
   background: var(--bg);
   color: var(--text);
 }
@@ -21,6 +25,7 @@
 html.mindcore-agreement-open,
 body.mindcore-agreement-open {
   overflow: hidden;
+  height: 100%;
   overscroll-behavior: none;
 }
 
@@ -33,10 +38,12 @@ body.mindcore-agreement-open #mindcoreAgreementScreen {
 }
 
 .mindcore-agreement-screen__sheet {
-  width: min(720px, 100%);
-  max-width: 100%;
-  max-height: calc(100vh - 32px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
-  max-height: calc(100dvh - 32px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+  width: 100%;
+  max-width: 520px;
+  max-height: calc(100vh - max(16px, env(safe-area-inset-top)) - max(16px, env(safe-area-inset-bottom)));
+  max-height: calc(100dvh - max(16px, env(safe-area-inset-top)) - max(16px, env(safe-area-inset-bottom)));
+  margin: 0 auto;
+  box-sizing: border-box;
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -67,8 +74,11 @@ body.mindcore-agreement-open #mindcoreAgreementScreen {
 }
 
 .mindcore-agreement-screen__text {
-  max-height: min(42vh, 360px);
-  overflow: auto;
+  min-height: 140px;
+  max-height: 40vh;
+  max-height: 40dvh;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
   padding: 14px;
@@ -154,13 +164,12 @@ body.mindcore-agreement-open #mindcoreAgreementScreen {
 
 @media (max-width: 560px) {
   .mindcore-agreement-screen {
-    align-items: stretch;
-    padding: max(10px, env(safe-area-inset-top)) max(10px, env(safe-area-inset-right)) max(10px, env(safe-area-inset-bottom)) max(10px, env(safe-area-inset-left));
+    padding: max(10px, env(safe-area-inset-top)) 10px max(10px, env(safe-area-inset-bottom));
   }
 
   .mindcore-agreement-screen__sheet {
-    max-height: calc(100vh - 20px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
-    max-height: calc(100dvh - 20px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+    max-height: calc(100vh - max(10px, env(safe-area-inset-top)) - max(10px, env(safe-area-inset-bottom)));
+    max-height: calc(100dvh - max(10px, env(safe-area-inset-top)) - max(10px, env(safe-area-inset-bottom)));
   }
 
   .mindcore-agreement-screen__fields {
