@@ -3,6 +3,6 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "build": "mkdir -p dist && cp -r index.html lesson.html app.js config.js csv.js styles.css nutrition.css nutrition.js eva-calculator.css eva-calculator.js tg.js sample-sheet.csv assets dist/"
+    "build": "mkdir -p dist && cp -r index.html lesson.html app.js config.js csv.js styles.css startup-screen.css startup-screen.js nutrition.css nutrition.js eva-calculator.css eva-calculator.js tg.js sample-sheet.csv assets dist/"
   }
 }
