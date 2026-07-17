@@ -1,0 +1,53 @@
+.mindcore-startup-screen {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: var(--bg);
+  color: var(--text);
+}
+
+.mindcore-startup-screen.is-visible {
+  display: flex;
+}
+
+.mindcore-startup-screen__content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  text-align: center;
+}
+
+.mindcore-startup-screen__spinner {
+  width: 28px;
+  height: 28px;
+  border: 2px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 999px;
+  animation: mindcore-startup-spin 0.9s linear infinite;
+}
+
+.mindcore-startup-screen__text {
+  margin: 0;
+  font-size: 16px;
+  line-height: 1.35;
+  color: var(--text);
+}
+
+.mindcore-startup-screen.is-error .mindcore-startup-screen__spinner {
+  display: none;
+}
+
+body.mindcore-startup-open {
+  overflow: hidden;
+}
+
+@keyframes mindcore-startup-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}

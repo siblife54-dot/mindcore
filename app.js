@@ -46,6 +46,9 @@
   var WEBAPP_THEMES = Array.isArray(window.APP_THEME_PRESETS) && window.APP_THEME_PRESETS.length
     ? window.APP_THEME_PRESETS.slice()
     : Object.keys(WEBAPP_THEME_IDS).map(function (themeId) { return { id: themeId }; });
+  var INTERNAL_NAVIGATION_KEY = "mindcore_internal_navigation_v1";
+  var INTERNAL_NAVIGATION_TTL_MS = 10000;
+  var STARTUP_MODE = "external";
 
   function getConfig() {
     return window.APP_CONFIG || {};
@@ -59,6 +62,81 @@
   function getActiveCourseId() {
     var params = new URLSearchParams(window.location.search);
     return params.get("course") || getConfig().courseId;
+  }
+
+  function getNavigationType() {
+    try {
+      var entries = performance && typeof performance.getEntriesByType === "function"
+        ? performance.getEntriesByType("navigation")
+        : [];
+      return entries && entries[0] ? entries[0].type : "";
+    } catch (error) {
+      return "";
+    }
+  }
+
+  function getNormalizedPathname(url) {
+    try {
+      return new URL(url, window.location.href).pathname;
+    } catch (error) {
+      return window.location.pathname;
+    }
+  }
+
+  function readInternalNavigationMark() {
+    var raw = null;
+    try {
+      raw = sessionStorage.getItem(INTERNAL_NAVIGATION_KEY);
+      if (raw) sessionStorage.removeItem(INTERNAL_NAVIGATION_KEY);
+    } catch (error) {
+      return null;
+    }
+    if (!raw) return null;
+    try {
+      return JSON.parse(raw);
+    } catch (error) {
+      return null;
+    }
+  }
+
+  function detectStartupMode() {
+    if (getNavigationType() === "reload") return "external";
+
+    var mark = readInternalNavigationMark();
+    if (!mark || typeof mark !== "object") return "external";
+
+    var createdAt = Number(mark.createdAt);
+    var currentCourseId = String(getActiveCourseId() || "");
+    var markedCourseId = String(mark.courseId || "");
+    var currentPath = getNormalizedPathname(window.location.href);
+    var markedPath = String(mark.targetPath || "");
+    var isValid = createdAt
+      && Date.now() - createdAt <= INTERNAL_NAVIGATION_TTL_MS
+      && markedCourseId === currentCourseId
+      && markedPath === currentPath;
+
+    return isValid ? "internal" : "external";
+  }
+
+  function markInternalNavigation(targetUrl) {
+    try {
+      var url = new URL(targetUrl, window.location.href);
+      var mark = {
+        courseId: String(getActiveCourseId() || ""),
+        targetPath: url.pathname,
+        createdAt: Date.now()
+      };
+      sessionStorage.setItem(INTERNAL_NAVIGATION_KEY, JSON.stringify(mark));
+    } catch (error) {
+      try {
+        sessionStorage.removeItem(INTERNAL_NAVIGATION_KEY);
+      } catch (removeError) {}
+    }
+  }
+
+  function navigateInternally(targetUrl) {
+    markInternalNavigation(targetUrl);
+    window.location.href = targetUrl;
   }
 
   function getCourseScopedKey(baseKey) {
@@ -124,7 +202,7 @@
       }
       if (element.tagName === "BUTTON") {
         element.onclick = function () {
-          window.location.href = backUrl;
+          navigateInternally(backUrl);
         };
       }
     });
@@ -2528,7 +2606,7 @@
       completeBtn.textContent = "Пройдено ✓";
       completeBtn.disabled = true;
       setTimeout(function () {
-        window.location.href = getIndexUrlWithCourse();
+        navigateInternally(getIndexUrlWithCourse());
       }, 250);
     });
   }
@@ -2575,6 +2653,11 @@
 
   async function init() {
     refreshStorageKeys();
+    STARTUP_MODE = detectStartupMode();
+    var shouldShowStartupScreen = STARTUP_MODE === "external";
+    if (shouldShowStartupScreen && window.StartupScreen && typeof window.StartupScreen.show === "function") {
+      window.StartupScreen.show();
+    }
     console.log("activeCourseId:", getActiveCourseId());
     var config = getConfig();
     var themeId = "dark_premium";
@@ -2623,6 +2706,7 @@
     try {
       var entryAccess = await checkCourseEntryAccess();
       if (entryAccess.allowed !== true) {
+        if (window.StartupScreen && typeof window.StartupScreen.hide === "function") window.StartupScreen.hide();
         renderCourseEntryAccessDenied(entryAccess);
         return;
       }
@@ -2634,7 +2718,12 @@
       if (page === "dashboard") await fetchCourseForms();
       if (page === "dashboard") await renderDashboard(lessons, config);
       if (page === "lesson") await renderLesson(lessons);
+      if (window.StartupScreen && typeof window.StartupScreen.hide === "function") window.StartupScreen.hide();
     } catch (error) {
+      if (shouldShowStartupScreen && window.StartupScreen && typeof window.StartupScreen.showError === "function") {
+        window.StartupScreen.showError();
+        return;
+      }
       if (page === "dashboard") {
         showDashboardError(error.message || "Ошибка загрузки данных");
       } else {
@@ -2645,6 +2734,22 @@
     }
   }
 // Делает всю карточку урока кликабельной
+document.addEventListener("click", function (e) {
+  var link = e.target.closest("a[href]");
+  if (!link || link.target || link.hasAttribute("download")) return;
+
+  var targetUrl;
+  try {
+    targetUrl = new URL(link.getAttribute("href"), window.location.href);
+  } catch (error) {
+    return;
+  }
+
+  if (targetUrl.origin !== window.location.origin) return;
+  if (!/\/(?:index|lesson)\.html$/i.test(targetUrl.pathname)) return;
+  markInternalNavigation(targetUrl.toString());
+}, true);
+
 document.addEventListener("click", function (e) {
 
   var card = e.target.closest(".lesson-card");
@@ -2762,7 +2867,7 @@ document.addEventListener("click", function (e) {
       targetUrl.searchParams.set("preview_theme", normalizeThemeId(previewThemeOverride.id || previewThemeOverride.theme_id || previewThemeOverride.slug));
     }
 
-    window.location.href = targetUrl.toString();
+    navigateInternally(targetUrl.toString());
   }
 
   function navigatePreviewToHome() {
@@ -2783,7 +2888,7 @@ document.addEventListener("click", function (e) {
         targetUrl.searchParams.set("preview_theme", previewThemeId);
       }
     }
-    window.location.href = targetUrl.toString();
+    navigateInternally(targetUrl.toString());
   }
 
   window.addEventListener("message", async function (event) {
