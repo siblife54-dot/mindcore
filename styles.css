@@ -1297,7 +1297,7 @@ body.theme-matcha-aesthetic::before {
 }
 
 /* Не ставить transform/filter/contain на body/theme root — это ломает position: fixed модалки в Telegram/WebView. */
-body.theme-matcha-aesthetic > :not(.nutrition-modal) {
+body.theme-matcha-aesthetic > :not(.nutrition-modal):not(#mindcoreAgreementScreen) {
   position: relative;
   z-index: 1;
 }
@@ -1407,7 +1407,7 @@ body.theme-emerald-gold::before {
 }
 
 /* Не ставить transform/filter/contain на body/theme root — это ломает position: fixed модалки в Telegram/WebView. */
-body.theme-emerald-gold > :not(.nutrition-modal) {
+body.theme-emerald-gold > :not(.nutrition-modal):not(#mindcoreAgreementScreen) {
   position: relative;
   z-index: 1;
 }
