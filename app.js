@@ -244,7 +244,7 @@
 
     var result = await client
       .from("course_settings")
-      .select("theme_id, course_structure, addon_nutrition_calculator, addon_eva_calculator, addon_emotion_navigator, addon_designer_xp, addon_forms_enabled, access_mode, access_control_enabled, access_duration_days, access_expired_title, access_expired_text, access_expired_button_text, access_expired_button_url")
+      .select("theme_id, course_structure, addon_nutrition_calculator, addon_eva_calculator, addon_emotion_navigator, addon_designer_xp, addon_forms_enabled, addon_agreement_enabled, access_mode, access_control_enabled, access_duration_days, access_expired_title, access_expired_text, access_expired_button_text, access_expired_button_url")
       .eq("course_id", getActiveCourseId())
       .maybeSingle();
 
@@ -258,6 +258,7 @@
         addon_emotion_navigator: false,
         addon_designer_xp: false,
         addon_forms_enabled: false,
+        addon_agreement_enabled: false,
         access_mode: null,
         access_control_enabled: false,
         access_duration_days: null,
@@ -276,6 +277,7 @@
       addon_emotion_navigator: Boolean(result.data && result.data.addon_emotion_navigator === true),
       addon_designer_xp: Boolean(result.data && result.data.addon_designer_xp === true),
       addon_forms_enabled: Boolean(result.data && result.data.addon_forms_enabled === true),
+      addon_agreement_enabled: Boolean(result.data && result.data.addon_agreement_enabled === true),
       access_mode: result.data && result.data.access_mode
         ? String(result.data.access_mode)
         : null,
@@ -912,12 +914,117 @@
     }
   }
 
+
+  function isAgreementEnabled() {
+    return Boolean(COURSE_SETTINGS && COURSE_SETTINGS.addon_agreement_enabled === true);
+  }
+
+  async function fetchCourseAgreement() {
+    var client = window.getSupabaseClient();
+    if (!client) throw new Error("Не удалось загрузить соглашение");
+
+    var result = await client
+      .from("course_agreements")
+      .select("course_id, title, agreement_text, checkbox_text, button_text, collect_data_enabled, fields_config, version, created_at, updated_at")
+      .eq("course_id", getActiveCourseId())
+      .maybeSingle();
+
+    if (result.error || !result.data) {
+      console.warn("Supabase course_agreements load error:", result.error || "Agreement not found");
+      throw new Error("Не удалось загрузить соглашение");
+    }
+
+    return result.data;
+  }
+
+  function isAgreementAccepted(productUser, agreement) {
+    if (!productUser || !agreement) return false;
+    return Boolean(productUser.agreement_accepted === true && String(productUser.agreement_accepted_version || "") === String(agreement.version || ""));
+  }
+
+  async function saveAgreementAcceptance(agreement, formData) {
+    var client = window.getSupabaseClient();
+    if (!client || !PRODUCT_USER || !PRODUCT_USER.id) throw new Error("Не удалось сохранить данные. Попробуйте ещё раз.");
+
+    var payload = {
+      agreement_accepted: true,
+      agreement_accepted_at: new Date().toISOString(),
+      agreement_accepted_version: agreement.version,
+      agreement_text_snapshot: agreement.agreement_text || ""
+    };
+
+    if (agreement.collect_data_enabled === true) {
+      payload.contact_first_name = formData.contact_first_name || "";
+      payload.contact_last_name = formData.contact_last_name || "";
+      payload.contact_phone = formData.contact_phone || "";
+      payload.contact_email = formData.contact_email || "";
+    }
+
+    var result = await client
+      .from("product_users")
+      .update(payload)
+      .eq("id", PRODUCT_USER.id)
+      .eq("course_id", getActiveCourseId())
+      .select("*")
+      .single();
+
+    if (result.error || !result.data) {
+      console.warn("Supabase agreement save error:", result.error || "Product user not updated");
+      throw new Error("Не удалось сохранить данные. Попробуйте ещё раз.");
+    }
+
+    PRODUCT_USER = result.data;
+    return PRODUCT_USER;
+  }
+
+  async function ensureAgreementAcceptedBeforeCourse(onAccepted) {
+    if (!isAgreementEnabled()) return false;
+    if (!PRODUCT_USER || !PRODUCT_USER.id) throw new Error("Не удалось загрузить соглашение");
+
+    var agreement = await fetchCourseAgreement();
+    if (isAgreementAccepted(PRODUCT_USER, agreement)) return false;
+
+    if (window.StartupScreen && typeof window.StartupScreen.hide === "function") window.StartupScreen.hide();
+    if (!window.AgreementScreen || typeof window.AgreementScreen.show !== "function") throw new Error("Не удалось загрузить соглашение");
+
+    window.AgreementScreen.show({
+      agreement: agreement,
+      productUser: PRODUCT_USER,
+      onSubmit: async function (formData) {
+        await saveAgreementAcceptance(agreement, formData);
+        if (typeof onAccepted === "function") await onAccepted();
+      }
+    });
+    return true;
+  }
+
+  function showAgreementLoadError(retryHandler) {
+    if (window.StartupScreen && typeof window.StartupScreen.hide === "function") window.StartupScreen.hide();
+    if (window.AgreementScreen && typeof window.AgreementScreen.showError === "function") {
+      window.AgreementScreen.showError("Не удалось загрузить соглашение", retryHandler);
+      return;
+    }
+
+    if (document.body.getAttribute("data-page") === "dashboard") {
+      showDashboardError("Не удалось загрузить соглашение");
+    } else {
+      var stateBox = document.getElementById("lessonState");
+      if (stateBox) {
+        stateBox.classList.remove("skeleton");
+        stateBox.hidden = false;
+        stateBox.textContent = "Не удалось загрузить соглашение";
+      }
+    }
+  }
+
   async function saveWebAppAccess() {
     try {
       var webappUser = await ensureWebAppUser();
       if (webappUser) PRODUCT_USER = await ensureProductUser(webappUser);
+      return PRODUCT_USER;
     } catch (error) {
       console.warn("Supabase webapp access save error:", error);
+      return null;
     }
   }
 
@@ -2661,7 +2768,7 @@
     console.log("activeCourseId:", getActiveCourseId());
     var config = getConfig();
     var themeId = "dark_premium";
-    var courseSettings = { theme_id: "dark_premium", addon_nutrition_calculator: false, addon_eva_calculator: false, addon_emotion_navigator: false, addon_designer_xp: false, addon_forms_enabled: false, access_mode: null };
+    var courseSettings = { theme_id: "dark_premium", addon_nutrition_calculator: false, addon_eva_calculator: false, addon_emotion_navigator: false, addon_designer_xp: false, addon_forms_enabled: false, addon_agreement_enabled: false, access_mode: null };
     try {
       courseSettings = await fetchCourseSettings(config);
       themeId = courseSettings.theme_id;
@@ -2715,10 +2822,31 @@
       LAST_LESSONS = lessons.slice();
       CURRENT_COURSE = await fetchCurrentCourseInfo();
       await saveWebAppAccess();
-      if (page === "dashboard") await fetchCourseForms();
-      if (page === "dashboard") await renderDashboard(lessons, config);
-      if (page === "lesson") await renderLesson(lessons);
-      if (window.StartupScreen && typeof window.StartupScreen.hide === "function") window.StartupScreen.hide();
+
+      var courseAccessResult = await checkCourseAccess();
+      if (!courseAccessResult.allowed) {
+        if (window.StartupScreen && typeof window.StartupScreen.hide === "function") window.StartupScreen.hide();
+        renderCourseEntryAccessDenied(courseAccessResult);
+        return;
+      }
+
+      var renderCourseInterface = async function () {
+        if (page === "dashboard") await fetchCourseForms();
+        if (page === "dashboard") await renderDashboard(lessons, config);
+        if (page === "lesson") await renderLesson(lessons);
+        if (window.StartupScreen && typeof window.StartupScreen.hide === "function") window.StartupScreen.hide();
+      };
+
+      try {
+        var agreementIsOpen = await ensureAgreementAcceptedBeforeCourse(renderCourseInterface);
+        if (agreementIsOpen) return;
+      } catch (agreementError) {
+        console.warn("MindCore agreement error:", agreementError);
+        showAgreementLoadError(function () { window.location.reload(); });
+        return;
+      }
+
+      await renderCourseInterface();
     } catch (error) {
       if (shouldShowStartupScreen && window.StartupScreen && typeof window.StartupScreen.showError === "function") {
         window.StartupScreen.showError();
@@ -2774,7 +2902,7 @@ document.addEventListener("click", function (e) {
 
     try {
       var themeId = "dark_premium";
-      var courseSettings = { theme_id: "dark_premium", addon_nutrition_calculator: false, addon_eva_calculator: false, addon_emotion_navigator: false, addon_designer_xp: false, addon_forms_enabled: false, access_mode: null };
+      var courseSettings = { theme_id: "dark_premium", addon_nutrition_calculator: false, addon_eva_calculator: false, addon_emotion_navigator: false, addon_designer_xp: false, addon_forms_enabled: false, addon_agreement_enabled: false, access_mode: null };
       try {
         courseSettings = await fetchCourseSettings(config);
         themeId = courseSettings.theme_id;
