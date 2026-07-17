@@ -15,16 +15,48 @@
 
   function ensureRoot() {
     var root = document.getElementById(ROOT_ID);
-    if (root) return root;
-    root = document.createElement("div");
-    root.id = ROOT_ID;
-    root.className = "mindcore-agreement-screen";
-    root.setAttribute("role", "dialog");
-    root.setAttribute("aria-modal", "true");
-    root.setAttribute("aria-labelledby", "mindcoreAgreementTitle");
-    root.setAttribute("hidden", "");
-    document.body.appendChild(root);
+    if (!root) {
+      root = document.createElement("div");
+      root.id = ROOT_ID;
+      root.className = "mindcore-agreement-screen";
+      root.setAttribute("role", "dialog");
+      root.setAttribute("aria-modal", "true");
+      root.setAttribute("aria-labelledby", "mindcoreAgreementTitle");
+      root.setAttribute("hidden", "");
+    }
+    if (root.parentNode !== document.body || root !== document.body.lastElementChild) {
+      document.body.appendChild(root);
+    }
     return root;
+  }
+
+  function lockBodyScroll() {
+    if (document.body.classList.contains("mindcore-agreement-open")) return;
+    var scrollY = window.scrollY || window.pageYOffset || 0;
+    document.body.setAttribute("data-mindcore-agreement-scroll-y", String(scrollY));
+    document.documentElement.classList.add("mindcore-agreement-open");
+    document.body.classList.add("mindcore-agreement-open");
+    document.body.style.position = "fixed";
+    document.body.style.top = "-" + scrollY + "px";
+    document.body.style.left = "0";
+    document.body.style.right = "0";
+    document.body.style.width = "100%";
+    document.body.style.overflow = "hidden";
+  }
+
+  function unlockBodyScroll() {
+    if (!document.body.classList.contains("mindcore-agreement-open")) return;
+    var scrollY = Number(document.body.getAttribute("data-mindcore-agreement-scroll-y") || 0);
+    document.documentElement.classList.remove("mindcore-agreement-open");
+    document.body.classList.remove("mindcore-agreement-open");
+    document.body.style.position = "";
+    document.body.style.top = "";
+    document.body.style.left = "";
+    document.body.style.right = "";
+    document.body.style.width = "";
+    document.body.style.overflow = "";
+    document.body.removeAttribute("data-mindcore-agreement-scroll-y");
+    window.scrollTo(0, scrollY);
   }
 
   function getDigits(value) {
@@ -138,9 +170,9 @@
           .finally(function () { setBusy(root, false); updateState(); });
       });
 
+      lockBodyScroll();
       root.classList.add("is-visible");
       root.removeAttribute("hidden");
-      document.body.classList.add("mindcore-agreement-open");
       updateState();
     },
     showError: function (message, onRetry) {
@@ -155,9 +187,9 @@
       root.querySelector("[data-agreement-retry]").addEventListener("click", function () {
         if (typeof onRetry === "function") onRetry();
       });
+      lockBodyScroll();
       root.classList.add("is-visible");
       root.removeAttribute("hidden");
-      document.body.classList.add("mindcore-agreement-open");
     },
     hide: function () {
       var root = document.getElementById(ROOT_ID);
@@ -165,7 +197,7 @@
         root.classList.remove("is-visible");
         root.setAttribute("hidden", "");
       }
-      document.body.classList.remove("mindcore-agreement-open");
+      unlockBodyScroll();
     }
   };
 })();
