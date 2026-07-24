@@ -48,27 +48,79 @@
     return root.querySelector('[name="' + name + '"]');
   }
 
+  function getFieldsConfig(agreement) {
+    var defaults = {
+      first_name: { label: "Имя", placeholder: "", enabled: true, required: true },
+      last_name: { label: "Фамилия", placeholder: "", enabled: true, required: true },
+      phone: { label: "Телефон", placeholder: "", enabled: true, required: true },
+      email: { label: "E-mail", placeholder: "", enabled: true, required: true }
+    };
+    var source = agreement && agreement.fields_config && typeof agreement.fields_config === "object"
+      ? agreement.fields_config
+      : {};
+
+    return Object.keys(defaults).reduce(function (config, key) {
+      var field = source[key] && typeof source[key] === "object" ? source[key] : {};
+      config[key] = {
+        label: typeof field.label === "string" ? field.label : defaults[key].label,
+        placeholder: typeof field.placeholder === "string" ? field.placeholder : defaults[key].placeholder,
+        enabled: typeof field.enabled === "boolean" ? field.enabled : defaults[key].enabled,
+        required: typeof field.required === "boolean" ? field.required : defaults[key].required
+      };
+      return config;
+    }, {});
+  }
+
+  function renderField(key, field, saved) {
+    if (!field.enabled) return "";
+    var input = {
+      first_name: { type: "text", name: "contact_first_name", autocomplete: "given-name", value: saved.contact_first_name || "" },
+      last_name: { type: "text", name: "contact_last_name", autocomplete: "family-name", value: saved.contact_last_name || "" },
+      phone: { type: "tel", name: "contact_phone", autocomplete: "tel", value: saved.contact_phone || "" },
+      email: { type: "email", name: "contact_email", autocomplete: "email", value: saved.contact_email || "" }
+    }[key];
+
+    return [
+      '<label><span>' + escapeHtml(field.label) + '</span>',
+      '<input type="' + input.type + '" name="' + input.name + '" autocomplete="' + input.autocomplete + '" value="' + escapeHtml(input.value) + '" placeholder="' + escapeHtml(field.placeholder) + '"' + (field.required ? " required" : "") + ">",
+      '</label>'
+    ].join("");
+  }
+
   function readForm(root, collectDataEnabled) {
     var accepted = Boolean(getField(root, "agreementAccepted") && getField(root, "agreementAccepted").checked);
     var data = { accepted: accepted };
     if (collectDataEnabled) {
-      data.contact_first_name = String(getField(root, "contact_first_name").value || "").trim();
-      data.contact_last_name = String(getField(root, "contact_last_name").value || "").trim();
-      data.contact_phone = String(getField(root, "contact_phone").value || "").trim();
-      data.contact_email = String(getField(root, "contact_email").value || "").trim();
+      [
+        "contact_first_name",
+        "contact_last_name",
+        "contact_phone",
+        "contact_email"
+      ].forEach(function (name) {
+        var field = getField(root, name);
+        if (field) data[name] = String(field.value || "").trim();
+      });
     }
     return data;
   }
 
-  function validate(data, collectDataEnabled) {
+  function validate(data, collectDataEnabled, fieldsConfig) {
     if (!data.accepted) return false;
     if (!collectDataEnabled) return true;
-    return Boolean(
-      data.contact_first_name &&
-      data.contact_last_name &&
-      getDigits(data.contact_phone).length >= 7 &&
-      EMAIL_RE.test(data.contact_email)
-    );
+    return [
+      { key: "first_name", name: "contact_first_name", type: "text" },
+      { key: "last_name", name: "contact_last_name", type: "text" },
+      { key: "phone", name: "contact_phone", type: "phone" },
+      { key: "email", name: "contact_email", type: "email" }
+    ].every(function (item) {
+      var field = fieldsConfig[item.key];
+      if (!field.enabled) return true;
+      var value = data[item.name] || "";
+      if (!field.required && !value) return true;
+      if (item.type === "phone") return getDigits(value).length >= 7;
+      if (item.type === "email") return EMAIL_RE.test(value);
+      return Boolean(value);
+    });
   }
 
   function render(options) {
@@ -79,6 +131,13 @@
     var checkboxText = agreement.checkbox_text || "Я принимаю условия соглашения";
     var buttonText = agreement.button_text || "Продолжить";
     var saved = options.productUser || {};
+    var fieldsConfig = getFieldsConfig(agreement);
+    var fieldsHtml = [
+      renderField("first_name", fieldsConfig.first_name, saved),
+      renderField("last_name", fieldsConfig.last_name, saved),
+      renderField("phone", fieldsConfig.phone, saved),
+      renderField("email", fieldsConfig.email, saved)
+    ].join("");
 
     root.innerHTML = [
       '<div class="mindcore-agreement-screen__sheet card">',
@@ -87,12 +146,9 @@
       '</header>',
       '<div class="mindcore-agreement-screen__body">',
       '<section class="mindcore-agreement-screen__text" tabindex="0">' + escapeHtml(agreement.agreement_text || "").replace(/\n/g, "<br>") + '</section>',
-      collectDataEnabled ? [
+      collectDataEnabled && fieldsHtml ? [
         '<div class="mindcore-agreement-screen__fields" aria-label="Контактные данные">',
-        '<label><span>Имя</span><input type="text" name="contact_first_name" autocomplete="given-name" value="' + escapeHtml(saved.contact_first_name || "") + '" required></label>',
-        '<label><span>Фамилия</span><input type="text" name="contact_last_name" autocomplete="family-name" value="' + escapeHtml(saved.contact_last_name || "") + '" required></label>',
-        '<label><span>Телефон</span><input type="tel" name="contact_phone" autocomplete="tel" value="' + escapeHtml(saved.contact_phone || "") + '" required></label>',
-        '<label><span>E-mail</span><input type="email" name="contact_email" autocomplete="email" value="' + escapeHtml(saved.contact_email || "") + '" required></label>',
+        fieldsHtml,
         '</div>'
       ].join("") : "",
       '<label class="mindcore-agreement-screen__checkbox"><input type="checkbox" name="agreementAccepted"><span>' + escapeHtml(checkboxText) + '</span></label>',
@@ -126,11 +182,12 @@
       options = options || {};
       var root = render(options);
       var collectDataEnabled = Boolean(options.agreement && options.agreement.collect_data_enabled === true);
+      var fieldsConfig = getFieldsConfig(options.agreement || {});
       var submit = root.querySelector("[data-agreement-submit]");
       if (submit) submit.setAttribute("data-label", submit.textContent || "Продолжить");
 
       function updateState() {
-        var valid = validate(readForm(root, collectDataEnabled), collectDataEnabled);
+        var valid = validate(readForm(root, collectDataEnabled), collectDataEnabled, fieldsConfig);
         if (submit) {
           submit.disabled = !valid;
           if (valid) submit.removeAttribute("data-invalid");
