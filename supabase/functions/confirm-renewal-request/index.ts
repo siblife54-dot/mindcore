@@ -8,7 +8,7 @@ const UUID_PATTERN =
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type",
+    "authorization, x-admin-session, x-client-info, apikey, content-type",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
@@ -84,13 +84,10 @@ function serverErrorResponse() {
   );
 }
 
-function getSessionToken(authorization: string | null) {
-  if (!authorization) return null;
+function getSessionToken(sessionHeader: string | null) {
+  if (!sessionHeader) return null;
 
-  const match = authorization.match(/^Bearer\s+(.+)$/i);
-  if (!match) return null;
-
-  const token = match[1].trim();
+  const token = sessionHeader.trim();
   return token !== "" && token.length <= MAX_SESSION_TOKEN_LENGTH
     ? token
     : null;
@@ -125,7 +122,7 @@ Deno.serve(async (req: Request) => {
     return jsonResponse({ ok: false, error: "Method not allowed" }, 405);
   }
 
-  const sessionToken = getSessionToken(req.headers.get("Authorization"));
+  const sessionToken = getSessionToken(req.headers.get("X-Admin-Session"));
   if (!sessionToken) return authorizationErrorResponse();
 
   let body: unknown;
