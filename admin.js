@@ -37,7 +37,13 @@
     studentFormAnswers: {},
     courseAccessSettings: null,
     savedCourseAccessSettings: null,
-    courseAccessSaving: false
+    courseAccessSaving: false,
+    renewalRequests: [],
+    renewalRequestsLoading: false,
+    renewalRequestsLoaded: false,
+    renewalRequestsError: null,
+    renewalStatusFilter: "all",
+    renewalRequestsCourseId: null
   };
   state.savedThemeId = "dark_premium";
   var tooltipState = {
@@ -274,7 +280,7 @@
 function getDefaultAdminTab() {
     try {
       var stored = window.localStorage.getItem("admin_active_tab");
-      if (stored === "appearance" || stored === "lesson_settings" || stored === "content" || stored === "students" || stored === "connections") {
+      if (stored === "appearance" || stored === "lesson_settings" || stored === "content" || stored === "students" || stored === "sales" || stored === "connections") {
         return stored;
       }
     } catch (error) {}
@@ -315,26 +321,27 @@ function getDefaultAdminTab() {
   }
 
   function setActiveAdminTab(tabId) {
-    var nextTab = (tabId === "lesson_settings" || tabId === "content" || tabId === "students" || tabId === "connections") ? tabId : "appearance";
+    var nextTab = (tabId === "lesson_settings" || tabId === "content" || tabId === "students" || tabId === "sales" || tabId === "connections") ? tabId : "appearance";
     state.activeAdminTab = nextTab;
 
     var isStudentsTab = nextTab === "students";
+    var isWideTab = isStudentsTab || nextTab === "sales";
     var layout = document.querySelector(".admin-layout");
     if (layout) {
-      layout.classList.toggle("admin-layout--students", isStudentsTab);
-      layout.setAttribute("data-admin-layout-mode", isStudentsTab ? "students" : "default");
+      layout.classList.toggle("admin-layout--students", isWideTab);
+      layout.setAttribute("data-admin-layout-mode", isWideTab ? "students" : "default");
     }
 
     var livePreviewColumn = document.querySelector(".admin-live-preview-column");
     if (livePreviewColumn) {
-      livePreviewColumn.setAttribute("aria-hidden", isStudentsTab ? "true" : "false");
+      livePreviewColumn.setAttribute("aria-hidden", isWideTab ? "true" : "false");
     }
 
     var mobilePreviewToggleBtn = document.getElementById("mobilePreviewToggleBtn");
     if (mobilePreviewToggleBtn) {
-      mobilePreviewToggleBtn.hidden = isStudentsTab;
-      mobilePreviewToggleBtn.setAttribute("aria-hidden", isStudentsTab ? "true" : "false");
-      if (isStudentsTab) {
+      mobilePreviewToggleBtn.hidden = isWideTab;
+      mobilePreviewToggleBtn.setAttribute("aria-hidden", isWideTab ? "true" : "false");
+      if (isWideTab) {
         closeMobilePreviewModal();
       }
       mobilePreviewToggleBtn.addEventListener("click", function () {
@@ -366,6 +373,9 @@ function getDefaultAdminTab() {
 
     if (nextTab === "students") {
       setActiveStudentsTab(state.activeStudentsTab || getDefaultStudentsTab());
+    }
+    if (nextTab === "sales") {
+      void loadRenewalRequests({ refresh: state.renewalRequestsLoaded }).catch(function () {});
     }
 
     try {
@@ -415,6 +425,115 @@ function getDefaultAdminTab() {
     ].join("\n"), false);
   }
 
+
+  var RENEWAL_STATUS_LABELS = {
+    pending_payment: "Ожидает оплаты",
+    confirmed: "Подтверждено",
+    payment_not_found: "Оплата не найдена",
+    cancelled: "Отменено"
+  };
+  var RENEWAL_FALLBACK_ERROR = "Не удалось загрузить заявки. Попробуйте обновить страницу.";
+
+  function formatRenewalDate(value) {
+    if (!value) return "—";
+    var date = new Date(value);
+    if (Number.isNaN(date.getTime())) return "—";
+    return new Intl.DateTimeFormat("ru-RU", { dateStyle: "medium", timeStyle: "short" }).format(date);
+  }
+
+  function formatRenewalPrice(request) {
+    var minor = Number(request && request.price_minor_snapshot);
+    if (!Number.isFinite(minor)) return "—";
+    var currency = String(request.currency_snapshot || "RUB").toUpperCase();
+    var amount = new Intl.NumberFormat("ru-RU", { maximumFractionDigits: 2 }).format(minor / 100);
+    return amount + (currency === "RUB" ? " ₽" : " " + currency);
+  }
+
+  function updateRenewalPendingBadge() {
+    var badge = document.getElementById("renewalPendingBadge");
+    if (!badge) return;
+    var count = state.renewalRequests.filter(function (request) { return request.status === "pending_payment"; }).length;
+    badge.textContent = count ? String(count) : "";
+    badge.hidden = count === 0;
+    badge.setAttribute("aria-label", count ? "Новых заявок: " + count : "Новых заявок нет");
+  }
+
+  function renderRenewalRequests() {
+    var stateNode = document.getElementById("renewalRequestsState");
+    var tableWrap = document.getElementById("renewalRequestsTableWrap");
+    var tbody = document.getElementById("renewalRequestsTableBody");
+    if (!stateNode || !tableWrap || !tbody) return;
+    updateRenewalPendingBadge();
+    if (state.renewalRequestsLoading) {
+      stateNode.textContent = "Загрузка заявок…";
+      stateNode.hidden = false; tableWrap.hidden = true; return;
+    }
+    if (state.renewalRequestsError) {
+      stateNode.textContent = state.renewalRequestsError;
+      stateNode.hidden = false; tableWrap.hidden = true; return;
+    }
+    var requests = state.renewalRequests.filter(function (request) {
+      return state.renewalStatusFilter === "all" || request.status === state.renewalStatusFilter;
+    });
+    if (!requests.length) {
+      stateNode.textContent = "Заявок на продление пока нет";
+      stateNode.hidden = false; tableWrap.hidden = true; return;
+    }
+    stateNode.hidden = true; tableWrap.hidden = false;
+    tbody.innerHTML = requests.map(function (request) {
+      var status = RENEWAL_STATUS_LABELS[request.status] || "Неизвестный статус";
+      return "<tr>" +
+        "<td>" + escapeHtml(request.request_number || "—") + "</td>" +
+        "<td>" + escapeHtml(request.user_display_name || "—") + "</td>" +
+        '<td><span class="admin-sales-status admin-sales-status--' + escapeAttr(request.status || "unknown") + '">' + escapeHtml(status) + "</span></td>" +
+        "<td>" + escapeHtml(request.days_to_add_snapshot == null ? "—" : request.days_to_add_snapshot) + "</td>" +
+        "<td>" + escapeHtml(formatRenewalPrice(request)) + "</td>" +
+        "<td>" + escapeHtml(formatRenewalDate(request.created_at)) + "</td>" +
+        "<td>" + escapeHtml(formatRenewalDate(request.access_expires_at_before)) + "</td>" +
+        "<td>" + escapeHtml(formatRenewalDate(request.estimated_access_expires_at)) + "</td>" +
+        "<td>" + escapeHtml(formatRenewalDate(request.product_user_access_expires_at)) + "</td></tr>";
+    }).join("");
+  }
+
+  async function loadRenewalRequests(options) {
+    var courseId = getActiveCourseId();
+    var sessionToken = getAdminSessionToken();
+    if (!courseId || !sessionToken || state.renewalRequestsLoading) return;
+    if (!(options && options.refresh) && state.renewalRequestsLoaded && state.renewalRequestsCourseId === courseId) return;
+    state.renewalRequestsLoading = true;
+    state.renewalRequestsError = null;
+    renderRenewalRequests();
+    try {
+      var config = getConfig();
+      var response = await window.fetch(config.supabaseUrl + "/functions/v1/get-renewal-requests", {
+        method: "POST",
+        headers: Object.assign({
+          "Content-Type": "application/json",
+          "apikey": config.supabaseAnonKey,
+          "Authorization": "Bearer " + config.supabaseAnonKey
+        }, getAdminSessionHeaders()),
+        body: JSON.stringify({ course_id: courseId, status: null, limit: 100, offset: 0 })
+      });
+      if (response.status === 401) {
+        clearAdminSession();
+        window.location.href = "admin.html";
+        return;
+      }
+      var result;
+      try { result = await response.json(); } catch (parseError) { throw new Error(RENEWAL_FALLBACK_ERROR); }
+      if (!response.ok || !result || result.ok !== true || !Array.isArray(result.requests)) {
+        throw new Error(result && typeof result.error === "string" ? result.error : RENEWAL_FALLBACK_ERROR);
+      }
+      state.renewalRequests = result.requests;
+      state.renewalRequestsLoaded = true;
+      state.renewalRequestsCourseId = courseId;
+    } catch (error) {
+      state.renewalRequestsError = error && error.message ? error.message : RENEWAL_FALLBACK_ERROR;
+    } finally {
+      state.renewalRequestsLoading = false;
+      renderRenewalRequests();
+    }
+  }
 
   function getStudentAccessState(student) {
     var productUser = student && student.productUser ? student.productUser : student || {};
@@ -4556,6 +4675,14 @@ function getDefaultAdminTab() {
         setActiveStudentsTab(btn.getAttribute("data-students-tab"));
       });
     });
+    var renewalRefreshBtn = document.getElementById("renewalRefreshBtn");
+    if (renewalRefreshBtn) renewalRefreshBtn.addEventListener("click", function () { void loadRenewalRequests({ refresh: true }); });
+    var renewalStatusFilter = document.getElementById("renewalStatusFilter");
+    if (renewalStatusFilter) renewalStatusFilter.addEventListener("change", function () {
+      state.renewalStatusFilter = renewalStatusFilter.value || "all";
+      renderRenewalRequests();
+    });
+
     var studentsSearchInput = document.getElementById("studentsSearchInput");
     if (studentsSearchInput) {
       studentsSearchInput.addEventListener("input", function () {
@@ -5226,6 +5353,7 @@ function getDefaultAdminTab() {
     state.activeStudentsTab = getDefaultStudentsTab();
     setActiveStudentsTab(state.activeStudentsTab);
     setActiveAdminTab(getDefaultAdminTab());
+    void loadRenewalRequests().catch(function () {});
     renderConnectionScreen();
     await loadTelegramIntegration();
     state.courseAccessSettings = await fetchCourseAccessSettings();

@@ -66,6 +66,7 @@
         <button class="admin-top-tab" type="button" data-admin-tab="lesson_settings">Настройки модуля</button>
         <button class="admin-top-tab" type="button" data-admin-tab="content">Наполнение</button>
         <button class="admin-top-tab" type="button" data-admin-tab="students">Ученики</button>
+        <button class="admin-top-tab" type="button" data-admin-tab="sales">Продажи <span id="renewalPendingBadge" class="admin-sales-tab-badge" hidden aria-label="Новые заявки"></span></button>
         <button class="admin-top-tab" type="button" data-admin-tab="connections">Подключение</button>
       </nav>
 
@@ -309,6 +310,37 @@
             </section>
           </div>
         </div>
+      </section>
+
+      <section class="admin-tab-panel" data-admin-panel="sales" hidden>
+        <section class="admin-card admin-sales-card">
+          <div class="admin-sales-hero">
+            <div>
+              <h2>Продажи</h2>
+              <p>Заявки на продление доступа</p>
+            </div>
+            <button id="renewalRefreshBtn" class="admin-btn-ghost" type="button">Обновить</button>
+          </div>
+          <label class="admin-sales-filter">
+            Статус
+            <select id="renewalStatusFilter">
+              <option value="all">Все</option>
+              <option value="pending_payment">Ожидает оплаты</option>
+              <option value="confirmed">Подтверждено</option>
+              <option value="payment_not_found">Оплата не найдена</option>
+              <option value="cancelled">Отменено</option>
+            </select>
+          </label>
+          <div id="renewalRequestsState" class="admin-sales-state" hidden></div>
+          <div id="renewalRequestsTableWrap" class="admin-sales-table-wrap" hidden>
+            <table class="admin-sales-table">
+              <thead><tr>
+                <th>Заявка</th><th>Ученик</th><th>Статус</th><th>Дней</th><th>Стоимость</th><th>Создана</th><th>Доступ был до</th><th>Будет до</th><th>Текущий доступ до</th>
+              </tr></thead>
+              <tbody id="renewalRequestsTableBody"></tbody>
+            </table>
+          </div>
+        </section>
       </section>
 
       <section class="admin-tab-panel" data-admin-panel="connections" hidden>
