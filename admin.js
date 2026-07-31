@@ -43,7 +43,8 @@
     renewalRequestsLoaded: false,
     renewalRequestsError: null,
     renewalStatusFilter: "all",
-    renewalRequestsCourseId: null
+    renewalRequestsCourseId: null,
+    confirmingRenewalRequestIds: {}
   };
   state.savedThemeId = "dark_premium";
   var tooltipState = {
@@ -482,6 +483,10 @@ function getDefaultAdminTab() {
     stateNode.hidden = true; tableWrap.hidden = false;
     tbody.innerHTML = requests.map(function (request) {
       var status = RENEWAL_STATUS_LABELS[request.status] || "Неизвестный статус";
+      var isConfirming = Boolean(state.confirmingRenewalRequestIds[String(request.id)]);
+      var action = request.status === "pending_payment"
+        ? '<button class="btn btn-primary admin-sales-confirm-btn" type="button" data-renewal-confirm-id="' + escapeAttr(request.id) + '"' + (isConfirming ? " disabled" : "") + ">" + (isConfirming ? "Подтверждение…" : "Подтвердить оплату") + "</button>"
+        : "—";
       return "<tr>" +
         "<td>" + escapeHtml(request.request_number || "—") + "</td>" +
         "<td>" + escapeHtml(request.user_display_name || "—") + "</td>" +
@@ -491,8 +496,60 @@ function getDefaultAdminTab() {
         "<td>" + escapeHtml(formatRenewalDate(request.created_at)) + "</td>" +
         "<td>" + escapeHtml(formatRenewalDate(request.access_expires_at_before)) + "</td>" +
         "<td>" + escapeHtml(formatRenewalDate(request.estimated_access_expires_at)) + "</td>" +
-        "<td>" + escapeHtml(formatRenewalDate(request.product_user_access_expires_at)) + "</td></tr>";
+        "<td>" + escapeHtml(formatRenewalDate(request.product_user_access_expires_at)) + "</td>" +
+        '<td class="admin-sales-actions">' + action + "</td></tr>";
     }).join("");
+  }
+
+  async function confirmRenewalPayment(request, button) {
+    var requestId = request && String(request.id || "");
+    if (!requestId || request.status !== "pending_payment" || state.confirmingRenewalRequestIds[requestId]) return;
+    var confirmed = window.confirm(
+      "Подтвердить оплату заявки №" + (request.request_number || "—") + "? Доступ ученика будет продлён на " + request.days_to_add_snapshot + " дней."
+    );
+    if (!confirmed) return;
+
+    state.confirmingRenewalRequestIds[requestId] = true;
+    button.disabled = true;
+    button.textContent = "Подтверждение…";
+    try {
+      var config = getConfig();
+      var response = await window.fetch(config.supabaseUrl + "/functions/v1/confirm-renewal-request", {
+        method: "POST",
+        headers: Object.assign({
+          "Content-Type": "application/json",
+          "apikey": config.supabaseAnonKey,
+          "Authorization": "Bearer " + config.supabaseAnonKey
+        }, getAdminSessionHeaders()),
+        body: JSON.stringify({ request_id: request.id, internal_comment: null })
+      });
+      if (response.status === 401) {
+        clearAdminSession();
+        window.location.href = "admin.html";
+        return;
+      }
+      var result;
+      try {
+        result = await response.json();
+      } catch (parseError) {
+        throw new Error();
+      }
+      if (!response.ok || !result || result.ok !== true) {
+        var responseError = new Error(result && typeof result.error === "string" ? result.error : "Не удалось подтвердить оплату. Попробуйте ещё раз.");
+        responseError.isSafeRenewalError = true;
+        throw responseError;
+      }
+      showAdminNotice("Оплата подтверждена, доступ продлён");
+      await loadRenewalRequests({ refresh: true });
+    } catch (error) {
+      var errorMessage = error && error.isSafeRenewalError
+        ? error.message
+        : "Не удалось подтвердить оплату. Попробуйте ещё раз.";
+      showAdminNotice(errorMessage, "error");
+    } finally {
+      delete state.confirmingRenewalRequestIds[requestId];
+      renderRenewalRequests();
+    }
   }
 
   async function loadRenewalRequests(options) {
@@ -4681,6 +4738,14 @@ function getDefaultAdminTab() {
     if (renewalStatusFilter) renewalStatusFilter.addEventListener("change", function () {
       state.renewalStatusFilter = renewalStatusFilter.value || "all";
       renderRenewalRequests();
+    });
+    var renewalRequestsTableBody = document.getElementById("renewalRequestsTableBody");
+    if (renewalRequestsTableBody) renewalRequestsTableBody.addEventListener("click", function (event) {
+      var button = event.target.closest("[data-renewal-confirm-id]");
+      if (!button || button.disabled) return;
+      var requestId = button.getAttribute("data-renewal-confirm-id");
+      var request = state.renewalRequests.find(function (item) { return String(item.id) === requestId; });
+      if (request) void confirmRenewalPayment(request, button);
     });
 
     var studentsSearchInput = document.getElementById("studentsSearchInput");

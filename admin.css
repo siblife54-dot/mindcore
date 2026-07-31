@@ -3743,7 +3743,7 @@ body[data-page="admin"] h5 { color: var(--admin-text); letter-spacing: -0.03em; 
 .admin-sales-filter select { width: 100%; }
 .admin-sales-state { padding: 20px; border: 1px dashed var(--admin-border); border-radius: 18px; background: var(--admin-bg-elevated); color: var(--admin-text-secondary); text-align: center; }
 .admin-sales-table-wrap { width: 100%; overflow-x: auto; border: 1px solid var(--admin-border); border-radius: 18px; background: var(--admin-surface); }
-.admin-sales-table { width: 100%; min-width: 1320px; border-collapse: separate; border-spacing: 0; }
+.admin-sales-table { width: 100%; min-width: 1500px; border-collapse: separate; border-spacing: 0; }
 .admin-sales-table th, .admin-sales-table td { padding: 14px 16px; border-bottom: 1px solid var(--admin-border); text-align: left; vertical-align: middle; }
 .admin-sales-table th { background: var(--admin-bg-elevated); color: var(--admin-text-secondary); font-size: 13px; font-weight: 650; }
 .admin-sales-table tr:last-child td { border-bottom: 0; }
@@ -3752,8 +3752,12 @@ body[data-page="admin"] h5 { color: var(--admin-text); letter-spacing: -0.03em; 
 .admin-sales-status--confirmed { background: var(--admin-success-soft); color: var(--admin-success); }
 .admin-sales-status--payment_not_found { background: var(--admin-danger-soft); color: var(--admin-danger); }
 .admin-sales-status--cancelled { background: var(--admin-surface-secondary); color: var(--admin-muted); }
+.admin-sales-actions { min-width: 190px; }
+.admin-sales-confirm-btn { width: 100%; white-space: nowrap; }
+.admin-sales-confirm-btn:disabled { cursor: wait; opacity: 0.65; transform: none; }
 @media (max-width: 640px) {
   .admin-sales-hero { display: grid; }
   .admin-sales-hero .admin-btn-ghost { width: 100%; }
   .admin-sales-filter { width: 100%; }
+  .admin-sales-actions { min-width: 175px; }
 }
