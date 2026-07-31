@@ -1391,49 +1391,75 @@ function getDefaultAdminTab() {
 
   var LOCAL_ACCOUNT_ID_KEY = "mindcore_account_id";
   var LOCAL_ACCOUNT_LOGIN_KEY = "mindcore_account_login";
+  var ADMIN_ACCOUNT_KEY = "mindcore_admin_account";
+  var ADMIN_SESSION_TOKEN_KEY = "mindcore_admin_session_token";
+  var ADMIN_SESSION_EXPIRES_AT_KEY = "mindcore_admin_session_expires_at";
+  var LOGIN_NETWORK_ERROR_MESSAGE = "Не удалось выполнить вход. Проверьте подключение и попробуйте снова.";
 
-  function getStoredLocalAccountId() {
+  function getAdminSessionToken() {
     try {
-      return window.localStorage.getItem(LOCAL_ACCOUNT_ID_KEY);
+      return window.localStorage.getItem(ADMIN_SESSION_TOKEN_KEY) || null;
     } catch (error) {
       return null;
     }
   }
 
-  function storeLocalAccountId(accountId) {
-    try {
-      window.localStorage.setItem(LOCAL_ACCOUNT_ID_KEY, String(accountId));
-    } catch (error) {}
+  function getAdminSessionHeaders() {
+    var sessionToken = getAdminSessionToken();
+    return sessionToken ? { "X-Admin-Session": sessionToken } : {};
   }
 
-  function clearLocalAccountId() {
+  function clearAdminSession() {
     try {
+      window.localStorage.removeItem(ADMIN_SESSION_TOKEN_KEY);
+      window.localStorage.removeItem(ADMIN_SESSION_EXPIRES_AT_KEY);
+      window.localStorage.removeItem(ADMIN_ACCOUNT_KEY);
+      // Remove legacy keys so an old account ID can never restore authorization.
       window.localStorage.removeItem(LOCAL_ACCOUNT_ID_KEY);
-    } catch (error) {}
-  }
-
-  function storeLocalAccountLogin(login) {
-    try {
-      window.localStorage.setItem(LOCAL_ACCOUNT_LOGIN_KEY, String(login || ""));
-    } catch (error) {}
-  }
-
-  function clearStoredAuth() {
-    clearLocalAccountId();
-    try {
       window.localStorage.removeItem(LOCAL_ACCOUNT_LOGIN_KEY);
     } catch (error) {}
+    currentAccountId = null;
+    currentAccount = null;
   }
 
-  async function getStoredAccount() {
-    var client = getClient();
-    var storedId = getStoredLocalAccountId();
-    if (!storedId) return null;
-    var existing = await client.from("accounts").select("*").eq("id", storedId).maybeSingle();
-    if (existing.error) throw existing.error;
-    if (existing.data && existing.data.id) return existing.data;
-    clearStoredAuth();
-    return null;
+  function storeAdminSession(account, session) {
+    clearAdminSession();
+    try {
+      window.localStorage.setItem(ADMIN_ACCOUNT_KEY, JSON.stringify(account));
+      window.localStorage.setItem(ADMIN_SESSION_TOKEN_KEY, session.token);
+      window.localStorage.setItem(ADMIN_SESSION_EXPIRES_AT_KEY, session.expires_at);
+    } catch (error) {
+      clearAdminSession();
+      throw error;
+    }
+  }
+
+  function getStoredAccount() {
+    var token = getAdminSessionToken();
+    var expiresAt;
+    var accountJson;
+    try {
+      expiresAt = window.localStorage.getItem(ADMIN_SESSION_EXPIRES_AT_KEY);
+      accountJson = window.localStorage.getItem(ADMIN_ACCOUNT_KEY);
+    } catch (error) {
+      clearAdminSession();
+      return null;
+    }
+
+    var expiresAtTime = Date.parse(expiresAt || "");
+    if (!token || !accountJson || !Number.isFinite(expiresAtTime) || expiresAtTime <= Date.now()) {
+      clearAdminSession();
+      return null;
+    }
+
+    try {
+      var account = JSON.parse(accountJson);
+      if (!account || typeof account !== "object" || !account.id) throw new Error("Invalid stored account");
+      return account;
+    } catch (error) {
+      clearAdminSession();
+      return null;
+    }
   }
 
   function setAuthStatus(message, isError) {
@@ -1460,23 +1486,45 @@ function getDefaultAdminTab() {
       submitBtn.disabled = true;
       setAuthStatus("", false);
       try {
-        var client = getClient();
-        var result = await client.from("accounts").select("*").eq("login", login).limit(1).maybeSingle();
-        if (result.error) throw result.error;
-        var account = result.data;
-        if (!account || String(account.password || "") !== password) {
-          setAuthStatus("Неверный логин или пароль", true);
+        var config = getConfig();
+        var response = await window.fetch(config.supabaseUrl + "/functions/v1/admin-login", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "apikey": config.supabaseAnonKey,
+            "Authorization": "Bearer " + config.supabaseAnonKey
+          },
+          body: JSON.stringify({ login: login, password: password })
+        });
+        var result;
+        try {
+          result = await response.json();
+        } catch (parseError) {
+          setAuthStatus(LOGIN_NETWORK_ERROR_MESSAGE, true);
           return;
         }
-        storeLocalAccountId(account.id);
-        storeLocalAccountLogin(account.login || login);
-        currentAccount = account;
-        console.log("currentAccount:", currentAccount);
-        console.log("currentTariffLimit:", getCurrentTariffLimit());
+
+        if (!response.ok || !result || result.ok !== true) {
+          setAuthStatus(result && typeof result.error === "string" ? result.error : LOGIN_NETWORK_ERROR_MESSAGE, true);
+          return;
+        }
+        if (!result.account || !result.account.id || !result.session || !result.session.token || !result.session.expires_at) {
+          setAuthStatus(LOGIN_NETWORK_ERROR_MESSAGE, true);
+          return;
+        }
+
+        var expiresAtTime = Date.parse(result.session.expires_at);
+        if (!Number.isFinite(expiresAtTime) || expiresAtTime <= Date.now()) {
+          setAuthStatus(LOGIN_NETWORK_ERROR_MESSAGE, true);
+          return;
+        }
+
+        storeAdminSession(result.account, result.session);
         window.location.href = "admin.html" + window.location.search;
       } catch (error) {
-        setAuthStatus((error && error.message) || "Ошибка входа", true);
+        setAuthStatus(LOGIN_NETWORK_ERROR_MESSAGE, true);
       } finally {
+        passwordInput.value = "";
         submitBtn.disabled = false;
       }
     }
@@ -5154,7 +5202,7 @@ function getDefaultAdminTab() {
     if (!logoutButtons.length) return;
     logoutButtons.forEach(function (button) {
       button.addEventListener("click", function () {
-        clearStoredAuth();
+        clearAdminSession();
         window.location.href = "admin.html";
       });
     });
