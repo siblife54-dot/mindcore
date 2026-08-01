@@ -313,7 +313,13 @@
       </section>
 
       <section class="admin-tab-panel" data-admin-panel="sales" hidden>
-        <section class="admin-card admin-sales-card">
+        <div class="admin-sales-section">
+          <nav class="admin-inner-tabs admin-sales-inner-tabs" aria-label="Подразделы продаж">
+            <button class="admin-inner-tab is-active" type="button" data-sales-tab="requests">Заявки</button>
+            <button class="admin-inner-tab" type="button" data-sales-tab="renewal_settings">Настройки продления</button>
+          </nav>
+
+          <section class="admin-card admin-sales-card admin-sales-inner-panel" data-sales-panel="requests">
           <div class="admin-sales-hero">
             <div>
               <h2>Продажи</h2>
@@ -340,7 +346,45 @@
               <tbody id="renewalRequestsTableBody"></tbody>
             </table>
           </div>
-        </section>
+          </section>
+
+          <section class="admin-card admin-renewal-settings-card admin-sales-inner-panel" data-sales-panel="renewal_settings" hidden>
+            <div class="admin-sales-hero">
+              <div>
+                <h2>Настройки продления</h2>
+                <p>Предложение продления доступа и доступные тарифы</p>
+              </div>
+            </div>
+            <div id="renewalSettingsState" class="admin-sales-state">Загрузка настроек…</div>
+            <form id="renewalSettingsForm" class="admin-renewal-form" novalidate hidden>
+              <label class="admin-renewal-switch">
+                <input id="renewalEnabledInput" type="checkbox" />
+                <span>Включить продление доступа</span>
+              </label>
+              <div class="admin-renewal-general-grid">
+                <label>Показывать предложение за сколько дней до окончания доступа
+                  <input id="renewalShowBeforeDaysInput" type="number" min="0" max="365" step="1" required />
+                  <small class="admin-hint">0 — показывать только после окончания доступа</small>
+                </label>
+                <label>Текст кнопки поддержки
+                  <input id="renewalSupportLabelInput" type="text" minlength="1" maxlength="120" required />
+                </label>
+                <label class="admin-renewal-wide-field">Ссылка поддержки
+                  <input id="renewalSupportUrlInput" type="url" maxlength="2000" />
+                  <small class="admin-hint">Например, ссылка на Telegram эксперта или службу поддержки</small>
+                </label>
+              </div>
+              <div class="admin-renewal-options-header">
+                <h3>Тарифы продления</h3>
+                <button id="addRenewalOptionBtn" class="admin-btn-ghost" type="button">Добавить тариф</button>
+              </div>
+              <div id="renewalOptionsList" class="admin-renewal-options"></div>
+              <div class="admin-renewal-actions">
+                <button id="saveRenewalSettingsBtn" class="btn btn-primary" type="submit">Сохранить настройки</button>
+              </div>
+            </form>
+          </section>
+        </div>
       </section>
 
       <section class="admin-tab-panel" data-admin-panel="connections" hidden>

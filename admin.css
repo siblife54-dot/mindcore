@@ -3755,9 +3755,31 @@ body[data-page="admin"] h5 { color: var(--admin-text); letter-spacing: -0.03em; 
 .admin-sales-actions { min-width: 190px; }
 .admin-sales-confirm-btn { width: 100%; white-space: nowrap; }
 .admin-sales-confirm-btn:disabled { cursor: wait; opacity: 0.65; transform: none; }
+.admin-sales-section { display: grid; gap: 16px; }
+.admin-sales-inner-tabs { width: fit-content; max-width: 100%; }
+.admin-renewal-settings-card, .admin-renewal-form { display: grid; gap: 22px; }
+.admin-renewal-switch { display: flex; align-items: center; gap: 12px; width: fit-content; font-weight: 650; color: var(--admin-text); }
+.admin-renewal-switch input { width: 20px; height: 20px; accent-color: var(--admin-accent); }
+.admin-renewal-general-grid, .admin-renewal-option-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.admin-renewal-general-grid label, .admin-renewal-option-grid label { display: grid; align-content: start; gap: 8px; color: var(--admin-text); font-size: 13px; font-weight: 650; }
+.admin-renewal-general-grid input, .admin-renewal-option-grid input, .admin-renewal-option-grid textarea { width: 100%; }
+.admin-renewal-option-grid textarea { min-height: 108px; resize: vertical; }
+.admin-renewal-wide-field { grid-column: 1 / -1; }
+.admin-renewal-options-header, .admin-renewal-option__header { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.admin-renewal-options-header h3, .admin-renewal-option__header h4 { margin: 0; }
+.admin-renewal-options { display: grid; gap: 16px; }
+.admin-renewal-option { display: grid; gap: 18px; padding: 18px; border: 1px solid var(--admin-border); border-radius: 18px; background: var(--admin-bg-elevated); }
+.admin-renewal-actions { display: flex; justify-content: flex-end; }
+.admin-renewal-actions .btn:disabled, #addRenewalOptionBtn:disabled { cursor: wait; opacity: .65; transform: none; }
 @media (max-width: 640px) {
   .admin-sales-hero { display: grid; }
   .admin-sales-hero .admin-btn-ghost { width: 100%; }
   .admin-sales-filter { width: 100%; }
   .admin-sales-actions { min-width: 175px; }
+  .admin-sales-inner-tabs { width: 100%; }
+  .admin-sales-inner-tabs .admin-inner-tab { flex: 1; }
+  .admin-renewal-general-grid, .admin-renewal-option-grid { grid-template-columns: 1fr; }
+  .admin-renewal-wide-field { grid-column: auto; }
+  .admin-renewal-options-header, .admin-renewal-option__header { align-items: stretch; flex-direction: column; }
+  .admin-renewal-actions .btn { width: 100%; }
 }

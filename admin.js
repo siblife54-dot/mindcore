@@ -44,7 +44,14 @@
     renewalRequestsError: null,
     renewalStatusFilter: "all",
     renewalRequestsCourseId: null,
-    confirmingRenewalRequestIds: {}
+    confirmingRenewalRequestIds: {},
+    activeSalesTab: "requests",
+    renewalSettings: null,
+    renewalSettingsLoaded: false,
+    renewalSettingsLoading: false,
+    renewalSettingsSaving: false,
+    renewalSettingsError: null,
+    renewalSettingsCourseId: null
   };
   state.savedThemeId = "dark_premium";
   var tooltipState = {
@@ -376,12 +383,28 @@ function getDefaultAdminTab() {
       setActiveStudentsTab(state.activeStudentsTab || getDefaultStudentsTab());
     }
     if (nextTab === "sales") {
-      void loadRenewalRequests({ refresh: state.renewalRequestsLoaded }).catch(function () {});
+      setActiveSalesTab(state.activeSalesTab);
     }
 
     try {
       window.localStorage.setItem("admin_active_tab", nextTab);
     } catch (error) {}
+  }
+
+  function setActiveSalesTab(tabId) {
+    var nextTab = tabId === "renewal_settings" ? "renewal_settings" : "requests";
+    state.activeSalesTab = nextTab;
+    document.querySelectorAll("[data-sales-tab]").forEach(function (button) {
+      var isActive = button.getAttribute("data-sales-tab") === nextTab;
+      button.classList.toggle("is-active", isActive);
+      button.setAttribute("aria-selected", isActive ? "true" : "false");
+    });
+    document.querySelectorAll("[data-sales-panel]").forEach(function (panel) {
+      panel.hidden = panel.getAttribute("data-sales-panel") !== nextTab;
+    });
+    if (state.activeAdminTab !== "sales") return;
+    if (nextTab === "renewal_settings") void loadRenewalSettings();
+    else void loadRenewalRequests({ refresh: state.renewalRequestsLoaded });
   }
 
   function getCurrentWebAppUrl() {
@@ -590,6 +613,163 @@ function getDefaultAdminTab() {
       state.renewalRequestsLoading = false;
       renderRenewalRequests();
     }
+  }
+
+  var RENEWAL_SETTINGS_LOAD_ERROR = "Не удалось загрузить настройки продления. Попробуйте ещё раз.";
+  var RENEWAL_SETTINGS_SAVE_ERROR = "Не удалось сохранить настройки продления. Попробуйте ещё раз.";
+
+  function minorUnitsToPriceInput(value) {
+    var digits = String(value == null ? 0 : value);
+    if (!/^\d+$/.test(digits)) return "0";
+    digits = digits.replace(/^0+(?=\d)/, "");
+    if (digits.length < 3) digits = digits.padStart(3, "0");
+    var fraction = digits.slice(-2).replace(/0+$/, "");
+    return digits.slice(0, -2) + (fraction ? "," + fraction : "");
+  }
+
+  function priceInputToMinorUnits(value) {
+    var normalized = String(value == null ? "" : value).trim().replace(",", ".");
+    if (!/^\d+(?:\.\d{1,2})?$/.test(normalized)) return null;
+    var parts = normalized.split(".");
+    var minorText = parts[0].replace(/^0+(?=\d)/, "") + (parts[1] || "").padEnd(2, "0");
+    var minor;
+    try { minor = BigInt(minorText); } catch (error) { return null; }
+    if (minor > 1000000000000n) return null;
+    return Number(minor);
+  }
+
+  function normalizeRenewalSettings(settings) {
+    return {
+      renewal_enabled: Boolean(settings && settings.renewal_enabled),
+      show_before_days: Number.isInteger(settings && settings.show_before_days) ? settings.show_before_days : 0,
+      support_url: settings && typeof settings.support_url === "string" ? settings.support_url : "",
+      support_label: settings && typeof settings.support_label === "string" ? settings.support_label : "Связаться с поддержкой",
+      options: Array.isArray(settings && settings.options) ? settings.options.slice(0, 2).map(function (option) {
+        return {
+          title: typeof option.title === "string" ? option.title : "",
+          days_to_add: option.days_to_add == null ? "" : String(option.days_to_add),
+          price: minorUnitsToPriceInput(option.price_minor),
+          currency: typeof option.currency === "string" ? option.currency.toUpperCase() : "RUB",
+          description: typeof option.description === "string" ? option.description : "",
+          payment_url: typeof option.payment_url === "string" ? option.payment_url : ""
+        };
+      }) : []
+    };
+  }
+
+  function renderRenewalSettings() {
+    var stateNode = document.getElementById("renewalSettingsState");
+    var form = document.getElementById("renewalSettingsForm");
+    if (!stateNode || !form) return;
+    if (state.renewalSettingsLoading) {
+      stateNode.textContent = "Загрузка настроек…"; stateNode.hidden = false; form.hidden = true; return;
+    }
+    if (state.renewalSettingsError) {
+      stateNode.innerHTML = '<p>' + escapeHtml(state.renewalSettingsError) + '</p><button class="admin-btn-ghost" type="button" data-renewal-settings-retry>Попробовать ещё раз</button>';
+      stateNode.hidden = false; form.hidden = true; return;
+    }
+    if (!state.renewalSettings) { form.hidden = true; return; }
+    stateNode.hidden = true; form.hidden = false;
+    document.getElementById("renewalEnabledInput").checked = state.renewalSettings.renewal_enabled;
+    document.getElementById("renewalShowBeforeDaysInput").value = state.renewalSettings.show_before_days;
+    document.getElementById("renewalSupportLabelInput").value = state.renewalSettings.support_label;
+    document.getElementById("renewalSupportUrlInput").value = state.renewalSettings.support_url;
+    var list = document.getElementById("renewalOptionsList");
+    list.innerHTML = state.renewalSettings.options.map(function (option, index) {
+      return '<article class="admin-renewal-option" data-renewal-option-index="' + index + '">' +
+        '<div class="admin-renewal-option__header"><h4>Тариф №' + (index + 1) + '</h4><button class="btn btn-danger-outline" type="button" data-remove-renewal-option="' + index + '">Удалить тариф</button></div>' +
+        '<div class="admin-renewal-option-grid">' +
+        '<label>Название тарифа<input data-option-field="title" type="text" minlength="1" maxlength="120" required value="' + escapeAttr(option.title) + '"></label>' +
+        '<label>Количество дней<input data-option-field="days_to_add" type="number" min="1" max="3650" step="1" required value="' + escapeAttr(option.days_to_add) + '"></label>' +
+        '<label>Стоимость<input data-option-field="price" type="text" inputmode="decimal" required placeholder="990" value="' + escapeAttr(option.price) + '"></label>' +
+        '<label>Валюта<input data-option-field="currency" type="text" minlength="3" maxlength="3" required value="' + escapeAttr(option.currency) + '"></label>' +
+        '<label class="admin-renewal-wide-field">Описание<textarea data-option-field="description" maxlength="2000">' + escapeHtml(option.description) + '</textarea></label>' +
+        '<label class="admin-renewal-wide-field">Ссылка оплаты<input data-option-field="payment_url" type="url" minlength="1" maxlength="2000" required value="' + escapeAttr(option.payment_url) + '"></label>' +
+        '</div></article>';
+    }).join("");
+    document.getElementById("addRenewalOptionBtn").disabled = state.renewalSettings.options.length >= 2 || state.renewalSettingsSaving;
+    var saveButton = document.getElementById("saveRenewalSettingsBtn");
+    saveButton.disabled = state.renewalSettingsSaving;
+    saveButton.textContent = state.renewalSettingsSaving ? "Сохранение…" : "Сохранить настройки";
+  }
+
+  async function loadRenewalSettings() {
+    var courseId = getActiveCourseId();
+    if (!courseId || !getAdminSessionToken() || state.renewalSettingsLoading) return;
+    if (state.renewalSettingsCourseId !== courseId) {
+      state.renewalSettings = null; state.renewalSettingsLoaded = false; state.renewalSettingsError = null;
+    }
+    if (state.renewalSettingsLoaded) { renderRenewalSettings(); return; }
+    state.renewalSettingsLoading = true; state.renewalSettingsError = null; state.renewalSettingsCourseId = courseId;
+    renderRenewalSettings();
+    try {
+      var config = getConfig();
+      var response = await window.fetch(config.supabaseUrl + "/functions/v1/get-course-renewal-settings", {
+        method: "POST", headers: Object.assign({ "Content-Type": "application/json", apikey: config.supabaseAnonKey, Authorization: "Bearer " + config.supabaseAnonKey }, getAdminSessionHeaders()),
+        body: JSON.stringify({ course_id: courseId })
+      });
+      if (response.status === 401) { clearAdminSession(); window.location.href = "admin.html"; return; }
+      var result;
+      try { result = await response.json(); } catch (error) { throw new Error(RENEWAL_SETTINGS_LOAD_ERROR); }
+      if (!response.ok || !result || result.ok !== true || !result.settings) throw new Error(result && typeof result.error === "string" ? result.error : RENEWAL_SETTINGS_LOAD_ERROR);
+      if (getActiveCourseId() !== courseId) return;
+      state.renewalSettings = normalizeRenewalSettings(result.settings); state.renewalSettingsLoaded = true;
+    } catch (error) {
+      state.renewalSettingsError = error && error.message ? error.message : RENEWAL_SETTINGS_LOAD_ERROR;
+    } finally { state.renewalSettingsLoading = false; renderRenewalSettings(); }
+  }
+
+  function readRenewalSettingsPayload() {
+    var form = document.getElementById("renewalSettingsForm");
+    if (!form.reportValidity()) return null;
+    var showBeforeDays = Number(document.getElementById("renewalShowBeforeDaysInput").value);
+    var supportLabel = document.getElementById("renewalSupportLabelInput").value.trim();
+    var supportUrl = document.getElementById("renewalSupportUrlInput").value.trim();
+    if (!Number.isInteger(showBeforeDays) || showBeforeDays < 0 || showBeforeDays > 365 || !supportLabel || supportLabel.length > 120 || supportUrl.length > 2000) { showAdminNotice("Проверьте общие настройки", "error"); return null; }
+    var options = [];
+    var cards = form.querySelectorAll("[data-renewal-option-index]");
+    for (var index = 0; index < cards.length; index += 1) {
+      var card = cards[index];
+      var value = function (field) { return card.querySelector('[data-option-field="' + field + '"]').value.trim(); };
+      var title = value("title"), days = Number(value("days_to_add")), priceMinor = priceInputToMinorUnits(value("price"));
+      var currency = value("currency").toUpperCase(), description = value("description"), paymentUrl = value("payment_url");
+      if (!title || title.length > 120 || !Number.isInteger(days) || days < 1 || days > 3650 || priceMinor === null || currency.length !== 3 || description.length > 2000 || !paymentUrl || paymentUrl.length > 2000) { showAdminNotice("Проверьте поля тарифа №" + (index + 1), "error"); return null; }
+      options.push({ title: title, days_to_add: days, price_minor: priceMinor, currency: currency, description: description || null, payment_url: paymentUrl, sort_order: index + 1 });
+    }
+    var enabled = document.getElementById("renewalEnabledInput").checked;
+    if (enabled && !options.length) { showAdminNotice("Добавьте хотя бы один тариф для включённого продления", "error"); return null; }
+    return { course_id: getActiveCourseId(), renewal_enabled: enabled, show_before_days: showBeforeDays, support_url: supportUrl || null, support_label: supportLabel, options: options };
+  }
+
+  function captureRenewalSettingsDraft() {
+    if (!state.renewalSettings) return;
+    state.renewalSettings.renewal_enabled = document.getElementById("renewalEnabledInput").checked;
+    state.renewalSettings.show_before_days = document.getElementById("renewalShowBeforeDaysInput").value;
+    state.renewalSettings.support_label = document.getElementById("renewalSupportLabelInput").value;
+    state.renewalSettings.support_url = document.getElementById("renewalSupportUrlInput").value;
+    state.renewalSettings.options = Array.prototype.map.call(document.querySelectorAll("[data-renewal-option-index]"), function (card) {
+      var value = function (field) { return card.querySelector('[data-option-field="' + field + '"]').value; };
+      return { title: value("title"), days_to_add: value("days_to_add"), price: value("price"), currency: value("currency"), description: value("description"), payment_url: value("payment_url") };
+    });
+  }
+
+  async function saveRenewalSettings() {
+    if (state.renewalSettingsSaving) return;
+    var payload = readRenewalSettingsPayload();
+    if (!payload) return;
+    captureRenewalSettingsDraft();
+    state.renewalSettingsSaving = true; renderRenewalSettings();
+    try {
+      var config = getConfig();
+      var response = await window.fetch(config.supabaseUrl + "/functions/v1/save-course-renewal-settings", { method: "POST", headers: Object.assign({ "Content-Type": "application/json", apikey: config.supabaseAnonKey, Authorization: "Bearer " + config.supabaseAnonKey }, getAdminSessionHeaders()), body: JSON.stringify(payload) });
+      if (response.status === 401) { clearAdminSession(); window.location.href = "admin.html"; return; }
+      var result;
+      try { result = await response.json(); } catch (error) { throw new Error(RENEWAL_SETTINGS_SAVE_ERROR); }
+      if (!response.ok || !result || result.ok !== true || !result.settings) throw new Error(result && typeof result.error === "string" ? result.error : RENEWAL_SETTINGS_SAVE_ERROR);
+      state.renewalSettings = normalizeRenewalSettings(result.settings); state.renewalSettingsLoaded = true;
+      showAdminNotice("Настройки продления сохранены");
+    } catch (error) { showAdminNotice(error && error.message ? error.message : RENEWAL_SETTINGS_SAVE_ERROR, "error"); }
+    finally { state.renewalSettingsSaving = false; renderRenewalSettings(); }
   }
 
   function getStudentAccessState(student) {
@@ -4732,6 +4912,31 @@ function getDefaultAdminTab() {
         setActiveStudentsTab(btn.getAttribute("data-students-tab"));
       });
     });
+    document.querySelectorAll("[data-sales-tab]").forEach(function (btn) {
+      btn.addEventListener("click", function () { setActiveSalesTab(btn.getAttribute("data-sales-tab")); });
+    });
+    var renewalSettingsState = document.getElementById("renewalSettingsState");
+    if (renewalSettingsState) renewalSettingsState.addEventListener("click", function (event) {
+      if (!event.target.closest("[data-renewal-settings-retry]")) return;
+      state.renewalSettingsError = null; state.renewalSettingsLoaded = false; void loadRenewalSettings();
+    });
+    var addRenewalOptionBtn = document.getElementById("addRenewalOptionBtn");
+    if (addRenewalOptionBtn) addRenewalOptionBtn.addEventListener("click", function () {
+      captureRenewalSettingsDraft();
+      if (!state.renewalSettings || state.renewalSettings.options.length >= 2) return;
+      state.renewalSettings.options.push({ title: "", days_to_add: "", price: "", currency: "RUB", description: "", payment_url: "" });
+      renderRenewalSettings();
+    });
+    var renewalOptionsList = document.getElementById("renewalOptionsList");
+    if (renewalOptionsList) renewalOptionsList.addEventListener("click", function (event) {
+      var button = event.target.closest("[data-remove-renewal-option]");
+      if (!button) return;
+      captureRenewalSettingsDraft();
+      state.renewalSettings.options.splice(Number(button.getAttribute("data-remove-renewal-option")), 1);
+      renderRenewalSettings();
+    });
+    var renewalSettingsForm = document.getElementById("renewalSettingsForm");
+    if (renewalSettingsForm) renewalSettingsForm.addEventListener("submit", function (event) { event.preventDefault(); void saveRenewalSettings(); });
     var renewalRefreshBtn = document.getElementById("renewalRefreshBtn");
     if (renewalRefreshBtn) renewalRefreshBtn.addEventListener("click", function () { void loadRenewalRequests({ refresh: true }); });
     var renewalStatusFilter = document.getElementById("renewalStatusFilter");
