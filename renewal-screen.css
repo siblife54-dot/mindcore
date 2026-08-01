@@ -1,0 +1,157 @@
+.renewal-screen {
+  display: grid;
+  gap: 14px;
+  width: 100%;
+  padding: clamp(18px, 5vw, 28px);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--card);
+  color: var(--text);
+  box-shadow: var(--shadow);
+  overflow-wrap: anywhere;
+}
+
+.renewal-screen--warning {
+  margin-bottom: var(--dashboard-section-gap);
+}
+
+.renewal-screen--expired {
+  min-height: min(100dvh, 640px);
+  align-content: center;
+  padding-bottom: max(28px, env(safe-area-inset-bottom));
+  overflow-y: auto;
+  text-align: center;
+}
+
+.renewal-screen__eyebrow,
+.renewal-screen__title,
+.renewal-screen__lead,
+.renewal-screen__date,
+.renewal-screen__tariff-title,
+.renewal-screen__days,
+.renewal-screen__description,
+.renewal-screen__price,
+.renewal-screen__error {
+  margin: 0;
+}
+
+.renewal-screen__eyebrow {
+  justify-self: start;
+  padding: 6px 10px;
+  border: 1px solid rgba(var(--accent-rgb), 0.35);
+  border-radius: 999px;
+  background: rgba(var(--accent-rgb), 0.12);
+  color: var(--accent);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: .02em;
+}
+
+.renewal-screen--expired .renewal-screen__eyebrow {
+  justify-self: center;
+}
+
+.renewal-screen__title {
+  color: var(--text);
+  font-size: clamp(21px, 6vw, 29px);
+  line-height: 1.15;
+}
+
+.renewal-screen__lead,
+.renewal-screen__description {
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+.renewal-screen__date {
+  padding: 11px 13px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--card-2);
+  color: var(--text);
+  line-height: 1.4;
+}
+
+.renewal-screen__tariffs {
+  display: grid;
+  gap: 12px;
+}
+
+.renewal-screen__tariff {
+  display: grid;
+  gap: 9px;
+  min-width: 0;
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--card-2);
+  text-align: left;
+}
+
+.renewal-screen__tariff-title {
+  color: var(--text);
+  font-size: 17px;
+  line-height: 1.3;
+}
+
+.renewal-screen__days {
+  color: var(--accent);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.renewal-screen__price {
+  color: var(--text);
+  font-size: 22px;
+  font-weight: 800;
+}
+
+.renewal-screen__action {
+  width: 100%;
+  min-height: 44px;
+  margin-top: 3px;
+  white-space: normal;
+}
+
+.renewal-screen__back {
+  justify-self: center;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.renewal-screen__action:focus-visible,
+.renewal-screen__back:focus-visible,
+.renewal-screen__support:focus-visible {
+  outline: 3px solid rgba(var(--accent-rgb), 0.4);
+  outline-offset: 3px;
+}
+
+.renewal-screen__error {
+  padding: 12px;
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-md);
+  background: rgba(var(--accent-rgb), 0.1);
+  color: var(--text);
+  line-height: 1.45;
+}
+
+.renewal-screen__error[hidden] {
+  display: none;
+}
+
+.renewal-screen__support {
+  justify-self: center;
+  max-width: 100%;
+  color: var(--accent);
+  font-weight: 700;
+  line-height: 1.4;
+  text-align: center;
+  text-underline-offset: 3px;
+  overflow-wrap: anywhere;
+}
+
+body.dashboard-course-content-blocked > :not(.header-brand):not(.profile-card):not(#renewalBannerHost):not(#lessonsContainer):not(#mindcoreStartupScreen):not(#mindcoreAgreementScreen) {
+  display: none !important;
+}

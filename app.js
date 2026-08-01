@@ -13,6 +13,8 @@
   var COURSE_SETTINGS = null;
   var COURSE_ACCESS = null;
   var PRODUCT_USER = null;
+  var RENEWAL_CONFIG = null;
+  var COURSE_ACCESS_RESULT = null;
   var CURRENT_COURSE = null;
   var NUTRITION = null;
   var EMOTION_STORAGE_KEY = "emotion_navigator_state";
@@ -2006,6 +2008,93 @@
     ].join("");
   }
 
+  function getAccessClassification(accessResult) {
+    var reason = accessResult && accessResult.reason;
+    if (accessResult && accessResult.allowed === true) return "active";
+    if (reason === "access_expired") return "expired_date";
+    if (reason === "status_expired") return "expired_status";
+    if (reason === "status_blocked") return "blocked";
+    if (reason === "product_user_missing") return "product_user_missing";
+    if (reason === "invalid_access_expires_at") return "technical_error";
+    if (reason === "telegram_auth_required" || reason === "not_telegram_channel_member") return "entry_access_error";
+    return "technical_error";
+  }
+
+  function shouldLoadRenewalConfig(accessResult) {
+    if (isPreviewMode() || !window.RenewalScreen) return false;
+    if (!COURSE_SETTINGS || COURSE_SETTINGS.access_control_enabled !== true) return false;
+    if (!PRODUCT_USER || !PRODUCT_USER.id) return false;
+    var classification = getAccessClassification(accessResult);
+    if (classification === "expired_status") return true;
+    if (classification !== "active" && classification !== "expired_date") return false;
+    return PRODUCT_USER.access_expires_at != null;
+  }
+
+  async function loadRenewalConfigForAccess(accessResult) {
+    RENEWAL_CONFIG = null;
+    if (!shouldLoadRenewalConfig(accessResult)) return null;
+    var config = getConfig();
+    RENEWAL_CONFIG = await window.RenewalScreen.loadConfig({
+      courseId: getActiveCourseId(),
+      supabaseUrl: config.supabaseUrl,
+      anonKey: config.supabaseAnonKey
+    });
+    return RENEWAL_CONFIG;
+  }
+
+  function openRenewalPaymentUrl(paymentUrl) {
+    var tg = globalThis.Telegram && globalThis.Telegram.WebApp;
+    if (tg && typeof tg.openLink === "function") {
+      tg.openLink(paymentUrl);
+      return "external";
+    }
+    window.location.assign(paymentUrl);
+    return "current";
+  }
+
+  function renderRenewal(container, mode, accessResult) {
+    if (!window.RenewalScreen || !RENEWAL_CONFIG || !container) return false;
+    return window.RenewalScreen.render({
+      mode: mode,
+      container: container,
+      courseId: getActiveCourseId(),
+      productUser: PRODUCT_USER,
+      accessExpiresAt: PRODUCT_USER && PRODUCT_USER.access_expires_at,
+      renewalConfig: RENEWAL_CONFIG,
+      supabaseUrl: getConfig().supabaseUrl,
+      anonKey: getConfig().supabaseAnonKey,
+      onNavigate: openRenewalPaymentUrl,
+      backUrl: mode === "expired" && document.body.getAttribute("data-page") === "lesson"
+        ? getIndexUrlWithCourse()
+        : null,
+      onBack: function (backUrl) {
+        navigateInternally(backUrl);
+      }
+    });
+  }
+
+  function renderExpiredAccess(accessResult) {
+    var page = document.body.getAttribute("data-page");
+    var host = page === "lesson" ? document.getElementById("lessonState") : document.getElementById("lessonsContainer");
+    var main = document.getElementById("lessonMain");
+    if (page === "dashboard") {
+      var warningHost = document.getElementById("renewalBannerHost");
+      if (warningHost && window.RenewalScreen) window.RenewalScreen.destroy(warningHost);
+      setDashboardCourseContentBlocked(true);
+    }
+    if (page === "lesson") {
+      if (main) main.hidden = true;
+      if (host) {
+        host.hidden = false;
+        host.classList.remove("skeleton");
+      }
+      wireLessonBackLinks();
+    }
+    var classification = getAccessClassification(accessResult);
+    var canRenew = classification === "expired_date" || classification === "expired_status";
+    if (!canRenew || !renderRenewal(host, "expired", accessResult)) renderAccessExpiredScreen(host, accessResult);
+  }
+
   function getTelegramInitData() {
     var platform = globalThis.CourseAppPlatform || {};
     var tg = typeof platform.getTelegramWebApp === "function"
@@ -2137,8 +2226,16 @@
         var status = String(productUser.status || "active").toLowerCase();
         if (status === "blocked" || status === "expired") {
           reason = "status_" + status;
-        } else if (productUser.access_expires_at && new Date() > new Date(productUser.access_expires_at)) {
-          reason = "access_expired";
+        } else if (productUser.access_expires_at) {
+          var expiresAt = new Date(productUser.access_expires_at);
+          if (Number.isNaN(expiresAt.getTime())) {
+            reason = "invalid_access_expires_at";
+          } else if (new Date() > expiresAt) {
+            reason = "access_expired";
+          } else {
+            allowed = true;
+            reason = "allowed";
+          }
         } else {
           allowed = true;
           reason = "allowed";
@@ -2161,6 +2258,7 @@
     var stateBox = document.getElementById("stateBox");
     var progressWrap = document.querySelector(".progress-wrap");
     var sectionTitles = Array.from(document.querySelectorAll(".section-title"));
+    document.body.classList.toggle("dashboard-course-content-blocked", blocked);
     if (progressWrap) progressWrap.hidden = blocked;
     sectionTitles.forEach(function (title) {
       var text = String(title.textContent || "").trim().toLowerCase();
@@ -2191,6 +2289,24 @@
       avatar.style.backgroundPosition = "center";
     }
 
+    var courseAccessResult = COURSE_ACCESS_RESULT || await checkCourseAccess();
+    if (!courseAccessResult.allowed) {
+      renderExpiredAccess(courseAccessResult);
+      return;
+    }
+
+    setDashboardCourseContentBlocked(false);
+    var renewalHost = document.getElementById("renewalBannerHost");
+    if (renewalHost && window.RenewalScreen) window.RenewalScreen.destroy(renewalHost);
+    if (RENEWAL_CONFIG && PRODUCT_USER && PRODUCT_USER.access_expires_at) {
+      if (window.RenewalScreen.shouldShowWarning(
+        PRODUCT_USER.access_expires_at,
+        RENEWAL_CONFIG.settings.show_before_days
+      )) {
+        renderRenewal(renewalHost, "warning", courseAccessResult);
+      }
+    }
+
     var completed = await loadCompleted();
     var accessModel = getAccessibilityModel(lessons, completed);
 
@@ -2200,15 +2316,6 @@
     await renderCourseForms();
     renderDashboardWatermark(COURSE_ACCESS);
 
-    var courseAccessResult = await checkCourseAccess();
-    setDashboardCourseContentBlocked(!courseAccessResult.allowed);
-    if (!courseAccessResult.allowed) {
-      renderAccessExpiredScreen(list, courseAccessResult);
-      await renderDebugPanel(config, lessons, completed, accessModel);
-      return;
-    }
-
-    setDashboardCourseContentBlocked(false);
     await renderDebugPanel(config, lessons, completed, accessModel);
 
     if (!lessons.length) {
@@ -2760,6 +2867,7 @@
 
   async function init() {
     refreshStorageKeys();
+    if (window.RenewalScreen && typeof window.RenewalScreen.reset === "function") window.RenewalScreen.reset();
     STARTUP_MODE = detectStartupMode();
     var shouldShowStartupScreen = STARTUP_MODE === "external";
     if (shouldShowStartupScreen && window.StartupScreen && typeof window.StartupScreen.show === "function") {
@@ -2824,9 +2932,11 @@
       await saveWebAppAccess();
 
       var courseAccessResult = await checkCourseAccess();
+      COURSE_ACCESS_RESULT = courseAccessResult;
+      await loadRenewalConfigForAccess(courseAccessResult);
       if (!courseAccessResult.allowed) {
+        renderExpiredAccess(courseAccessResult);
         if (window.StartupScreen && typeof window.StartupScreen.hide === "function") window.StartupScreen.hide();
-        renderCourseEntryAccessDenied(courseAccessResult);
         return;
       }
 
