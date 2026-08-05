@@ -54,5 +54,22 @@ window.APP_THEME_PRESETS = [
       accent2: "#0FA3B1",
       border: "rgba(212, 160, 23, 0.28)"
     }
+  },
+  {
+    id: "minimal-beige",
+    title: "Minimal Beige",
+    name: "Minimal Beige",
+    description: "Светлый минималистичный кабинет в тёплой бежевой палитре",
+    className: "theme-minimal-beige",
+    previewTokens: {
+      bg: "#FAF8F6",
+      card: "#FFFFFF",
+      card2: "#F1ECE8",
+      text: "#211A17",
+      muted: "#786A62",
+      accent: "#1A100C",
+      accent2: "#CDBAAE",
+      border: "#E4DEDA"
+    }
   }
 ];
