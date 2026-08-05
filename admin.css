@@ -2455,6 +2455,53 @@ body[data-page="admin"] {
   background: rgba(248, 241, 217, 0.58);
 }
 
+
+.admin-theme-preview.theme-minimal-beige {
+  background: linear-gradient(180deg, #FAF8F6 0%, #F1ECE8 100%);
+  border-color: #E4DEDA;
+  box-shadow: 0 16px 34px rgba(33, 26, 23, 0.10);
+}
+
+.admin-theme-preview.theme-minimal-beige .admin-theme-preview__screen {
+  background: #FFFFFF;
+  border-color: #E4DEDA;
+  box-shadow: 0 10px 22px rgba(33, 26, 23, 0.07);
+}
+
+.admin-theme-preview.theme-minimal-beige .admin-theme-preview__header {
+  background: #786A62;
+}
+
+.admin-theme-preview.theme-minimal-beige .admin-theme-preview__progress-track {
+  background: #EDE6E1;
+  border: 1px solid rgba(120, 106, 98, 0.12);
+}
+
+.admin-theme-preview.theme-minimal-beige .admin-theme-preview__progress {
+  background: linear-gradient(90deg, #1A100C 0%, #786A62 100%);
+  box-shadow: none;
+}
+
+.admin-theme-preview.theme-minimal-beige .admin-theme-preview__lesson {
+  background: #FFFFFF;
+  border: 1px solid #E4DEDA;
+  box-shadow: 0 8px 18px rgba(33, 26, 23, 0.06);
+}
+
+.admin-theme-preview.theme-minimal-beige .admin-theme-preview__lesson-title {
+  background: #211A17;
+}
+
+.admin-theme-preview.theme-minimal-beige .admin-theme-preview__lesson-subtitle {
+  background: #CDBAAE;
+}
+
+.admin-theme-preview.theme-minimal-beige .admin-theme-preview__cta {
+  background: #1A100C;
+  color: #FFFFFF;
+  box-shadow: 0 8px 18px rgba(26, 16, 12, 0.12);
+}
+
 .admin-groups-manager {
   margin-top: 16px;
   display: grid;

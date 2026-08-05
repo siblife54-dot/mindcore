@@ -1473,6 +1473,94 @@ body.theme-emerald-gold .status.locked {
   border: 1px solid rgba(212, 160, 23, 0.28);
 }
 
+
+body.theme-minimal-beige {
+  --bg: #FAF8F6;
+  --card: #FFFFFF;
+  --card-2: #F1ECE8;
+  --text: #211A17;
+  --muted: #786A62;
+  --accent: #1A100C;
+  --accent-rgb: 26, 16, 12;
+  --accent-secondary: #CDBAAE;
+  --accent-secondary-rgb: 205, 186, 174;
+  --border: #E4DEDA;
+  --shadow: 0 10px 28px rgba(33, 26, 23, 0.06);
+  --button-bg: #1A100C;
+  --button-text: #FFFFFF;
+  --button-border: rgba(26, 16, 12, 0.18);
+  --badge-bg: #F1ECE8;
+  --badge-text: #211A17;
+  --module-text: #786A62;
+  --card-border-strong: #D8CEC8;
+  background: linear-gradient(180deg, #FAF8F6 0%, #F6F1ED 100%);
+  background-attachment: fixed;
+  color: var(--text);
+}
+
+body.theme-minimal-beige .card,
+body.theme-minimal-beige .lesson-card,
+body.theme-minimal-beige .lesson-block,
+body.theme-minimal-beige .course-card,
+body.theme-minimal-beige .student-card,
+body.theme-minimal-beige .profile-card,
+body.theme-minimal-beige .progress-card,
+body.theme-minimal-beige .app-card,
+body.theme-minimal-beige .video-link-card,
+body.theme-minimal-beige .attachments,
+body.theme-minimal-beige .state,
+body.theme-minimal-beige .debug-panel,
+body.theme-minimal-beige .lesson-block-group {
+  background: var(--card);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow);
+}
+
+body.theme-minimal-beige button,
+body.theme-minimal-beige .btn,
+body.theme-minimal-beige .lesson-button,
+body.theme-minimal-beige .primary-button,
+body.theme-minimal-beige .btn-primary {
+  background: var(--button-bg);
+  color: var(--button-text);
+  border-color: var(--button-border);
+  box-shadow: 0 8px 18px rgba(26, 16, 12, 0.10);
+}
+
+body.theme-minimal-beige .progress-track,
+body.theme-minimal-beige .progress-bar {
+  background: #EDE6E1;
+  border: 1px solid rgba(120, 106, 98, 0.10);
+}
+
+body.theme-minimal-beige .progress-fill,
+body.theme-minimal-beige .progress-bar-fill {
+  background: linear-gradient(90deg, #1A100C 0%, #786A62 100%);
+  box-shadow: none;
+}
+
+body.theme-minimal-beige .badge,
+body.theme-minimal-beige .status-badge,
+body.theme-minimal-beige .lesson-status,
+body.theme-minimal-beige .status.done,
+body.theme-minimal-beige .status.locked {
+  background: var(--badge-bg);
+  color: var(--badge-text);
+  border: 1px solid var(--border);
+}
+
+body.theme-minimal-beige input,
+body.theme-minimal-beige textarea,
+body.theme-minimal-beige select {
+  background: #FFFFFF;
+  color: var(--text);
+  border-color: var(--border);
+}
+
+body.theme-minimal-beige a {
+  color: #1A100C;
+}
+
 /* Lesson material groups */
 .lesson-block-group {
   margin: 0 0 14px;

@@ -43,7 +43,8 @@
     business_black: "theme-business-black",
     wow_glass: "theme-wow-glass",
     matcha_aesthetic: "theme-matcha-aesthetic",
-    emerald_gold: "theme-emerald-gold"
+    emerald_gold: "theme-emerald-gold",
+    "minimal-beige": "theme-minimal-beige"
   };
   var WEBAPP_THEMES = Array.isArray(window.APP_THEME_PRESETS) && window.APP_THEME_PRESETS.length
     ? window.APP_THEME_PRESETS.slice()
