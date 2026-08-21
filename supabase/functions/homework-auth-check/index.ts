@@ -2,8 +2,8 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import {
   HomeworkAuthError,
   resolveStudentContext,
-} from "../_shared/homework-auth.ts";
-import { corsHeaders, jsonResponse } from "../_shared/http.ts";
+} from "./homework-auth.ts";
+import { corsHeaders, jsonResponse } from "./http.ts";
 
 Deno.serve(async (request: Request) => {
   if (request.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
