@@ -38,6 +38,12 @@ const webappWrite = auth.indexOf('.from("webapp_users").upsert');
 const productWrite = auth.indexOf('.from("product_users").upsert');
 assert(auth.includes('.select("access_mode, access_config, access_control_enabled, access_duration_days")'));
 assert(auth.includes("getChatMember"), "Telegram membership must be checked server-side");
+assert(auth.includes("const telegramUserId = Number(platformUserId)"));
+assert(auth.includes("Number.isSafeInteger(telegramUserId)"));
+assert(auth.includes("telegramUserId <= 0"));
+assert(auth.includes('JSON.stringify({ chat_id: channelId, user_id: telegramUserId })'),
+  "Telegram getChatMember must receive a numeric user_id");
+assert(!auth.includes("user_id: platformUserId"));
 assert(auth.includes('(member.status === "restricted" && member.is_member === true)'));
 assert(membershipCall > 0 && membershipCall < webappWrite && membershipCall < productWrite,
   "Course membership must pass before creating users");
