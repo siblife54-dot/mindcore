@@ -18,12 +18,19 @@ Deno.serve(async (request: Request) => {
     if (!body || typeof body !== "object") throw new HomeworkAuthError("invalid_request", 400);
     const input = body as Record<string, unknown>;
     if (typeof input.submission_id !== "string" || !UUID.test(input.submission_id) ||
-      typeof input.action !== "string" ||
-      typeof input.review_comment !== "string") {
+      typeof input.action !== "string") {
       throw new HomeworkAuthError("invalid_request", 400);
     }
     if (!ACTIONS.has(input.action)) {
       return jsonResponse({ ok: false, error: { code: "invalid_review_action" } }, 400);
+    }
+    if (input.review_comment !== undefined && input.review_comment !== null &&
+      typeof input.review_comment !== "string") {
+      throw new HomeworkAuthError("invalid_request", 400);
+    }
+    if (input.action === "request_revision" &&
+      (typeof input.review_comment !== "string" || !input.review_comment.trim())) {
+      return jsonResponse({ ok: false, error: { code: "review_comment_required" } }, 400);
     }
     submissionId = input.submission_id;
     const url = Deno.env.get("SUPABASE_URL");
@@ -35,7 +42,7 @@ Deno.serve(async (request: Request) => {
     const { data, error } = await supabase.rpc("review_homework_submission", {
       p_submission_id: input.submission_id,
       p_action: input.action,
-      p_review_comment: input.review_comment,
+      p_review_comment: input.review_comment ?? null,
       p_account_id: context.accountId,
     });
     if (error) {
