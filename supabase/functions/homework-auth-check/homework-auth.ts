@@ -7,6 +7,7 @@ export type HomeworkAuthErrorCode =
   | "invalid_platform_auth"
   | "course_not_found"
   | "course_access_denied"
+  | "invalid_admin_session"
   | "server_error";
 
 export class HomeworkAuthError extends Error {
@@ -24,7 +25,7 @@ export async function resolveAdminContext(
   sessionToken: string,
 ): Promise<AdminContext> {
   if (!sessionToken || sessionToken.length > 500) {
-    throw new HomeworkAuthError("invalid_request", 400);
+    throw new HomeworkAuthError("invalid_admin_session", 401);
   }
 
   const { data: tokenHash, error: hashError } = await supabase.rpc(
@@ -45,7 +46,7 @@ export async function resolveAdminContext(
     !session || session.revoked_at ||
     new Date(session.expires_at).getTime() <= Date.now()
   ) {
-    throw new HomeworkAuthError("course_access_denied", 403);
+    throw new HomeworkAuthError("invalid_admin_session", 401);
   }
 
   const { data: account, error: accountError } = await supabase
@@ -170,6 +171,40 @@ export type StudentContext = {
   platformUserId: string;
 };
 
+type TelegramChatMember = { status?: string; is_member?: boolean };
+
+async function requireTelegramChannelMembership(
+  botToken: string,
+  channelId: string,
+  platformUserId: string,
+) {
+  let response: Response;
+  try {
+    response = await fetch(`https://api.telegram.org/bot${botToken}/getChatMember`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ chat_id: channelId, user_id: platformUserId }),
+    });
+  } catch (_error) {
+    throw new HomeworkAuthError("server_error", 502);
+  }
+
+  let payload: { ok?: boolean; result?: TelegramChatMember };
+  try {
+    payload = await response.json();
+  } catch (_error) {
+    throw new HomeworkAuthError("server_error", 502);
+  }
+  if (!response.ok || payload.ok !== true || !payload.result) {
+    throw new HomeworkAuthError("server_error", 502);
+  }
+  const member = payload.result;
+  const allowed = member.status === "creator" || member.status === "administrator" ||
+    member.status === "member" ||
+    (member.status === "restricted" && member.is_member === true);
+  if (!allowed) throw new HomeworkAuthError("course_access_denied", 403);
+}
+
 export async function resolveStudentContext(
   supabase: SupabaseClient,
   input: { courseId: string; platform: string; platformAuthData: string },
@@ -195,6 +230,27 @@ export async function resolveStudentContext(
     throw new HomeworkAuthError("server_error", 500);
   }
   const identity = await verifyTelegramInitData(input.platformAuthData, botToken);
+
+  const { data: settings, error: settingsError } = await supabase
+    .from("course_settings")
+    .select("access_mode, access_config, access_control_enabled, access_duration_days")
+    .eq("course_id", input.courseId).maybeSingle();
+  if (settingsError) throw new HomeworkAuthError("server_error", 500);
+  if (!settings) throw new HomeworkAuthError("course_not_found", 404);
+  if (settings.access_mode === "telegram_channel") {
+    const channelId = settings.access_config?.channel_id;
+    if (typeof channelId !== "string" || !channelId.trim()) {
+      throw new HomeworkAuthError("server_error", 500);
+    }
+    await requireTelegramChannelMembership(
+      botToken,
+      channelId,
+      identity.platformUserId,
+    );
+  } else if (settings.access_mode !== "open") {
+    throw new HomeworkAuthError("course_access_denied", 403);
+  }
+
   const now = new Date();
   const displayName = [identity.firstName, identity.lastName].filter(Boolean).join(" ") ||
     identity.username || `Telegram ${identity.platformUserId}`;
@@ -217,13 +273,6 @@ export async function resolveStudentContext(
     .eq("platform", "telegram").eq("platform_user_id", identity.platformUserId)
     .maybeSingle();
   if (userError || !webappUser) throw new HomeworkAuthError("server_error", 500);
-
-  const { data: settings, error: settingsError } = await supabase
-    .from("course_settings")
-    .select("access_control_enabled, access_duration_days")
-    .eq("course_id", input.courseId).maybeSingle();
-  if (settingsError) throw new HomeworkAuthError("server_error", 500);
-  if (!settings) throw new HomeworkAuthError("course_not_found", 404);
 
   let { data: productUser, error: productError } = await supabase
     .from("product_users").select("id, status, access_expires_at")
