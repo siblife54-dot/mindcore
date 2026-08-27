@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "test": "node tests/renewal-screen.test.js && node tests/homework-business-operations.test.js && node tests/homework-edge-functions.test.js",
+    "test": "node tests/renewal-screen.test.js && node tests/homework-business-operations.test.js && node tests/homework-edge-functions.test.js && node tests/homework-read-edge-functions.test.js",
     "build": "mkdir -p dist && cp -r index.html lesson.html app.js config.js csv.js styles.css startup-screen.css startup-screen.js agreement-screen.css agreement-screen.js renewal-screen.css renewal-screen.js nutrition.css nutrition.js eva-calculator.css eva-calculator.js tg.js sample-sheet.csv assets dist/"
   }
 }
