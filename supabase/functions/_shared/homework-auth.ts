@@ -178,12 +178,17 @@ async function requireTelegramChannelMembership(
   channelId: string,
   platformUserId: string,
 ) {
+  const telegramUserId = Number(platformUserId);
+  if (!Number.isSafeInteger(telegramUserId) || telegramUserId <= 0) {
+    throw new HomeworkAuthError("invalid_platform_auth", 401);
+  }
+
   let response: Response;
   try {
     response = await fetch(`https://api.telegram.org/bot${botToken}/getChatMember`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ chat_id: channelId, user_id: platformUserId }),
+      body: JSON.stringify({ chat_id: channelId, user_id: telegramUserId }),
     });
   } catch (_error) {
     throw new HomeworkAuthError("server_error", 502);
