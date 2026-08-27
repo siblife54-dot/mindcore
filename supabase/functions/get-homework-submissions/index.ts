@@ -52,8 +52,13 @@ Deno.serve(async (request: Request) => {
       homeworks = result.data ?? [];
     }
     const homeworkIds = homeworks.map((row) => row.id);
+    if (!homeworkIds.length) {
+      return action === "detail"
+        ? jsonResponse({ ok: false, error: { code: "submission_not_found" } }, 404)
+        : jsonResponse({ ok: true, submissions: [] });
+    }
     let query = supabase.from("homework_submissions").select("id, homework_id, product_user_id, status, created_at, updated_at");
-    query = homeworkIds.length ? query.in("homework_id", homeworkIds) : query.in("homework_id", []);
+    query = query.in("homework_id", homeworkIds);
     if (action === "detail") query = query.eq("id", input.submission_id as string);
     else if (status !== "all") query = query.eq("status", status as string);
     query = action === "list" && status === "pending_review"

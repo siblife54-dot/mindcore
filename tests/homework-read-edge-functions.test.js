@@ -25,6 +25,13 @@ assert(admin.indexOf("resolveAdminContext") < admin.indexOf('.from("lessons")'))
 assert(admin.indexOf("requireCourseOwnership") < admin.indexOf('.from("lessons")'));
 assert(!admin.includes("input.account_id"));
 assert(admin.includes('.eq("course_id", courseId)'));
+const emptyBoundary = admin.indexOf('if (!homeworkIds.length)');
+const submissionQuery = admin.indexOf('.from("homework_submissions")');
+assert(emptyBoundary > 0 && emptyBoundary < submissionQuery, "Empty course boundary must return before querying submissions");
+assert(admin.includes('action === "detail"\n        ? jsonResponse({ ok: false, error: { code: "submission_not_found" } }, 404)'));
+assert(admin.includes(': jsonResponse({ ok: true, submissions: [] })'));
+assert(!admin.includes('.in("homework_id", [])'));
+assert(admin.includes('query = query.in("homework_id", homeworkIds)'));
 assert(admin.includes('query.eq("status", status as string)'));
 assert(admin.includes('query.eq("id", input.submission_id as string)'));
 assert(admin.includes('.order("attempt_number", { ascending: action === "detail" })'));
