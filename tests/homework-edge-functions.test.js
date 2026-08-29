@@ -41,6 +41,13 @@ for (const limit of ["10 * 1024 * 1024", "100 * 1024 * 1024", "25 * 1024 * 1024"
 assert(upload.includes("Key: storagePath"), "Signing must use the server-generated object key");
 assert(upload.includes("ContentType: mimeType"));
 assert(upload.includes("getSignedUrl(s3, command, { expiresIn: EXPIRES_IN })"));
+const realCourseId = "course_1781255103582";
+assert(realCourseId.trim() && !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(realCourseId));
+assert(upload.includes('typeof input.course_id !== "string" || !input.course_id.trim()'), "Non-empty course IDs must be accepted");
+assert(!upload.includes("UUID.test(input.course_id)"), "Course IDs are not UUIDs");
+assert(upload.includes("const requestedCourseId = input.course_id.trim();"));
+assert(upload.includes("courseId: requestedCourseId"));
+assert(upload.includes("UUID.test(input.homework_id)"), "Homework IDs must remain UUIDs");
 assert(!fs.existsSync(path.join(root, "homework-s3-check", "index.ts")), "Temporary S3 check must be removed");
 
 // Regression coverage for course-level access and synchronized deployment copies.
