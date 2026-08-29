@@ -8,6 +8,9 @@ const submit = read("submit-homework-attempt", "index.ts");
 const review = read("review-homework-submission", "index.ts");
 const submitHttp = read("submit-homework-attempt", "http.ts");
 const reviewHttp = read("review-homework-submission", "http.ts");
+const uploadPath = path.join(root, "create-homework-upload-url", "index.ts");
+assert(fs.existsSync(uploadPath), "Upload URL function must exist");
+const upload = fs.readFileSync(uploadPath, "utf8");
 
 assert(submit.indexOf("resolveStudentContext") < submit.indexOf('supabase.rpc("submit_homework_attempt"'));
 assert(submit.includes("p_product_user_id: context.productUserId"));
@@ -23,6 +26,22 @@ for (const code of ["student_text_required", "text_response_not_allowed", "homew
 for (const code of ["invalid_review_action", "review_comment_required", "course_forbidden", "submission_not_found", "submission_not_pending"]) assert(reviewHttp.includes(code));
 assert(!submit.match(/console\.error\([^\n]*(platform_auth_data|initData)/));
 assert(!review.match(/console\.error\([^\n]*(sessionToken|X-Admin-Session)/));
+
+// Presigned upload URLs are issued only from authenticated, course-scoped server state.
+assert(!upload.includes("../_shared/"), "Dashboard-deployed function must be self-contained");
+assert(!upload.includes("input.product_user_id"), "Client product_user_id must never be read");
+assert(upload.indexOf("resolveStudentContext(supabase") < upload.indexOf('.from("lesson_homeworks")'));
+assert(upload.indexOf("resolveStudentContext(supabase") < upload.indexOf("new S3Client"));
+assert(upload.includes("`pending/courses/${context.courseId}/students/${context.productUserId}/homeworks/"));
+assert(upload.includes("crypto.randomUUID()"));
+assert(upload.includes("const EXPIRES_IN = 300"));
+for (const mime of ["image/jpeg", "image/png", "image/webp", "video/mp4", "video/webm", "video/quicktime",
+  "application/pdf", "text/plain", "application/msword", "application/zip"]) assert(upload.includes(mime));
+for (const limit of ["10 * 1024 * 1024", "100 * 1024 * 1024", "25 * 1024 * 1024"]) assert(upload.includes(limit));
+assert(upload.includes("Key: storagePath"), "Signing must use the server-generated object key");
+assert(upload.includes("ContentType: mimeType"));
+assert(upload.includes("getSignedUrl(s3, command, { expiresIn: EXPIRES_IN })"));
+assert(!fs.existsSync(path.join(root, "homework-s3-check", "index.ts")), "Temporary S3 check must be removed");
 
 // Regression coverage for course-level access and synchronized deployment copies.
 const authCopies = [
