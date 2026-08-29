@@ -164,19 +164,20 @@ Deno.serve(async (request: Request) => {
     if (!body || typeof body !== "object") throw new RequestError("invalid_request", 400);
     const input = body as Record<string, unknown>;
     const fileName = typeof input.file_name === "string" ? input.file_name.trim() : "";
-    if (typeof input.course_id !== "string" || !UUID.test(input.course_id) || input.platform !== "telegram" ||
+    if (typeof input.course_id !== "string" || !input.course_id.trim() || input.platform !== "telegram" ||
       typeof input.platform_auth_data !== "string" || !input.platform_auth_data ||
       typeof input.homework_id !== "string" || !UUID.test(input.homework_id) ||
       !(input.attachment_type === "image" || input.attachment_type === "video" || input.attachment_type === "file") ||
       !fileName || fileName.length > 255 || typeof input.mime_type !== "string" || !input.mime_type.trim() ||
       !Number.isSafeInteger(input.size_bytes) || (input.size_bytes as number) <= 0) throw new RequestError("invalid_request", 400);
+    const requestedCourseId = input.course_id.trim();
 
     const url = Deno.env.get("SUPABASE_URL");
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
     if (!url || !serviceKey) throw new RequestError("server_error", 500);
     const supabase = createClient(url, serviceKey, { auth: { autoRefreshToken: false, persistSession: false } });
     const context = await resolveStudentContext(supabase, {
-      courseId: input.course_id, platform: input.platform, platformAuthData: input.platform_auth_data,
+      courseId: requestedCourseId, platform: input.platform, platformAuthData: input.platform_auth_data,
     });
 
     const { data: homework, error: homeworkError } = await supabase.from("lesson_homeworks")
