@@ -52,3 +52,19 @@ const sharedAuth = read("_shared", "homework-auth.ts");
 for (const fn of ["get-student-homeworks", "get-homework-submissions"])
   assert.strictEqual(read(fn, "homework-auth.ts"), sharedAuth, `${fn} auth helper must be synchronized`);
 console.log("Homework read Edge Function static checks passed");
+
+// Private attachment GET URLs preserve authentication order, trusted ownership and short expiry.
+const studentAttachment = read("get-student-homework-attachment-url", "index.ts");
+const adminAttachment = read("get-admin-homework-attachment-url", "index.ts");
+const studentAttachmentRead = studentAttachment.indexOf('.from("homework_attachments")');
+const adminAttachmentRead = adminAttachment.indexOf('.from("homework_attachments")');
+assert(studentAttachment.indexOf("const context = await resolveStudentContext") < studentAttachmentRead);
+assert(!studentAttachment.includes("input.storage_path"));
+assert(studentAttachment.includes("String(submission.product_user_id) !== context.productUserId"));
+assert(studentAttachment.includes("new GetObjectCommand({ Bucket: bucket, Key: attachment.storage_path })"));
+assert(studentAttachment.includes("{ expiresIn: EXPIRES_IN }") && studentAttachment.includes("const EXPIRES_IN = 300"));
+assert(adminAttachment.indexOf("const context = await resolveAdminContext") < adminAttachmentRead);
+assert(adminAttachment.includes("String(course.account_id) !== String(context.accountId)"));
+assert(!adminAttachment.includes("input.storage_path"));
+assert(adminAttachment.includes("new GetObjectCommand({ Bucket: bucket, Key: attachment.storage_path })"));
+assert(adminAttachment.includes("{ expiresIn: EXPIRES_IN }") && adminAttachment.includes("const EXPIRES_IN = 300"));
