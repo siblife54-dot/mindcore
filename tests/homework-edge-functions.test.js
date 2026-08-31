@@ -11,6 +11,9 @@ const reviewHttp = read("review-homework-submission", "http.ts");
 const uploadPath = path.join(root, "create-homework-upload-url", "index.ts");
 assert(fs.existsSync(uploadPath), "Upload URL function must exist");
 const upload = fs.readFileSync(uploadPath, "utf8");
+const finalizePath = path.join(root, "finalize-homework-attempt", "index.ts");
+assert(fs.existsSync(finalizePath), "Finalize function must exist");
+const finalize = fs.readFileSync(finalizePath, "utf8");
 
 assert(submit.indexOf("resolveStudentContext") < submit.indexOf('supabase.rpc("submit_homework_attempt"'));
 assert(submit.includes("p_product_user_id: context.productUserId"));
@@ -50,6 +53,27 @@ assert(upload.includes("courseId: requestedCourseId"));
 assert(upload.includes("UUID.test(input.homework_id)"), "Homework IDs must remain UUIDs");
 assert(!fs.existsSync(path.join(root, "homework-s3-check", "index.ts")), "Temporary S3 check must be removed");
 
+// Finalization trusts authenticated context and server-observed S3 metadata only.
+assert(!finalize.includes("../_shared/"));
+const finalizeAuth = finalize.indexOf("resolveStudentContext(supabase");
+const finalizeHead = finalize.indexOf("new HeadObjectCommand");
+const finalizeCopy = finalize.indexOf("new CopyObjectCommand");
+const finalObjectHead = finalize.indexOf("new HeadObjectCommand", finalizeCopy);
+const finalizeRpc = finalize.indexOf('supabase.rpc("submit_homework_attempt_with_attachments"');
+assert(finalizeAuth > 0 && finalizeAuth < finalizeHead, "Auth must precede HeadObject");
+assert(finalizeHead < finalizeRpc, "Every HeadObject verification must precede the atomic RPC");
+assert(finalizeCopy > finalizeHead && finalObjectHead > finalizeCopy && finalObjectHead < finalizeRpc,
+  "The final object must be copied and HEAD-verified before the RPC");
+assert(finalize.includes("`pending/courses/${context.courseId}/students/${context.productUserId}/homeworks/${input.homework_id}/`"));
+assert(finalize.includes("`courses/${context.courseId}/students/${context.productUserId}/homeworks/${input.homework_id}/attachments/${crypto.randomUUID()}`"));
+assert(finalize.includes("p_product_user_id: context.productUserId"));
+assert(!finalize.includes("input.product_user_id"));
+assert(finalize.includes("ContentLength") && finalize.includes("ContentType"));
+assert(finalize.includes("p_attachments: verified"), "RPC must receive server-generated final paths");
+const successfulPendingDelete = finalize.lastIndexOf("attachments.map((item) => item.storagePath)");
+assert(successfulPendingDelete > finalizeRpc && finalize.includes("new DeleteObjectCommand"),
+  "Pending objects may only be deleted after a successful RPC");
+
 // Regression coverage for course-level access and synchronized deployment copies.
 const authCopies = [
   read("_shared", "homework-auth.ts"),
@@ -84,3 +108,10 @@ assert(review.includes('input.action === "request_revision"'));
 assert(review.includes('code: "review_comment_required"'));
 assert(!auth.match(/console\.(?:log|error|warn)\([^\n]*(?:initData|botToken|sessionToken)/));
 console.log("Homework Edge Function static checks passed");
+const attachmentMigration = fs.readFileSync(path.join(__dirname, "..", "migrations", "20260831120000_submit_homework_attempt_with_attachments.sql"), "utf8");
+const attemptInsert = attachmentMigration.indexOf("insert into public.homework_attempts");
+const attachmentInsert = attachmentMigration.indexOf("insert into public.homework_attachments");
+assert(attemptInsert > 0 && attachmentInsert > attemptInsert, "Attachments must be inserted after the attempt in the same RPC transaction");
+assert(attachmentMigration.includes("v_student_text text := nullif"), "Empty text must become NULL for attachment-only submissions");
+assert(attachmentMigration.includes("security definer") && attachmentMigration.includes("set search_path = pg_catalog"));
+assert(attachmentMigration.includes("from public, anon, authenticated") && attachmentMigration.includes("to service_role"));
