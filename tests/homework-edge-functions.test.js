@@ -57,13 +57,22 @@ assert(!fs.existsSync(path.join(root, "homework-s3-check", "index.ts")), "Tempor
 assert(!finalize.includes("../_shared/"));
 const finalizeAuth = finalize.indexOf("resolveStudentContext(supabase");
 const finalizeHead = finalize.indexOf("new HeadObjectCommand");
+const finalizeCopy = finalize.indexOf("new CopyObjectCommand");
+const finalObjectHead = finalize.indexOf("new HeadObjectCommand", finalizeCopy);
 const finalizeRpc = finalize.indexOf('supabase.rpc("submit_homework_attempt_with_attachments"');
 assert(finalizeAuth > 0 && finalizeAuth < finalizeHead, "Auth must precede HeadObject");
 assert(finalizeHead < finalizeRpc, "Every HeadObject verification must precede the atomic RPC");
+assert(finalizeCopy > finalizeHead && finalObjectHead > finalizeCopy && finalObjectHead < finalizeRpc,
+  "The final object must be copied and HEAD-verified before the RPC");
 assert(finalize.includes("`pending/courses/${context.courseId}/students/${context.productUserId}/homeworks/${input.homework_id}/`"));
+assert(finalize.includes("`courses/${context.courseId}/students/${context.productUserId}/homeworks/${input.homework_id}/attachments/${crypto.randomUUID()}`"));
 assert(finalize.includes("p_product_user_id: context.productUserId"));
 assert(!finalize.includes("input.product_user_id"));
 assert(finalize.includes("ContentLength") && finalize.includes("ContentType"));
+assert(finalize.includes("p_attachments: verified"), "RPC must receive server-generated final paths");
+const successfulPendingDelete = finalize.lastIndexOf("attachments.map((item) => item.storagePath)");
+assert(successfulPendingDelete > finalizeRpc && finalize.includes("new DeleteObjectCommand"),
+  "Pending objects may only be deleted after a successful RPC");
 
 // Regression coverage for course-level access and synchronized deployment copies.
 const authCopies = [

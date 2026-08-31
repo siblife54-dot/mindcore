@@ -1,5 +1,5 @@
 import { createClient, type SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { HeadObjectCommand, S3Client } from "npm:@aws-sdk/client-s3@3.879.0";
+import { CopyObjectCommand, DeleteObjectCommand, HeadObjectCommand, S3Client } from "npm:@aws-sdk/client-s3@3.879.0";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -33,6 +33,14 @@ class RequestError extends Error {
 }
 function jsonResponse(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), { status, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+}
+
+function copySource(bucket: string, key: string) {
+  return `${encodeURIComponent(bucket)}/${key.split("/").map(encodeURIComponent).join("/")}`;
+}
+
+async function deleteObjectsBestEffort(s3: S3Client, bucket: string, keys: string[]) {
+  await Promise.allSettled(keys.map((key) => s3.send(new DeleteObjectCommand({ Bucket: bucket, Key: key }))));
 }
 
 const MAX_INIT_DATA_AGE_SECONDS = 86_400;
@@ -215,32 +223,73 @@ Deno.serve(async (request: Request) => {
     if (!accessKeyId || !secretAccessKey || !bucket || !endpoint || !region) throw new RequestError("storage_config_missing", 500);
     const s3 = new S3Client({ endpoint, region, credentials: { accessKeyId, secretAccessKey } });
     const verified = [];
+    const finalStoragePaths: string[] = [];
     for (const item of attachments) {
-      let head;
+      let pendingHead;
       try {
-        head = await s3.send(new HeadObjectCommand({ Bucket: bucket, Key: item.storagePath }));
+        pendingHead = await s3.send(new HeadObjectCommand({ Bucket: bucket, Key: item.storagePath }));
       } catch (error) {
         const status = (error as { $metadata?: { httpStatusCode?: number } }).$metadata?.httpStatusCode;
         const name = error instanceof Error ? error.name : "";
+        await deleteObjectsBestEffort(s3, bucket, finalStoragePaths);
         if (status === 404 || name === "NotFound" || name === "NoSuchKey") throw new RequestError("attachment_not_found", 400);
         console.error("Homework attachment storage verification failed");
         throw new RequestError("storage_verification_failed", 500);
       }
-      const size = head.ContentLength;
-      const mimeType = typeof head.ContentType === "string" ? head.ContentType.trim().toLowerCase() : "";
+      const pendingSize = pendingHead.ContentLength;
+      const pendingMimeType = typeof pendingHead.ContentType === "string" ? pendingHead.ContentType.trim().toLowerCase() : "";
       const rules = FILE_RULES[item.attachmentType];
-      if (!Number.isSafeInteger(size) || (size as number) <= 0) throw new RequestError("unsupported_file_type", 400);
-      if ((size as number) > rules.maxSize) throw new RequestError("file_too_large", 400);
-      if (!(rules.mimeTypes as readonly string[]).includes(mimeType)) throw new RequestError("unsupported_file_type", 400);
-      verified.push({ storage_path: item.storagePath, attachment_type: item.attachmentType,
-        original_name: item.originalName, mime_type: mimeType, size_bytes: size });
+      if (!Number.isSafeInteger(pendingSize) || (pendingSize as number) <= 0 ||
+        !(rules.mimeTypes as readonly string[]).includes(pendingMimeType)) {
+        await deleteObjectsBestEffort(s3, bucket, finalStoragePaths);
+        throw new RequestError("unsupported_file_type", 400);
+      }
+      if ((pendingSize as number) > rules.maxSize) {
+        await deleteObjectsBestEffort(s3, bucket, finalStoragePaths);
+        throw new RequestError("file_too_large", 400);
+      }
+
+      const finalStoragePath = `courses/${context.courseId}/students/${context.productUserId}/homeworks/${input.homework_id}/attachments/${crypto.randomUUID()}`;
+      let finalHead;
+      try {
+        await s3.send(new CopyObjectCommand({
+          Bucket: bucket, Key: finalStoragePath, CopySource: copySource(bucket, item.storagePath),
+        }));
+        finalStoragePaths.push(finalStoragePath);
+        finalHead = await s3.send(new HeadObjectCommand({ Bucket: bucket, Key: finalStoragePath }));
+      } catch (_error) {
+        await deleteObjectsBestEffort(s3, bucket, [...finalStoragePaths, finalStoragePath]);
+        console.error("Homework attachment finalization failed");
+        throw new RequestError("storage_verification_failed", 500);
+      }
+      const finalSize = finalHead.ContentLength;
+      const finalMimeType = typeof finalHead.ContentType === "string" ? finalHead.ContentType.trim().toLowerCase() : "";
+      if (!Number.isSafeInteger(finalSize) || (finalSize as number) <= 0 ||
+        !(rules.mimeTypes as readonly string[]).includes(finalMimeType)) {
+        await deleteObjectsBestEffort(s3, bucket, finalStoragePaths);
+        throw new RequestError("unsupported_file_type", 400);
+      }
+      if ((finalSize as number) > rules.maxSize) {
+        await deleteObjectsBestEffort(s3, bucket, finalStoragePaths);
+        throw new RequestError("file_too_large", 400);
+      }
+      verified.push({ storage_path: finalStoragePath, attachment_type: item.attachmentType,
+        original_name: item.originalName, mime_type: finalMimeType, size_bytes: finalSize });
     }
 
-    const { data, error } = await supabase.rpc("submit_homework_attempt_with_attachments", {
-      p_homework_id: input.homework_id, p_product_user_id: context.productUserId,
-      p_student_text: input.student_text.trim(), p_attachments: verified,
-    });
+    let rpcResponse;
+    try {
+      rpcResponse = await supabase.rpc("submit_homework_attempt_with_attachments", {
+        p_homework_id: input.homework_id, p_product_user_id: context.productUserId,
+        p_student_text: input.student_text.trim(), p_attachments: verified,
+      });
+    } catch (_error) {
+      await deleteObjectsBestEffort(s3, bucket, finalStoragePaths);
+      throw new RequestError("server_error", 500);
+    }
+    const { data, error } = rpcResponse;
     if (error) {
+      await deleteObjectsBestEffort(s3, bucket, finalStoragePaths);
       const code = ["submission_pending_review", "submission_already_accepted", "attachment_already_used"]
         .find((candidate) => error.message?.includes(candidate));
       if (code) throw new RequestError(code as ErrorCode, 409);
@@ -250,7 +299,11 @@ Deno.serve(async (request: Request) => {
       throw new RequestError("server_error", 500);
     }
     const result = Array.isArray(data) ? data[0] : data;
-    if (!result) throw new RequestError("server_error", 500);
+    if (!result) {
+      await deleteObjectsBestEffort(s3, bucket, finalStoragePaths);
+      throw new RequestError("server_error", 500);
+    }
+    await deleteObjectsBestEffort(s3, bucket, attachments.map((item) => item.storagePath));
     return jsonResponse({ ok: true, submission_id: result.submission_id, attempt_id: result.attempt_id,
       attempt_number: result.attempt_number, status: result.status, attachments_count: verified.length });
   } catch (error) {
