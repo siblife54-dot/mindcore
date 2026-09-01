@@ -52,7 +52,13 @@
     renewalSettingsLoading: false,
     renewalSettingsSaving: false,
     renewalSettingsError: null,
-    renewalSettingsCourseId: null
+    renewalSettingsCourseId: null,
+    homeworkSettings: null,
+    savedHomeworkSettings: null,
+    homeworkSettingsLessonId: null,
+    homeworkSettingsLoading: false,
+    homeworkSettingsSaving: false,
+    homeworkSettingsError: null
   };
   state.savedThemeId = "dark_premium";
   var tooltipState = {
@@ -400,6 +406,11 @@
     });
 
     updateLessonEditorPanelsVisibility();
+
+    if (nextTab === "lesson_settings" && state.selectedLesson &&
+        String(state.homeworkSettingsLessonId) !== String(state.selectedLesson.id)) {
+      void loadHomeworkSettings(state.selectedLesson.id);
+    }
 
     if (nextTab === "students") {
       setActiveStudentsTab(state.activeStudentsTab || getDefaultStudentsTab());
@@ -2831,12 +2842,106 @@
 
 
   function updateLessonEditorPanelsVisibility() {
-    var settingsPanel = document.querySelector(".lesson-settings-panel");
+    var settingsPanels = document.querySelectorAll(".lesson-settings-panel");
     var materialsPanel = document.querySelector(".lesson-materials-panel");
     var isLessonSettings = state.activeAdminTab === "lesson_settings";
 
-    if (settingsPanel) settingsPanel.hidden = !isLessonSettings;
+    settingsPanels.forEach(function (settingsPanel) { settingsPanel.hidden = !isLessonSettings; });
     if (materialsPanel) materialsPanel.hidden = isLessonSettings;
+  }
+
+  var HOMEWORK_RESPONSE_TYPES = [
+    { value: "text", label: "Текст" }, { value: "image", label: "Фото" },
+    { value: "file", label: "Файл" }, { value: "video", label: "Видео" }
+  ];
+  var HOMEWORK_UNLOCK_RULES = [
+    { value: "independent", label: "Не зависит от домашнего задания", hint: "Следующий модуль работает по обычным правилам доступа." },
+    { value: "after_submission", label: "После отправки домашнего задания", hint: "Следующий модуль откроется после отправки задания." },
+    { value: "after_approval", label: "После принятия экспертом", hint: "Следующий модуль откроется после того, как эксперт примет работу." }
+  ];
+
+  function normalizeHomeworkSettings(value) {
+    value = value || {};
+    return {
+      is_enabled: value.is_enabled === true,
+      title: typeof value.title === "string" ? value.title : "Домашнее задание",
+      description: typeof value.description === "string" ? value.description : "",
+      allowed_response_types: Array.isArray(value.allowed_response_types) && value.allowed_response_types.length ? value.allowed_response_types.slice() : ["text"],
+      unlock_rule: HOMEWORK_UNLOCK_RULES.some(function (rule) { return rule.value === value.unlock_rule; }) ? value.unlock_rule : "independent"
+    };
+  }
+
+  function cloneHomeworkSettings(value) { return normalizeHomeworkSettings(value); }
+  function isHomeworkDirty() {
+    if (!state.homeworkSettings || !state.savedHomeworkSettings) return false;
+    var current = state.homeworkSettings;
+    var saved = state.savedHomeworkSettings;
+    return current.is_enabled !== saved.is_enabled || current.title !== saved.title || current.description !== saved.description ||
+      current.unlock_rule !== saved.unlock_rule || current.allowed_response_types.slice().sort().join("|") !== saved.allowed_response_types.slice().sort().join("|");
+  }
+
+  function renderHomeworkSettings() {
+    var root = document.getElementById("homeworkSettingsContent");
+    if (!root) return;
+    if (state.homeworkSettingsLoading) { root.innerHTML = '<p class="admin-hint">Загрузка настроек…</p>'; return; }
+    if (state.homeworkSettingsError && !state.homeworkSettings) {
+      root.innerHTML = '<div class="admin-homework-error"><p>Не удалось загрузить настройки домашнего задания.</p><button id="retryHomeworkBtn" class="btn btn-secondary" type="button">Повторить</button></div>';
+      return;
+    }
+    if (!state.homeworkSettings) { root.innerHTML = ""; return; }
+    var settings = state.homeworkSettings;
+    root.innerHTML = [
+      '<label class="admin-access-switch-row admin-homework-toggle"><span class="admin-ios-switch"><input id="homeworkEnabledInput" type="checkbox"' + (settings.is_enabled ? " checked" : "") + '><span class="admin-ios-switch__track"><span></span></span></span><span><strong>Домашнее задание</strong><small>' + (settings.is_enabled ? "Домашнее задание будет доступно в этом модуле." : "Домашнее задание не показывается ученикам.") + '</small></span></label>',
+      '<div class="admin-homework-fields"' + (settings.is_enabled ? "" : " hidden") + '>',
+      '<label>Название<input id="homeworkTitleInput" type="text" maxlength="200" value="' + escapeAttr(settings.title) + '"></label>',
+      '<label>Описание задания<textarea id="homeworkDescriptionInput" maxlength="10000" placeholder="Опишите, что нужно сделать и что отправить на проверку">' + escapeHtml(settings.description) + '</textarea></label>',
+      '<fieldset><legend>Что ученик может отправить</legend><div class="admin-homework-options">' + HOMEWORK_RESPONSE_TYPES.map(function (type) { return '<label class="admin-homework-option"><input type="checkbox" data-homework-response-type="' + type.value + '"' + (settings.allowed_response_types.indexOf(type.value) !== -1 ? " checked" : "") + '><span>' + type.label + '</span></label>'; }).join("") + '</div><p id="homeworkTypesError" class="admin-field-error" hidden>Выберите хотя бы один вариант.</p></fieldset>',
+      '<fieldset><legend>Открытие следующего модуля</legend><div class="admin-homework-unlock-options">' + HOMEWORK_UNLOCK_RULES.map(function (rule) { return '<label class="admin-homework-unlock"><input type="radio" name="homeworkUnlockRule" value="' + rule.value + '"' + (settings.unlock_rule === rule.value ? " checked" : "") + '><span><strong>' + rule.label + '</strong><small>' + rule.hint + '</small></span></label>'; }).join("") + '</div></fieldset>',
+      '</div>',
+      '<div class="admin-homework-actions"><button id="saveHomeworkBtn" class="btn btn-primary" type="button"' + (!isHomeworkDirty() || state.homeworkSettingsSaving ? " disabled" : "") + '>' + (state.homeworkSettingsSaving ? "Сохранение…" : "Сохранить домашнее задание") + '</button></div>'
+    ].join("");
+  }
+
+  async function loadHomeworkSettings(lessonId) {
+    if (!lessonId) return;
+    state.homeworkSettingsLessonId = lessonId; state.homeworkSettings = null; state.savedHomeworkSettings = null;
+    state.homeworkSettingsError = null; state.homeworkSettingsLoading = true; renderHomeworkSettings();
+    try {
+      var config = getConfig();
+      var response = await window.fetch(config.supabaseUrl + "/functions/v1/manage-lesson-homework", { method: "POST", headers: Object.assign({ "Content-Type": "application/json", apikey: config.supabaseAnonKey, Authorization: "Bearer " + config.supabaseAnonKey }, getAdminSessionHeaders()), body: JSON.stringify({ action: "get", lesson_id: lessonId }) });
+      if (response.status === 401) { clearAdminSession(); window.location.href = "admin.html"; return; }
+      if (!response.ok) throw new Error("Homework load failed");
+      var data = await response.json();
+      if (!state.selectedLesson || String(state.selectedLesson.id) !== String(lessonId)) return;
+      state.homeworkSettings = normalizeHomeworkSettings(data.homework || data);
+      state.savedHomeworkSettings = cloneHomeworkSettings(state.homeworkSettings);
+    } catch (error) {
+      if (state.selectedLesson && String(state.selectedLesson.id) === String(lessonId)) state.homeworkSettingsError = error;
+    } finally {
+      if (state.selectedLesson && String(state.selectedLesson.id) === String(lessonId)) { state.homeworkSettingsLoading = false; renderHomeworkSettings(); }
+    }
+  }
+
+  async function saveHomeworkSettings() {
+    if (!state.selectedLesson || !state.homeworkSettings || state.homeworkSettingsSaving) return;
+    var lessonId = state.selectedLesson.id;
+    if (!state.homeworkSettings.allowed_response_types.length) { var error = document.getElementById("homeworkTypesError"); if (error) error.hidden = false; return; }
+    state.homeworkSettingsSaving = true; renderHomeworkSettings();
+    try {
+      var config = getConfig();
+      var response = await window.fetch(config.supabaseUrl + "/functions/v1/manage-lesson-homework", { method: "POST", headers: Object.assign({ "Content-Type": "application/json", apikey: config.supabaseAnonKey, Authorization: "Bearer " + config.supabaseAnonKey }, getAdminSessionHeaders()), body: JSON.stringify({ action: "save", lesson_id: state.selectedLesson.id, homework: state.homeworkSettings }) });
+      if (response.status === 401) { clearAdminSession(); window.location.href = "admin.html"; return; }
+      if (!response.ok) throw new Error("Homework save failed");
+      var data = await response.json();
+      if (!state.selectedLesson || String(state.selectedLesson.id) !== String(lessonId)) return;
+      state.homeworkSettings = normalizeHomeworkSettings(data.homework);
+      state.savedHomeworkSettings = cloneHomeworkSettings(state.homeworkSettings);
+      showAdminNotice("Настройки домашнего задания сохранены");
+    } catch (error) {
+      if (state.selectedLesson && String(state.selectedLesson.id) === String(lessonId)) showAdminNotice("Не удалось сохранить настройки. Попробуйте ещё раз.", "error");
+    } finally {
+      if (state.selectedLesson && String(state.selectedLesson.id) === String(lessonId)) { state.homeworkSettingsSaving = false; renderHomeworkSettings(); }
+    }
   }
 
   function renderEditor() {
@@ -3499,6 +3604,12 @@
     if (!lesson) return;
 
     state.selectedLesson = lesson;
+    state.homeworkSettings = null;
+    state.savedHomeworkSettings = null;
+    state.homeworkSettingsLessonId = lesson.id;
+    state.homeworkSettingsLoading = false;
+    state.homeworkSettingsSaving = false;
+    state.homeworkSettingsError = null;
     state.quills = {};
     state.editorDraftsByBlockId = {};
     state.activeSectionId = null;
@@ -3512,6 +3623,7 @@
 
     renderLessonsList();
     renderEditor();
+    if (state.activeAdminTab === "lesson_settings") void loadHomeworkSettings(lesson.id);
     if (options.navigatePreview !== false) {
       navigatePreviewToLesson(lesson.lesson_id || lesson.id);
     }
@@ -4919,6 +5031,27 @@
   }
 
   function bindEvents() {
+    var homeworkCard = document.getElementById("homeworkSettingsCard");
+    if (homeworkCard) {
+      homeworkCard.addEventListener("click", function (event) {
+        if (event.target.closest("#retryHomeworkBtn") && state.selectedLesson) { void loadHomeworkSettings(state.selectedLesson.id); return; }
+        if (event.target.closest("#saveHomeworkBtn")) void saveHomeworkSettings();
+      });
+      homeworkCard.addEventListener("input", function (event) {
+        if (!state.homeworkSettings) return;
+        if (event.target.id === "homeworkEnabledInput") state.homeworkSettings.is_enabled = event.target.checked;
+        else if (event.target.id === "homeworkTitleInput") state.homeworkSettings.title = event.target.value;
+        else if (event.target.id === "homeworkDescriptionInput") state.homeworkSettings.description = event.target.value;
+        else if (event.target.matches("[data-homework-response-type]")) {
+          state.homeworkSettings.allowed_response_types = HOMEWORK_RESPONSE_TYPES.map(function (type) { return type.value; }).filter(function (type) {
+            var input = homeworkCard.querySelector('[data-homework-response-type="' + type + '"]'); return input && input.checked;
+          });
+          var typesError = document.getElementById("homeworkTypesError"); if (typesError) typesError.hidden = state.homeworkSettings.allowed_response_types.length > 0;
+        } else if (event.target.name === "homeworkUnlockRule") state.homeworkSettings.unlock_rule = event.target.value;
+        if (event.target.id === "homeworkEnabledInput") renderHomeworkSettings();
+        else { var saveButton = document.getElementById("saveHomeworkBtn"); if (saveButton) saveButton.disabled = !isHomeworkDirty() || state.homeworkSettingsSaving; }
+      });
+    }
     var mobilePreviewToggleBtn = document.getElementById("mobilePreviewToggleBtn");
     if (mobilePreviewToggleBtn) {
       mobilePreviewToggleBtn.addEventListener("click", function () {
