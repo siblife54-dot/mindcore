@@ -204,18 +204,21 @@
 
       <section class="admin-tab-panel" data-admin-panel="students" hidden>
         <div class="admin-students-section">
-          <nav class="admin-inner-tabs admin-students-inner-tabs" aria-label="Подразделы учеников">
-            <button class="admin-inner-tab is-active" type="button" data-students-tab="list">Список учеников</button>
-            <button class="admin-inner-tab" type="button" data-students-tab="access_settings">Настройки доступа</button>
-          </nav>
+          <header class="admin-local-header">
+            <div>
+              <p class="admin-card__eyebrow">Управление курсом</p>
+              <h2>Ученики</h2>
+              <p class="admin-local-header__description">Участники этого курса и параметры их доступа</p>
+            </div>
+            <nav class="admin-inner-tabs admin-students-inner-tabs" aria-label="Подразделы учеников">
+              <button class="admin-inner-tab is-active" type="button" data-students-tab="list">Список учеников</button>
+              <button class="admin-inner-tab" type="button" data-students-tab="access_settings">Настройки доступа</button>
+            </nav>
+          </header>
 
           <div class="admin-students-inner-panel" data-students-panel="list">
             <section class="admin-card admin-students-card">
-              <div class="admin-students-hero">
-                <div>
-                  <h2>Ученики</h2>
-                  <p>Участники этого курса и их доступ</p>
-                </div>
+              <div class="admin-students-hero admin-students-hero--status">
                 <span id="studentsCountBadge" class="admin-students-count-badge">Обновляется автоматически</span>
               </div>
 
@@ -320,16 +323,23 @@
 
       <section class="admin-tab-panel" data-admin-panel="sales" hidden>
         <div class="admin-sales-section">
-          <nav class="admin-inner-tabs admin-sales-inner-tabs" aria-label="Подразделы продаж">
-            <button class="admin-inner-tab is-active" type="button" data-sales-tab="requests">Заявки</button>
-            <button class="admin-inner-tab" type="button" data-sales-tab="renewal_settings">Настройки продления</button>
-          </nav>
+          <header class="admin-local-header">
+            <div>
+              <p class="admin-card__eyebrow">Управление курсом</p>
+              <h2>Продажи</h2>
+              <p class="admin-local-header__description">Заявки и параметры продления доступа</p>
+            </div>
+            <nav class="admin-inner-tabs admin-sales-inner-tabs" aria-label="Подразделы продаж">
+              <button class="admin-inner-tab is-active" type="button" data-sales-tab="requests">Заявки</button>
+              <button class="admin-inner-tab" type="button" data-sales-tab="renewal_settings">Настройки продления</button>
+            </nav>
+          </header>
 
           <section class="admin-card admin-sales-card admin-sales-inner-panel" data-sales-panel="requests">
           <div class="admin-sales-hero">
             <div>
-              <h2>Продажи</h2>
-              <p>Заявки на продление доступа</p>
+              <h2>Заявки на продление</h2>
+              <p>Проверяйте оплаты и обновляйте доступ учеников</p>
             </div>
             <button id="renewalRefreshBtn" class="admin-btn-ghost" type="button">Обновить</button>
           </div>
