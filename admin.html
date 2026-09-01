@@ -61,14 +61,20 @@
         <a id="backToCoursesLink" class="admin-back-link" href="admin.html">← Все курсы</a>
         <button class="admin-btn-ghost js-logout-btn" type="button">Выйти</button>
       </div>
-      <nav class="admin-top-tabs" aria-label="Разделы админки">
-        <button class="admin-top-tab is-active" type="button" data-admin-tab="appearance">Внешний вид</button>
-        <button class="admin-top-tab" type="button" data-admin-tab="lesson_settings">Настройки модуля</button>
-        <button class="admin-top-tab" type="button" data-admin-tab="content">Наполнение</button>
-        <button class="admin-top-tab" type="button" data-admin-tab="students">Ученики</button>
-        <button class="admin-top-tab" type="button" data-admin-tab="sales">Продажи <span id="renewalPendingBadge" class="admin-sales-tab-badge" hidden aria-label="Новые заявки"></span></button>
-        <button class="admin-top-tab" type="button" data-admin-tab="connections">Подключение</button>
-      </nav>
+      <div class="admin-navigation">
+        <nav class="admin-section-tabs" aria-label="Основные разделы админки">
+          <button class="admin-section-tab is-active" type="button" data-admin-section="content" aria-selected="true">Наполнение</button>
+          <button class="admin-section-tab" type="button" data-admin-section="management" aria-selected="false">Управление</button>
+        </nav>
+        <nav class="admin-top-tabs" aria-label="Подразделы админки">
+          <button class="admin-top-tab is-active" type="button" data-admin-tab="appearance" data-admin-group="content">Внешний вид</button>
+          <button class="admin-top-tab" type="button" data-admin-tab="lesson_settings" data-admin-group="content">Настройки модуля</button>
+          <button class="admin-top-tab" type="button" data-admin-tab="content" data-admin-group="content">Наполнение</button>
+          <button class="admin-top-tab" type="button" data-admin-tab="connections" data-admin-group="content">Подключение</button>
+          <button class="admin-top-tab" type="button" data-admin-tab="students" data-admin-group="management" hidden>Ученики</button>
+          <button class="admin-top-tab" type="button" data-admin-tab="sales" data-admin-group="management" hidden>Продажи <span id="renewalPendingBadge" class="admin-sales-tab-badge" hidden aria-label="Новые заявки"></span></button>
+        </nav>
+      </div>
 
       <section class="admin-tab-panel" data-admin-panel="appearance">
         <section class="admin-card admin-theme-card">
