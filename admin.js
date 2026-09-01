@@ -24,6 +24,7 @@
       originalOrder: null,
       dropHappened: false
     },
+    activeAdminSection: "content",
     activeAdminTab: "content",
     activeStudentsTab: "list",
     students: [],
@@ -287,7 +288,16 @@
     document.body.classList.remove("is-mobile-preview-open");
   }
 
-function getDefaultAdminTab() {
+  var ADMIN_SECTIONS = {
+    content: ["appearance", "lesson_settings", "content", "connections"],
+    management: ["students", "sales"]
+  };
+
+  function getAdminSectionForTab(tabId) {
+    return ADMIN_SECTIONS.management.indexOf(tabId) !== -1 ? "management" : "content";
+  }
+
+  function getDefaultAdminTab() {
     try {
       var stored = window.localStorage.getItem("admin_active_tab");
       if (stored === "appearance" || stored === "lesson_settings" || stored === "content" || stored === "students" || stored === "sales" || stored === "connections") {
@@ -332,7 +342,15 @@ function getDefaultAdminTab() {
 
   function setActiveAdminTab(tabId) {
     var nextTab = (tabId === "lesson_settings" || tabId === "content" || tabId === "students" || tabId === "sales" || tabId === "connections") ? tabId : "appearance";
+    var nextSection = getAdminSectionForTab(nextTab);
+    state.activeAdminSection = nextSection;
     state.activeAdminTab = nextTab;
+
+    document.querySelectorAll("[data-admin-section]").forEach(function (btn) {
+      var isActive = btn.getAttribute("data-admin-section") === nextSection;
+      btn.classList.toggle("is-active", isActive);
+      btn.setAttribute("aria-selected", isActive ? "true" : "false");
+    });
 
     var isStudentsTab = nextTab === "students";
     var isWideTab = isStudentsTab || nextTab === "sales";
@@ -367,7 +385,9 @@ function getDefaultAdminTab() {
 
     document.querySelectorAll(".admin-top-tab").forEach(function (btn) {
       var isActive = btn.getAttribute("data-admin-tab") === nextTab;
+      btn.hidden = btn.getAttribute("data-admin-group") !== nextSection;
       btn.classList.toggle("is-active", isActive);
+      btn.setAttribute("aria-selected", isActive ? "true" : "false");
     });
 
     document.querySelectorAll(".admin-tab-panel").forEach(function (panel) {
@@ -391,6 +411,15 @@ function getDefaultAdminTab() {
     try {
       window.localStorage.setItem("admin_active_tab", nextTab);
     } catch (error) {}
+  }
+
+  function setActiveAdminSection(sectionId) {
+    var nextSection = sectionId === "management" ? "management" : "content";
+    var currentGroup = ADMIN_SECTIONS[nextSection];
+    var nextTab = currentGroup.indexOf(state.activeAdminTab) !== -1
+      ? state.activeAdminTab
+      : (nextSection === "management" ? "students" : "appearance");
+    setActiveAdminTab(nextTab);
   }
 
   function setActiveSalesTab(tabId) {
@@ -4900,6 +4929,12 @@ function getDefaultAdminTab() {
     document.querySelectorAll("[data-mobile-preview-close=\"true\"]").forEach(function (btn) {
       btn.addEventListener("click", function () {
         closeMobilePreviewModal();
+      });
+    });
+
+    document.querySelectorAll("[data-admin-section]").forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        setActiveAdminSection(btn.getAttribute("data-admin-section"));
       });
     });
 

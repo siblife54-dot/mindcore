@@ -3514,10 +3514,15 @@ body[data-page="admin"] h5 { color: var(--admin-text); letter-spacing: -0.03em; 
 .admin-back-link:hover { color: var(--admin-accent); }
 .admin-screen-topbar { margin-bottom: 20px; }
 
-.admin-top-tabs { position: sticky; top: 14px; z-index: 20; display: flex; gap: 4px; width: fit-content; max-width: 100%; margin: 0 0 22px; padding: 6px; border: 1px solid var(--admin-border); border-radius: 999px; background: rgba(255,255,255,.86); box-shadow: var(--admin-shadow-sm); backdrop-filter: blur(18px); }
-.admin-top-tab { border: 0; border-radius: 999px; padding: 10px 15px; background: transparent; color: var(--admin-text-secondary); font-weight: 600; }
+.admin-navigation { position: sticky; top: 14px; z-index: 20; width: fit-content; max-width: 100%; margin: 0 0 22px; padding: 7px; border: 1px solid var(--admin-border); border-radius: 18px; background: rgba(255,255,255,.9); box-shadow: var(--admin-shadow-sm); backdrop-filter: blur(18px); }
+.admin-section-tabs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); width: min(100%, 310px); padding: 4px; border-radius: 12px; background: var(--admin-surface-secondary); }
+.admin-section-tab { min-height: 38px; padding: 8px 18px; border: 0; border-radius: 9px; background: transparent; color: var(--admin-text-secondary); font: inherit; font-weight: 700; cursor: pointer; }
+.admin-section-tab:hover { color: var(--admin-text); }
+.admin-section-tab.is-active { background: var(--admin-surface); color: var(--admin-accent); box-shadow: var(--admin-shadow-sm); }
+.admin-top-tabs { display: flex; gap: 3px; width: fit-content; max-width: 100%; margin: 6px 0 0; padding: 3px 2px 0; border: 0; border-top: 1px solid var(--admin-border); border-radius: 0; background: transparent; box-shadow: none; backdrop-filter: none; }
+.admin-top-tab { border: 0; border-radius: 8px; padding: 8px 12px; background: transparent; color: var(--admin-text-secondary); font-weight: 600; }
 .admin-top-tab:hover { color: var(--admin-text); background: var(--admin-surface-secondary); }
-.admin-top-tab.is-active { background: var(--admin-accent-soft); color: var(--admin-accent); box-shadow: none; }
+.admin-top-tab.is-active { background: var(--admin-accent-soft); color: var(--admin-accent); box-shadow: inset 0 -2px 0 var(--admin-accent); }
 .admin-inner-tabs { padding: 5px; border: 1px solid var(--admin-border); border-radius: 999px; background: var(--admin-surface-secondary); }
 .admin-inner-tab { border: 0; border-radius: 999px; background: transparent; color: var(--admin-text-secondary); font-weight: 600; text-transform: none; }
 .admin-inner-tab.is-active { background: var(--admin-surface); color: var(--admin-accent); box-shadow: 0 6px 16px rgba(38,42,78,.08); }
@@ -3653,11 +3658,12 @@ body[data-page="admin"] h5 { color: var(--admin-text); letter-spacing: -0.03em; 
   .admin-sidebar { position: static; height: auto; border-right: 0; border-bottom: 1px solid var(--admin-border); padding: 14px; }
   .admin-lessons-list { max-height: 280px; overflow: auto; }
   .admin-main { padding: 16px 12px 28px; }
-  .admin-top-tabs { top: 8px; width: 100%; border-radius: 18px; }
+  .admin-navigation { top: 8px; width: 100%; }
+  .admin-section-tabs { width: 100%; }
 }
 @media (max-width: 768px) {
   .admin-card, .admin-blocks { padding: 18px; border-radius: 20px; }
-  .admin-top-tabs { overflow-x: auto; justify-content: flex-start; }
+  .admin-top-tabs { width: 100%; overflow-x: auto; justify-content: flex-start; scrollbar-width: thin; }
   .admin-material-actions { flex-wrap: nowrap; overflow-x: auto; padding-block: 2px 8px; }
   .admin-mobile-preview-fab { display: inline-flex; }
   .admin-mobile-preview-modal__frame-wrap { background: #17213a; border-radius: 20px; overflow: hidden; }
