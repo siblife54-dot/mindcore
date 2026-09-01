@@ -408,7 +408,8 @@
     updateLessonEditorPanelsVisibility();
 
     if (nextTab === "lesson_settings" && state.selectedLesson &&
-        String(state.homeworkSettingsLessonId) !== String(state.selectedLesson.id)) {
+        (String(state.homeworkSettingsLessonId) !== String(state.selectedLesson.id) ||
+          (!state.homeworkSettings && !state.homeworkSettingsLoading))) {
       void loadHomeworkSettings(state.selectedLesson.id);
     }
 
@@ -3606,7 +3607,7 @@
     state.selectedLesson = lesson;
     state.homeworkSettings = null;
     state.savedHomeworkSettings = null;
-    state.homeworkSettingsLessonId = lesson.id;
+    state.homeworkSettingsLessonId = null;
     state.homeworkSettingsLoading = false;
     state.homeworkSettingsSaving = false;
     state.homeworkSettingsError = null;

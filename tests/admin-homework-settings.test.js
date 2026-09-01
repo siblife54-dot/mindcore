@@ -18,4 +18,11 @@ assert(js.includes('management: ["students", "sales"]'));
 assert(html.includes('data-admin-tab="lesson_settings"'));
 assert(html.includes('id="homeworkSettingsCard"'));
 
+const selectLessonReset = js.slice(js.indexOf("async function selectLessonById"), js.indexOf("async function duplicateLesson"));
+assert(selectLessonReset.includes("state.homeworkSettingsLessonId = null"));
+const lessonSettingsLifecycle = js.slice(js.indexOf("function setActiveAdminTab"), js.indexOf("function setActiveAdminSection"));
+assert(lessonSettingsLifecycle.includes('nextTab === "lesson_settings" && state.selectedLesson'));
+assert(lessonSettingsLifecycle.includes("!state.homeworkSettings && !state.homeworkSettingsLoading"));
+assert(lessonSettingsLifecycle.includes("loadHomeworkSettings(state.selectedLesson.id)"));
+
 console.log("admin homework settings regression assertions passed");
