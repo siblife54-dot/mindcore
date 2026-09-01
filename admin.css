@@ -1713,10 +1713,9 @@ body[data-page="admin"] {
 }
 
 .admin-top-tabs {
-  position: sticky;
-  top: 0;
-  z-index: 20;
+  position: static;
   display: flex;
+  flex-wrap: wrap;
   gap: 10px;
   margin-bottom: 16px;
   padding: 10px;
@@ -1724,7 +1723,7 @@ body[data-page="admin"] {
   border-radius: 14px;
   background: rgba(8, 18, 34, 0.85);
   backdrop-filter: blur(10px);
-  overflow-x: auto;
+  overflow: visible;
 }
 
 .admin-top-tab {
@@ -1912,10 +1911,8 @@ body[data-page="admin"] {
 
   .admin-top-tabs {
     gap: 8px;
-    overflow-x: auto;
-    white-space: nowrap;
-    -ms-overflow-style: none;
-    scrollbar-width: none;
+    overflow: visible;
+    white-space: normal;
   }
 
   .admin-top-tabs::-webkit-scrollbar,
@@ -3514,7 +3511,7 @@ body[data-page="admin"] h5 { color: var(--admin-text); letter-spacing: -0.03em; 
 .admin-back-link:hover { color: var(--admin-accent); }
 .admin-screen-topbar { margin-bottom: 20px; }
 
-.admin-navigation { position: sticky; top: 0; z-index: 20; width: 100%; max-width: 100%; margin: 0 0 26px; padding: 8px 0 0; border: 0; border-radius: 0; background: transparent; box-shadow: none; backdrop-filter: none; }
+.admin-navigation { position: static; width: 100%; max-width: 100%; margin: 0 0 26px; padding: 8px 0 0; border: 0; border-radius: 0; background: transparent; box-shadow: none; backdrop-filter: none; overflow: visible; }
 .admin-section-tabs { display: inline-grid; grid-template-columns: repeat(2, auto); width: auto; max-width: 100%; padding: 3px; border: 0; border-radius: 11px; background: #eceef6; }
 .admin-section-tab { min-height: 36px; padding: 7px 17px; border: 0; border-radius: 8px; background: transparent; color: var(--admin-text-secondary); font: inherit; font-weight: 650; cursor: pointer; transition: color .18s ease, background .18s ease, box-shadow .18s ease; }
 .admin-section-tab:hover { color: var(--admin-text); }
@@ -3666,7 +3663,7 @@ body[data-page="admin"] h5 { color: var(--admin-text); letter-spacing: -0.03em; 
   .admin-sidebar { position: static; height: auto; border-right: 0; border-bottom: 1px solid var(--admin-border); padding: 14px; }
   .admin-lessons-list { max-height: 280px; overflow: auto; }
   .admin-main { padding: 16px 12px 28px; }
-  .admin-navigation { top: 0; width: 100%; }
+  .admin-navigation { width: 100%; }
 }
 @media (max-width: 768px) {
   .admin-card, .admin-blocks { padding: 18px; border-radius: 20px; }
