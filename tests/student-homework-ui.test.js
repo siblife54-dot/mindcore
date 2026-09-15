@@ -8,9 +8,12 @@ const fetchStart = js.indexOf("async function fetchStudentHomeworks()");
 const renderStart = js.indexOf("async function renderLessonHomework(lesson)");
 const renderEnd = js.indexOf("async function checkCourseEntryAccess()", renderStart);
 const renderLessonStart = js.indexOf("async function renderLesson(lessons)");
+const renderLessonEnd = js.indexOf("function pluralizeRu", renderLessonStart);
 const completionStart = js.indexOf('var completeBtn = document.getElementById("completeBtn")', renderLessonStart);
+const completionHandlerStart = js.indexOf('completeBtn.addEventListener("click"', completionStart);
 const fetchSource = js.slice(fetchStart, renderStart);
 const homeworkRenderSource = js.slice(renderStart, renderEnd);
+const lessonRenderSource = js.slice(renderLessonStart, renderLessonEnd);
 
 assert(fetchStart >= 0 && renderStart > fetchStart);
 assert(fetchSource.includes('"/functions/v1/get-student-homeworks"'));
@@ -30,7 +33,9 @@ for (const [type, label] of Object.entries({ text: "Текст", image: "Фот�
 assert(homeworkRenderSource.includes("try {"));
 assert(homeworkRenderSource.includes("catch (error)"));
 assert(homeworkRenderSource.includes("console.warn"));
-assert(js.indexOf("await renderLessonHomework(lesson)", renderLessonStart) < completionStart);
+const homeworkCall = js.indexOf("void renderLessonHomework(lesson)", renderLessonStart);
+assert(homeworkCall > completionHandlerStart && homeworkCall < renderLessonEnd);
+assert(!lessonRenderSource.includes("await renderLessonHomework(lesson)"));
 
 const homeworkHost = html.indexOf('id="lessonHomeworkHost"');
 assert(homeworkHost > html.indexOf('id="attachmentsWrap"'));

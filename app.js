@@ -2886,8 +2886,6 @@
     }
     // ======================================
 
-    await renderLessonHomework(lesson);
-
     var completeBtn = document.getElementById("completeBtn");
     if (completed.includes(lesson.lesson_id)) {
       completeBtn.textContent = "Пройдено ✓";
@@ -2903,6 +2901,8 @@
         navigateInternally(getIndexUrlWithCourse());
       }, 250);
     });
+
+    void renderLessonHomework(lesson);
   }
 
   function pluralizeRu(count, forms) {
