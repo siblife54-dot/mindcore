@@ -2107,6 +2107,83 @@
       : "";
   }
 
+  async function fetchStudentHomeworks() {
+    var telegramInitData = getTelegramInitData();
+    if (isPreviewMode() || !telegramInitData) return [];
+
+    var config = getConfig();
+    var response = await fetch(String(config.supabaseUrl || "").replace(/\/$/, "") + "/functions/v1/get-student-homeworks", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        apikey: config.supabaseAnonKey,
+        Authorization: "Bearer " + config.supabaseAnonKey
+      },
+      body: JSON.stringify({
+        course_id: getActiveCourseId(),
+        platform: "telegram",
+        platform_auth_data: telegramInitData
+      })
+    });
+
+    if (!response.ok) throw new Error("Homework request failed");
+    var payload = await response.json();
+    if (!payload || payload.ok !== true || !Array.isArray(payload.homeworks)) {
+      throw new Error("Invalid Homework response");
+    }
+    return payload.homeworks;
+  }
+
+  async function renderLessonHomework(lesson) {
+    var host = document.getElementById("lessonHomeworkHost");
+    if (!host) return;
+
+    host.hidden = true;
+    host.innerHTML = "";
+    if (isPreviewMode() || !getTelegramInitData()) return;
+
+    try {
+      var homeworks = await fetchStudentHomeworks();
+      var homework = homeworks.find(function (item) {
+        return String(item.lesson_id) === String(lesson.id);
+      });
+      if (!homework) return;
+
+      var responseTypeLabels = {
+        text: "Текст",
+        image: "Фото",
+        file: "Файл",
+        video: "Видео"
+      };
+      var responseTypes = Array.isArray(homework.allowed_response_types)
+        ? homework.allowed_response_types.filter(function (type, index, types) {
+            return responseTypeLabels[type] && types.indexOf(type) === index;
+          })
+        : [];
+
+      host.innerHTML = [
+        '<p class="lesson-homework__section-title">Домашнее задание</p>',
+        '<div class="lesson-homework__card">',
+        '<h2 class="lesson-homework__title">' + escapeHtml(homework.title || "Домашнее задание") + '</h2>',
+        homework.description ? '<p class="lesson-homework__description">' + escapeHtml(homework.description) + '</p>' : '',
+        '<div class="lesson-homework__response-types">',
+        '<p class="lesson-homework__response-label">Можно отправить</p>',
+        '<div class="lesson-homework__chips">' + responseTypes.map(function (type) {
+          return '<span class="lesson-homework__chip">' + responseTypeLabels[type] + '</span>';
+        }).join("") + '</div>',
+        '</div>',
+        '</div>'
+      ].join("");
+      host.hidden = false;
+    } catch (error) {
+      host.hidden = true;
+      host.innerHTML = "";
+      console.warn("[MindCore] Student Homework could not be loaded", {
+        error_type: error instanceof Error ? error.name : "UnknownError"
+      });
+    }
+  }
+
   async function checkCourseEntryAccess() {
     var settings = COURSE_SETTINGS || {};
     var accessMode = settings.access_mode ? String(settings.access_mode) : null;
@@ -2808,6 +2885,8 @@
       attachmentsList.innerHTML = "";
     }
     // ======================================
+
+    await renderLessonHomework(lesson);
 
     var completeBtn = document.getElementById("completeBtn");
     if (completed.includes(lesson.lesson_id)) {
