@@ -579,6 +579,74 @@ a { color: inherit; }
 .attachments ul { margin: 10px 0 0; padding-left: 16px; }
 .attachments li { margin-bottom: 8px; }
 
+.lesson-homework {
+  margin-top: 16px;
+}
+
+.lesson-homework__section-title {
+  margin: 0 4px 10px;
+  color: var(--text);
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+}
+
+.lesson-homework__card {
+  padding: 16px;
+  border: 1px solid var(--card-border-strong, var(--border));
+  border-radius: var(--radius-md);
+  background: linear-gradient(145deg, var(--card), var(--card-2));
+  box-shadow: var(--shadow);
+}
+
+.lesson-homework__title {
+  margin: 0;
+  color: var(--text);
+  font-size: 18px;
+  line-height: 1.3;
+}
+
+.lesson-homework__description {
+  margin: 8px 0 0;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+}
+
+.lesson-homework__response-types {
+  margin-top: 16px;
+}
+
+.lesson-homework__response-label {
+  margin: 0 0 8px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.lesson-homework__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.lesson-homework__chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 30px;
+  padding: 4px 10px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--badge-bg, var(--card-2));
+  color: var(--badge-text, var(--text));
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
 .top-back {
   margin-bottom: 8px;
   display: inline-block;
