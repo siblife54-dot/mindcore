@@ -2161,6 +2161,120 @@
     return payload;
   }
 
+  var HOMEWORK_ATTACHMENT_RULES = {
+    image: {
+      label: "Фото",
+      action: "Добавить фото",
+      accept: "image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp",
+      mimeTypes: ["image/jpeg", "image/png", "image/webp"],
+      maxSize: 10 * 1024 * 1024
+    },
+    file: {
+      label: "Файл",
+      action: "Добавить файл",
+      accept: "application/pdf,text/plain,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/zip,.pdf,.txt,.doc,.docx,.xls,.xlsx,.zip",
+      mimeTypes: [
+        "application/pdf", "text/plain", "application/msword",
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        "application/vnd.ms-excel",
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        "application/zip"
+      ],
+      maxSize: 25 * 1024 * 1024
+    },
+    video: {
+      label: "Видео",
+      action: "Добавить видео",
+      accept: "video/mp4,video/webm,video/quicktime,.mp4,.webm,.mov",
+      mimeTypes: ["video/mp4", "video/webm", "video/quicktime"],
+      maxSize: 100 * 1024 * 1024
+    }
+  };
+
+  function getStudentHomeworkHeaders() {
+    var config = getConfig();
+    return {
+      "Content-Type": "application/json",
+      apikey: config.supabaseAnonKey,
+      Authorization: "Bearer " + config.supabaseAnonKey
+    };
+  }
+
+  async function createStudentHomeworkUpload(homework, attachment) {
+    var config = getConfig();
+    var response = await fetch(String(config.supabaseUrl || "").replace(/\/$/, "") + "/functions/v1/create-homework-upload-url", {
+      method: "POST",
+      headers: getStudentHomeworkHeaders(),
+      body: JSON.stringify({
+        course_id: getActiveCourseId(),
+        platform: "telegram",
+        platform_auth_data: getTelegramInitData(),
+        homework_id: homework.id,
+        attachment_type: attachment.attachmentType,
+        file_name: attachment.file.name,
+        mime_type: attachment.file.type,
+        size_bytes: attachment.file.size
+      })
+    });
+    var payload = await response.json();
+    var upload = payload && payload.upload;
+    if (!response.ok || payload.ok !== true || !upload || typeof upload.url !== "string" ||
+      typeof upload.storage_path !== "string" || upload.method !== "PUT" ||
+      typeof upload.content_type !== "string" || typeof upload.expires_in !== "number" ||
+      typeof upload.max_size_bytes !== "number") {
+      var error = new Error("Homework upload URL request failed");
+      error.code = payload && payload.error ? payload.error.code : "request_failed";
+      throw error;
+    }
+    return upload;
+  }
+
+  async function uploadStudentHomeworkFile(file, upload) {
+    var response = await fetch(upload.url, {
+      method: "PUT",
+      headers: { "Content-Type": upload.content_type },
+      body: file
+    });
+    if (!response.ok) throw new Error("Homework attachment upload failed");
+  }
+
+  async function finalizeStudentHomework(homework, text, attachments) {
+    var config = getConfig();
+    var response = await fetch(String(config.supabaseUrl || "").replace(/\/$/, "") + "/functions/v1/finalize-homework-attempt", {
+      method: "POST",
+      headers: getStudentHomeworkHeaders(),
+      body: JSON.stringify({
+        course_id: getActiveCourseId(),
+        platform: "telegram",
+        platform_auth_data: getTelegramInitData(),
+        homework_id: homework.id,
+        student_text: text || "",
+        attachments: attachments.map(function (attachment) {
+          return {
+            storage_path: attachment.upload.storage_path,
+            attachment_type: attachment.attachmentType,
+            original_name: attachment.file.name
+          };
+        })
+      })
+    });
+    var payload = await response.json();
+    if (!response.ok || !payload || payload.ok !== true ||
+      typeof payload.submission_id !== "string" || typeof payload.attempt_id !== "string" ||
+      typeof payload.attempt_number !== "number" || typeof payload.status !== "string" ||
+      typeof payload.attachments_count !== "number") {
+      var error = new Error("Homework finalization failed");
+      error.code = payload && payload.error ? payload.error.code : "request_failed";
+      throw error;
+    }
+    return payload;
+  }
+
+  function formatHomeworkFileSize(size) {
+    if (size < 1024 * 1024) return Math.max(0.1, size / 1024).toFixed(1) + " KB";
+    return (size / (1024 * 1024)).toFixed(1) + " MB";
+  }
+
   async function renderLessonHomework(lesson) {
     var host = document.getElementById("lessonHomeworkHost");
     if (!host) return;
@@ -2187,7 +2301,27 @@
             return responseTypeLabels[type] && types.indexOf(type) === index;
           })
         : [];
-      var canSubmitText = responseTypes.includes("text") && homework.submission === null;
+      var canSubmit = homework.submission === null && responseTypes.some(function (type) {
+        return type === "text" || HOMEWORK_ATTACHMENT_RULES[type];
+      });
+      var canSubmitText = responseTypes.includes("text");
+      var attachmentTypes = responseTypes.filter(function (type) {
+        return Boolean(HOMEWORK_ATTACHMENT_RULES[type]);
+      });
+      var textFieldHtml = canSubmitText ? [
+        '<label class="lesson-homework__answer-label" for="homeworkStudentText">Ваш ответ</label>',
+        '<textarea class="lesson-homework__textarea" id="homeworkStudentText" name="student_text" placeholder="Напишите ответ..."></textarea>'
+      ].join("") : "";
+      var attachmentControlsHtml = attachmentTypes.length ? [
+        '<div class="lesson-homework__upload-controls">',
+        attachmentTypes.map(function (type) {
+          var rules = HOMEWORK_ATTACHMENT_RULES[type];
+          return '<input class="lesson-homework__file-input" id="homeworkAttachment-' + type + '" type="file" data-attachment-type="' + type + '" accept="' + rules.accept + '" multiple>' +
+            '<label class="lesson-homework__upload-control" for="homeworkAttachment-' + type + '">' + rules.action + '</label>';
+        }).join(""),
+        '</div>',
+        '<ul class="lesson-homework__file-list" aria-live="polite" hidden></ul>'
+      ].join("") : "";
 
       host.innerHTML = [
         '<p class="lesson-homework__section-title">Домашнее задание</p>',
@@ -2200,10 +2334,10 @@
           return '<span class="lesson-homework__chip">' + responseTypeLabels[type] + '</span>';
         }).join("") + '</div>',
         '</div>',
-        canSubmitText ? [
+        canSubmit ? [
           '<form class="lesson-homework__form" novalidate>',
-          '<label class="lesson-homework__answer-label" for="homeworkStudentText">Ваш ответ</label>',
-          '<textarea class="lesson-homework__textarea" id="homeworkStudentText" name="student_text" placeholder="Напишите ответ..."></textarea>',
+          textFieldHtml,
+          attachmentControlsHtml,
           '<p class="lesson-homework__message" role="alert" aria-live="polite" hidden></p>',
           '<button class="btn btn-primary lesson-homework__submit" type="submit">Отправить домашнее задание</button>',
           '</form>'
@@ -2212,44 +2346,142 @@
       ].join("");
       host.hidden = false;
 
-      if (canSubmitText) {
+      if (canSubmit) {
         var form = host.querySelector(".lesson-homework__form");
         var textarea = form.querySelector(".lesson-homework__textarea");
+        var fileInputs = Array.from(form.querySelectorAll(".lesson-homework__file-input"));
+        var uploadControls = Array.from(form.querySelectorAll(".lesson-homework__upload-control"));
+        var fileList = form.querySelector(".lesson-homework__file-list");
         var submitButton = form.querySelector(".lesson-homework__submit");
         var message = form.querySelector(".lesson-homework__message");
+        var selectedFiles = { image: [], file: [], video: [] };
         var isSubmitting = false;
+
+        function getSelectedAttachments() {
+          return attachmentTypes.reduce(function (attachments, type) {
+            return attachments.concat(selectedFiles[type].map(function (file) {
+              return { file: file, attachmentType: type };
+            }));
+          }, []);
+        }
+
+        function showMessage(text) {
+          message.textContent = text;
+          message.hidden = false;
+        }
+
+        function renderSelectedFiles() {
+          if (!fileList) return;
+          fileList.innerHTML = "";
+          getSelectedAttachments().forEach(function (attachment) {
+            var item = document.createElement("li");
+            var name = document.createElement("span");
+            var details = document.createElement("span");
+            name.className = "lesson-homework__file-name";
+            details.className = "lesson-homework__file-details";
+            name.textContent = attachment.file.name;
+            details.textContent = HOMEWORK_ATTACHMENT_RULES[attachment.attachmentType].label + " · " + formatHomeworkFileSize(attachment.file.size);
+            item.append(name, details);
+            fileList.appendChild(item);
+          });
+          fileList.hidden = fileList.children.length === 0;
+        }
+
+        function setFormDisabled(disabled) {
+          if (textarea) textarea.disabled = disabled;
+          fileInputs.forEach(function (input) { input.disabled = disabled; });
+          uploadControls.forEach(function (control) {
+            control.classList.toggle("is-disabled", disabled);
+            control.setAttribute("aria-disabled", String(disabled));
+          });
+          submitButton.disabled = disabled;
+        }
+
+        fileInputs.forEach(function (input) {
+          input.addEventListener("change", function () {
+            selectedFiles[input.dataset.attachmentType] = Array.from(input.files || []);
+            renderSelectedFiles();
+            message.hidden = true;
+          });
+        });
 
         form.addEventListener("submit", async function (event) {
           event.preventDefault();
           if (isSubmitting) return;
 
-          var studentText = textarea.value.trim();
-          if (!studentText) {
-            message.textContent = "Напишите ответ перед отправкой.";
-            message.hidden = false;
-            textarea.focus();
+          var studentText = textarea ? textarea.value.trim() : "";
+          var selectedAttachments = getSelectedAttachments();
+          if (!studentText && selectedAttachments.length === 0) {
+            showMessage("Добавьте ответ или прикрепите файл.");
+            if (textarea) textarea.focus();
             return;
+          }
+          if (selectedAttachments.length > 10) {
+            showMessage("Можно прикрепить не более 10 файлов.");
+            return;
+          }
+          for (var index = 0; index < selectedAttachments.length; index += 1) {
+            var selected = selectedAttachments[index];
+            var rules = HOMEWORK_ATTACHMENT_RULES[selected.attachmentType];
+            if (!rules.mimeTypes.includes(String(selected.file.type || "").toLowerCase())) {
+              showMessage("Этот формат файла не поддерживается.");
+              return;
+            }
+            if (selected.file.size > rules.maxSize) {
+              showMessage("Файл «" + selected.file.name + "» слишком большой.");
+              return;
+            }
           }
 
           isSubmitting = true;
-          textarea.disabled = true;
-          submitButton.disabled = true;
-          submitButton.textContent = "Отправляем...";
+          setFormDisabled(true);
+          submitButton.textContent = selectedAttachments.length ? "Подготавливаем..." : "Отправляем...";
           message.hidden = true;
 
           try {
-            await submitStudentHomeworkText(homework, studentText);
+            if (selectedAttachments.length === 0) {
+              await submitStudentHomeworkText(homework, studentText);
+            } else {
+              var uploadedAttachments = [];
+              for (var uploadIndex = 0; uploadIndex < selectedAttachments.length; uploadIndex += 1) {
+                var attachment = selectedAttachments[uploadIndex];
+                var upload;
+                try {
+                  upload = await createStudentHomeworkUpload(homework, attachment);
+                } catch (error) {
+                  error.homeworkStage = "create_upload_url";
+                  throw error;
+                }
+                submitButton.textContent = "Загружаем " + (uploadIndex + 1) + " из " + selectedAttachments.length + "...";
+                try {
+                  await uploadStudentHomeworkFile(attachment.file, upload);
+                } catch (error) {
+                  error.homeworkStage = "upload";
+                  throw error;
+                }
+                uploadedAttachments.push({
+                  file: attachment.file,
+                  attachmentType: attachment.attachmentType,
+                  upload: upload
+                });
+              }
+              submitButton.textContent = "Отправляем...";
+              try {
+                await finalizeStudentHomework(homework, studentText, uploadedAttachments);
+              } catch (error) {
+                error.homeworkStage = "finalize";
+                throw error;
+              }
+            }
             form.innerHTML = '<p class="lesson-homework__success" role="status"><span aria-hidden="true">✓</span> Домашнее задание отправлено на проверку</p>';
           } catch (error) {
             isSubmitting = false;
-            textarea.disabled = false;
-            submitButton.disabled = false;
+            setFormDisabled(false);
             submitButton.textContent = "Отправить домашнее задание";
-            message.textContent = "Не удалось отправить домашнее задание. Попробуйте ещё раз.";
-            message.hidden = false;
-            console.warn("[MindCore] Student Homework could not be submitted", {
-              error_code: error && error.code ? error.code : "request_failed"
-            });
+            showMessage("Не удалось отправить домашнее задание. Попробуйте ещё раз.");
+            var safeError = { error_code: error && error.code ? error.code : "request_failed" };
+            if (error && error.homeworkStage) safeError.stage = error.homeworkStage;
+            console.warn("[MindCore] Student Homework could not be submitted", safeError);
           }
         });
       }
