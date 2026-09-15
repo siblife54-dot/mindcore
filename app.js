@@ -2134,6 +2134,33 @@
     return payload.homeworks;
   }
 
+  async function submitStudentHomeworkText(homework, text) {
+    var config = getConfig();
+    var response = await fetch(String(config.supabaseUrl || "").replace(/\/$/, "") + "/functions/v1/submit-homework-attempt", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        apikey: config.supabaseAnonKey,
+        Authorization: "Bearer " + config.supabaseAnonKey
+      },
+      body: JSON.stringify({
+        course_id: getActiveCourseId(),
+        platform: "telegram",
+        platform_auth_data: getTelegramInitData(),
+        homework_id: homework.id,
+        student_text: text
+      })
+    });
+
+    var payload = await response.json();
+    if (!response.ok || !payload || payload.ok !== true) {
+      var error = new Error("Homework submission failed");
+      error.code = payload && payload.error ? payload.error.code : "request_failed";
+      throw error;
+    }
+    return payload;
+  }
+
   async function renderLessonHomework(lesson) {
     var host = document.getElementById("lessonHomeworkHost");
     if (!host) return;
@@ -2160,6 +2187,7 @@
             return responseTypeLabels[type] && types.indexOf(type) === index;
           })
         : [];
+      var canSubmitText = responseTypes.includes("text") && homework.submission === null;
 
       host.innerHTML = [
         '<p class="lesson-homework__section-title">Домашнее задание</p>',
@@ -2172,9 +2200,59 @@
           return '<span class="lesson-homework__chip">' + responseTypeLabels[type] + '</span>';
         }).join("") + '</div>',
         '</div>',
+        canSubmitText ? [
+          '<form class="lesson-homework__form" novalidate>',
+          '<label class="lesson-homework__answer-label" for="homeworkStudentText">Ваш ответ</label>',
+          '<textarea class="lesson-homework__textarea" id="homeworkStudentText" name="student_text" placeholder="Напишите ответ..."></textarea>',
+          '<p class="lesson-homework__message" role="alert" aria-live="polite" hidden></p>',
+          '<button class="btn btn-primary lesson-homework__submit" type="submit">Отправить домашнее задание</button>',
+          '</form>'
+        ].join("") : '',
         '</div>'
       ].join("");
       host.hidden = false;
+
+      if (canSubmitText) {
+        var form = host.querySelector(".lesson-homework__form");
+        var textarea = form.querySelector(".lesson-homework__textarea");
+        var submitButton = form.querySelector(".lesson-homework__submit");
+        var message = form.querySelector(".lesson-homework__message");
+        var isSubmitting = false;
+
+        form.addEventListener("submit", async function (event) {
+          event.preventDefault();
+          if (isSubmitting) return;
+
+          var studentText = textarea.value.trim();
+          if (!studentText) {
+            message.textContent = "Напишите ответ перед отправкой.";
+            message.hidden = false;
+            textarea.focus();
+            return;
+          }
+
+          isSubmitting = true;
+          textarea.disabled = true;
+          submitButton.disabled = true;
+          submitButton.textContent = "Отправляем...";
+          message.hidden = true;
+
+          try {
+            await submitStudentHomeworkText(homework, studentText);
+            form.innerHTML = '<p class="lesson-homework__success" role="status"><span aria-hidden="true">✓</span> Домашнее задание отправлено на проверку</p>';
+          } catch (error) {
+            isSubmitting = false;
+            textarea.disabled = false;
+            submitButton.disabled = false;
+            submitButton.textContent = "Отправить домашнее задание";
+            message.textContent = "Не удалось отправить домашнее задание. Попробуйте ещё раз.";
+            message.hidden = false;
+            console.warn("[MindCore] Student Homework could not be submitted", {
+              error_code: error && error.code ? error.code : "request_failed"
+            });
+          }
+        });
+      }
     } catch (error) {
       host.hidden = true;
       host.innerHTML = "";

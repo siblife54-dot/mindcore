@@ -647,6 +647,74 @@ a { color: inherit; }
   line-height: 1.2;
 }
 
+.lesson-homework__form {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 10px;
+  margin-top: 18px;
+}
+
+.lesson-homework__answer-label {
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.lesson-homework__textarea {
+  display: block;
+  width: 100%;
+  min-height: 132px;
+  padding: 12px;
+  resize: vertical;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--card-2);
+  color: var(--text);
+  font: inherit;
+  font-size: 16px;
+  line-height: 1.45;
+}
+
+.lesson-homework__textarea::placeholder {
+  color: var(--muted);
+}
+
+.lesson-homework__textarea:focus-visible {
+  border-color: var(--accent);
+  outline: 2px solid rgba(var(--accent-rgb), 0.3);
+  outline-offset: 2px;
+}
+
+.lesson-homework__textarea:disabled {
+  cursor: not-allowed;
+  opacity: 0.65;
+}
+
+.lesson-homework__message {
+  margin: 0;
+  color: var(--text);
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.lesson-homework__submit {
+  align-self: flex-start;
+  min-height: 42px;
+}
+
+.lesson-homework__success {
+  margin: 0;
+  padding: 12px;
+  border: 1px solid var(--accent);
+  border-radius: 12px;
+  background: rgba(var(--accent-rgb), 0.12);
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
 .top-back {
   margin-bottom: 8px;
   display: inline-block;
