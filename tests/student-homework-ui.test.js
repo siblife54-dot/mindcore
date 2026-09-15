@@ -75,6 +75,10 @@ assert(homeworkRenderSource.includes("textarea ? textarea.value.trim() : \"\""))
 assert(homeworkRenderSource.includes("Добавьте ответ или прикрепите файл."));
 assert(homeworkRenderSource.includes("selectedAttachments.length > 10"));
 assert(homeworkRenderSource.includes("Можно прикрепить не более 10 файлов."));
+assert(homeworkRenderSource.includes("selected.file.size <= 0"));
+assert(homeworkRenderSource.includes('showMessage("Файл «" + selected.file.name + "» пустой.")'));
+assert(homeworkRenderSource.indexOf("selected.file.size <= 0") <
+  homeworkRenderSource.indexOf("await createStudentHomeworkUpload(homework, attachment)"));
 assert(homeworkRenderSource.includes("Этот формат файла не поддерживается."));
 assert(homeworkRenderSource.includes("слишком большой."));
 assert(homeworkRenderSource.includes("if (isSubmitting) return"));

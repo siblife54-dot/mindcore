@@ -2423,6 +2423,10 @@
           for (var index = 0; index < selectedAttachments.length; index += 1) {
             var selected = selectedAttachments[index];
             var rules = HOMEWORK_ATTACHMENT_RULES[selected.attachmentType];
+            if (selected.file.size <= 0) {
+              showMessage("Файл «" + selected.file.name + "» пустой.");
+              return;
+            }
             if (!rules.mimeTypes.includes(String(selected.file.type || "").toLowerCase())) {
               showMessage("Этот формат файла не поддерживается.");
               return;
