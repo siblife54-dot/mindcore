@@ -115,3 +115,14 @@ assert(attemptInsert > 0 && attachmentInsert > attemptInsert, "Attachments must 
 assert(attachmentMigration.includes("v_student_text text := nullif"), "Empty text must become NULL for attachment-only submissions");
 assert(attachmentMigration.includes("security definer") && attachmentMigration.includes("set search_path = pg_catalog"));
 assert(attachmentMigration.includes("from public, anon, authenticated") && attachmentMigration.includes("to service_role"));
+
+const coalesceFixMigration = fs.readFileSync(path.join(__dirname, "..", "migrations", "20260916120000_fix_submit_homework_attachment_coalesce.sql"), "utf8");
+assert(!coalesceFixMigration.includes("pg_catalog.coalesce"), "COALESCE must not be schema-qualified");
+assert(coalesceFixMigration.includes("create or replace function public.submit_homework_attempt_with_attachments("));
+assert(coalesceFixMigration.includes("revoke execute on function public.submit_homework_attempt_with_attachments(uuid, uuid, text, jsonb)\n  from public, anon, authenticated;"));
+assert(coalesceFixMigration.includes("grant execute on function public.submit_homework_attempt_with_attachments(uuid, uuid, text, jsonb)\n  to service_role;"));
+assert.strictEqual(
+  coalesceFixMigration,
+  attachmentMigration.replaceAll("pg_catalog.coalesce", "coalesce"),
+  "The replacement migration must preserve the RPC signature and logic except for unqualifying COALESCE",
+);
