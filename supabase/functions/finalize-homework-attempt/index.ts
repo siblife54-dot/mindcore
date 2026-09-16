@@ -35,6 +35,10 @@ function jsonResponse(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), { status, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 }
 
+function logFinalizeStage(stage: string) {
+  console.log("[HomeworkFinalize]", { stage });
+}
+
 function copySource(bucket: string, key: string) {
   return `${encodeURIComponent(bucket)}/${key.split("/").map(encodeURIComponent).join("/")}`;
 }
@@ -168,6 +172,7 @@ Deno.serve(async (request: Request) => {
   if (request.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   if (request.method !== "POST") return jsonResponse({ ok: false, error: { code: "invalid_request" } }, 405);
   try {
+    logFinalizeStage("request_received");
     const body: unknown = await request.json();
     if (!body || typeof body !== "object") throw new RequestError("invalid_request", 400);
     const input = body as Record<string, unknown>;
@@ -194,10 +199,13 @@ Deno.serve(async (request: Request) => {
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
     if (!url || !serviceKey) throw new RequestError("server_error", 500);
     const supabase = createClient(url, serviceKey, { auth: { autoRefreshToken: false, persistSession: false } });
+    logFinalizeStage("auth_start");
     const context = await resolveStudentContext(supabase, {
       courseId: input.course_id.trim(), platform: input.platform, platformAuthData: input.platform_auth_data,
     });
+    logFinalizeStage("auth_ok");
 
+    logFinalizeStage("homework_check_start");
     const { data: homework, error: homeworkError } = await supabase.from("lesson_homeworks")
       .select("id, lesson_id, allowed_response_types").eq("id", input.homework_id).eq("is_enabled", true).maybeSingle();
     if (homeworkError) throw new RequestError("server_error", 500);
@@ -209,6 +217,7 @@ Deno.serve(async (request: Request) => {
     const allowed = Array.isArray(homework.allowed_response_types) ? homework.allowed_response_types : [];
     if (attachments.some((item) => !allowed.includes(item.attachmentType)) ||
       (input.student_text.trim() && !allowed.includes("text"))) throw new RequestError("attachment_type_not_allowed", 400);
+    logFinalizeStage("homework_check_ok");
 
     const expectedPrefix = `pending/courses/${context.courseId}/students/${context.productUserId}/homeworks/${input.homework_id}/`;
     if (attachments.some((item) => !item.storagePath.startsWith(expectedPrefix) || item.storagePath.length === expectedPrefix.length)) {
@@ -222,12 +231,15 @@ Deno.serve(async (request: Request) => {
     const region = Deno.env.get("HOMEWORK_S3_REGION");
     if (!accessKeyId || !secretAccessKey || !bucket || !endpoint || !region) throw new RequestError("storage_config_missing", 500);
     const s3 = new S3Client({ endpoint, region, credentials: { accessKeyId, secretAccessKey } });
+    logFinalizeStage("storage_config_ok");
     const verified = [];
     const finalStoragePaths: string[] = [];
     for (const item of attachments) {
       let pendingHead;
       try {
+        logFinalizeStage("pending_head_start");
         pendingHead = await s3.send(new HeadObjectCommand({ Bucket: bucket, Key: item.storagePath }));
+        logFinalizeStage("pending_head_ok");
       } catch (error) {
         const status = (error as { $metadata?: { httpStatusCode?: number } }).$metadata?.httpStatusCode;
         const name = error instanceof Error ? error.name : "";
@@ -252,11 +264,14 @@ Deno.serve(async (request: Request) => {
       const finalStoragePath = `courses/${context.courseId}/students/${context.productUserId}/homeworks/${input.homework_id}/attachments/${crypto.randomUUID()}`;
       let finalHead;
       try {
+        logFinalizeStage("copy_start");
         await s3.send(new CopyObjectCommand({
           Bucket: bucket, Key: finalStoragePath, CopySource: copySource(bucket, item.storagePath),
         }));
+        logFinalizeStage("copy_ok");
         finalStoragePaths.push(finalStoragePath);
         finalHead = await s3.send(new HeadObjectCommand({ Bucket: bucket, Key: finalStoragePath }));
+        logFinalizeStage("final_head_ok");
       } catch (_error) {
         await deleteObjectsBestEffort(s3, bucket, [...finalStoragePaths, finalStoragePath]);
         console.error("Homework attachment finalization failed");
@@ -279,6 +294,7 @@ Deno.serve(async (request: Request) => {
 
     let rpcResponse;
     try {
+      logFinalizeStage("rpc_start");
       rpcResponse = await supabase.rpc("submit_homework_attempt_with_attachments", {
         p_homework_id: input.homework_id, p_product_user_id: context.productUserId,
         p_student_text: input.student_text.trim(), p_attachments: verified,
@@ -303,13 +319,27 @@ Deno.serve(async (request: Request) => {
       await deleteObjectsBestEffort(s3, bucket, finalStoragePaths);
       throw new RequestError("server_error", 500);
     }
+    logFinalizeStage("rpc_ok");
+    logFinalizeStage("pending_cleanup_start");
     await deleteObjectsBestEffort(s3, bucket, attachments.map((item) => item.storagePath));
+    logFinalizeStage("pending_cleanup_ok");
+    logFinalizeStage("success");
     return jsonResponse({ ok: true, submission_id: result.submission_id, attempt_id: result.attempt_id,
       attempt_number: result.attempt_number, status: result.status, attachments_count: verified.length });
   } catch (error) {
+    if (error instanceof RequestError) {
+      console.error("[HomeworkFinalize] failed", {
+        error_type: "RequestError",
+        code: error.code,
+        status: error.status,
+      });
+    } else {
+      console.error("[HomeworkFinalize] failed", {
+        error_type: error instanceof Error ? error.name : "UnknownError",
+      });
+    }
     if (error instanceof SyntaxError) return jsonResponse({ ok: false, error: { code: "invalid_request" } }, 400);
     if (error instanceof RequestError) return jsonResponse({ ok: false, error: { code: error.code } }, error.status);
-    console.error("Finalize homework attempt failed", { error_type: error instanceof Error ? error.name : "UnknownError" });
     return jsonResponse({ ok: false, error: { code: "server_error" } }, 500);
   }
 });
