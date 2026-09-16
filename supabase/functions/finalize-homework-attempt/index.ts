@@ -305,6 +305,11 @@ Deno.serve(async (request: Request) => {
     }
     const { data, error } = rpcResponse;
     if (error) {
+      console.error("[HomeworkFinalize] rpc_error", {
+        code: error.code || null,
+        message: error.message || null,
+        hint: error.hint || null,
+      });
       await deleteObjectsBestEffort(s3, bucket, finalStoragePaths);
       const code = ["submission_pending_review", "submission_already_accepted", "attachment_already_used"]
         .find((candidate) => error.message?.includes(candidate));
