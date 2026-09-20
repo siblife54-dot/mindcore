@@ -2301,16 +2301,22 @@
             return responseTypeLabels[type] && types.indexOf(type) === index;
           })
         : [];
-      var canSubmit = homework.submission === null && responseTypes.some(function (type) {
+      var submission = homework.submission;
+      var submissionStatus = submission === null ? null : String(submission && submission.status || "");
+      var isRevisionRequested = submissionStatus === "revision_requested";
+      var canSubmit = (submission === null || isRevisionRequested) && responseTypes.some(function (type) {
         return type === "text" || HOMEWORK_ATTACHMENT_RULES[type];
       });
       var canSubmitText = responseTypes.includes("text");
       var attachmentTypes = responseTypes.filter(function (type) {
         return Boolean(HOMEWORK_ATTACHMENT_RULES[type]);
       });
+      var previousStudentText = isRevisionRequested && submission && submission.latest_attempt
+        ? String(submission.latest_attempt.student_text || "")
+        : "";
       var textFieldHtml = canSubmitText ? [
         '<label class="lesson-homework__answer-label" for="homeworkStudentText">Ваш ответ</label>',
-        '<textarea class="lesson-homework__textarea" id="homeworkStudentText" name="student_text" placeholder="Напишите ответ..."></textarea>'
+        '<textarea class="lesson-homework__textarea" id="homeworkStudentText" name="student_text" placeholder="Напишите ответ...">' + escapeHtml(previousStudentText) + '</textarea>'
       ].join("") : "";
       var attachmentControlsHtml = attachmentTypes.length ? [
         '<div class="lesson-homework__upload-controls">',
@@ -2322,6 +2328,28 @@
         '</div>',
         '<ul class="lesson-homework__file-list" aria-live="polite" hidden></ul>'
       ].join("") : "";
+      var statusHtml = "";
+      if (submissionStatus === "pending_review") {
+        statusHtml = '<div class="lesson-homework__status lesson-homework__status--pending" role="status">' +
+          '<p class="lesson-homework__status-title">На проверке</p>' +
+          '<p class="lesson-homework__status-text">Домашнее задание отправлено и ожидает проверки.</p></div>';
+      } else if (submissionStatus === "accepted") {
+        statusHtml = '<div class="lesson-homework__status lesson-homework__status--accepted" role="status">' +
+          '<p class="lesson-homework__status-title">Принято</p>' +
+          '<p class="lesson-homework__status-text">Домашнее задание принято экспертом.</p></div>';
+      } else if (isRevisionRequested) {
+        var reviewComment = submission.latest_attempt && submission.latest_attempt.review_comment;
+        statusHtml = '<div class="lesson-homework__status-wrap">' +
+          '<div class="lesson-homework__status lesson-homework__status--revision" role="status">' +
+          '<p class="lesson-homework__status-title">Нужна доработка</p></div>' +
+          (reviewComment ? '<div class="lesson-homework__review"><p class="lesson-homework__review-title">Комментарий эксперта</p>' +
+            '<p class="lesson-homework__review-text">' + escapeHtml(String(reviewComment)) + '</p></div>' : '') +
+          '</div>';
+      } else if (submission !== null) {
+        statusHtml = '<div class="lesson-homework__status lesson-homework__status--unknown" role="status">' +
+          '<p class="lesson-homework__status-text">Статус домашнего задания временно недоступен.</p></div>';
+        console.warn("[MindCore] Student Homework has an unknown submission status");
+      }
 
       host.innerHTML = [
         '<p class="lesson-homework__section-title">Домашнее задание</p>',
@@ -2334,6 +2362,7 @@
           return '<span class="lesson-homework__chip">' + responseTypeLabels[type] + '</span>';
         }).join("") + '</div>',
         '</div>',
+        '<div class="lesson-homework__submission-state">' + statusHtml + '</div>',
         canSubmit ? [
           '<form class="lesson-homework__form" novalidate>',
           textFieldHtml,
@@ -2477,7 +2506,13 @@
                 throw error;
               }
             }
-            form.innerHTML = '<p class="lesson-homework__success" role="status"><span aria-hidden="true">✓</span> Домашнее задание отправлено на проверку</p>';
+            var submissionState = host.querySelector(".lesson-homework__submission-state");
+            if (submissionState) {
+              submissionState.innerHTML = '<div class="lesson-homework__status lesson-homework__status--pending" role="status">' +
+                '<p class="lesson-homework__status-title"><span aria-hidden="true">✓</span> На проверке</p>' +
+                '<p class="lesson-homework__status-text">Домашнее задание отправлено и ожидает проверки.</p></div>';
+            }
+            form.remove();
           } catch (error) {
             isSubmitting = false;
             setFormDisabled(false);

@@ -647,6 +647,64 @@ a { color: inherit; }
   line-height: 1.2;
 }
 
+.lesson-homework__submission-state:not(:empty) {
+  margin-top: 16px;
+}
+
+.lesson-homework__status-wrap {
+  display: grid;
+  gap: 10px;
+}
+
+.lesson-homework__status,
+.lesson-homework__review {
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--card-2);
+  color: var(--text);
+}
+
+.lesson-homework__status--pending {
+  border-style: dashed;
+}
+
+.lesson-homework__status--revision {
+  border-inline-start: 4px solid var(--accent);
+}
+
+.lesson-homework__status--accepted {
+  border-width: 2px;
+}
+
+.lesson-homework__status--unknown {
+  color: var(--muted);
+}
+
+.lesson-homework__status-title,
+.lesson-homework__review-title {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.4;
+}
+
+.lesson-homework__status-text,
+.lesson-homework__review-text {
+  margin: 5px 0 0;
+  font-size: 13px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+}
+
+.lesson-homework__status-text {
+  color: var(--muted);
+}
+
+.lesson-homework__review {
+  background: var(--card);
+}
+
 .lesson-homework__form {
   display: flex;
   flex-direction: column;
