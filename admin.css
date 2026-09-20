@@ -3840,6 +3840,33 @@ body[data-page="admin"] h5 { color: var(--admin-text); letter-spacing: -0.03em; 
   .admin-homework-options { grid-template-columns: 1fr; }
   .admin-homework-actions .btn { width: 100%; }
 }
+
+/* Homework review queue. */
+.admin-homework-review-section { display: grid; gap: 18px; }
+.admin-homework-review-state { display: grid; justify-items: center; gap: 8px; padding: 28px; border: 1px dashed var(--admin-border); border-radius: 18px; background: var(--admin-bg-elevated); color: var(--admin-text-secondary); text-align: center; }
+.admin-homework-review-queue { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 14px; }
+.admin-homework-review-card { display: flex; align-items: flex-start; justify-content: space-between; gap: 18px; }
+.admin-homework-review-card h3, .admin-homework-detail-card h2, .admin-homework-detail-card h3 { margin: 0; }
+.admin-homework-review-card p { margin: 10px 0; color: var(--admin-text-secondary); }
+.admin-homework-review-card time { color: var(--admin-muted); font-size: 13px; }
+.admin-homework-review-card__text { display: -webkit-box; overflow: hidden; -webkit-box-orient: vertical; -webkit-line-clamp: 3; }
+.admin-homework-review-detail { position: fixed; inset: 0; z-index: 2200; display: grid; place-items: center; padding: 24px; background: color-mix(in srgb, var(--admin-text) 28%, transparent); }
+.admin-homework-review-detail[hidden] { display: none; }
+.admin-homework-detail-card { width: min(720px, 100%); max-height: calc(100vh - 48px); overflow-y: auto; display: grid; gap: 22px; }
+.admin-homework-detail-head, .admin-homework-review-actions, .admin-homework-attachment { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; }
+.admin-homework-review-text { white-space: pre-wrap; overflow-wrap: anywhere; }
+.admin-homework-attachments, .admin-homework-revision { display: grid; gap: 12px; }
+.admin-homework-attachment { align-items: center; padding: 12px; border: 1px solid var(--admin-border); border-radius: 14px; background: var(--admin-bg-elevated); }
+.admin-homework-attachment span { display: block; margin-top: 4px; }
+.admin-homework-revision label { font-weight: 700; }
+.admin-homework-revision textarea { min-height: 110px; resize: vertical; }
+@media (max-width: 640px) {
+  .admin-homework-review-queue { grid-template-columns: 1fr; }
+  .admin-homework-review-card, .admin-homework-detail-head { flex-direction: column; }
+  .admin-homework-review-card .btn, .admin-homework-review-actions .btn, .admin-homework-review-actions .admin-btn-ghost { flex: 1; }
+  .admin-homework-review-detail { padding: 10px; }
+  .admin-homework-detail-card { max-height: calc(100vh - 20px); }
+}
 .admin-renewal-general-grid, .admin-renewal-option-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
 .admin-renewal-general-grid label, .admin-renewal-option-grid label { display: grid; align-content: start; gap: 8px; color: var(--admin-text); font-size: 13px; font-weight: 650; }
 .admin-renewal-general-grid input, .admin-renewal-option-grid input, .admin-renewal-option-grid textarea { width: 100%; }

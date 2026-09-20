@@ -58,7 +58,20 @@
     homeworkSettingsLessonId: null,
     homeworkSettingsLoading: false,
     homeworkSettingsSaving: false,
-    homeworkSettingsError: null
+    homeworkSettingsError: null,
+    homeworkSubmissions: [],
+    homeworkQueueLoading: false,
+    homeworkQueueError: null,
+    homeworkQueueCourseId: null,
+    homeworkQueueSequence: 0,
+    homeworkDetail: null,
+    homeworkDetailLoading: false,
+    homeworkDetailError: null,
+    homeworkSelectedSubmissionId: null,
+    homeworkDetailSequence: 0,
+    homeworkReviewSubmitting: false,
+    homeworkRevisionOpen: false,
+    homeworkReviewError: null
   };
   state.savedThemeId = "dark_premium";
   var tooltipState = {
@@ -296,7 +309,7 @@
 
   var ADMIN_SECTIONS = {
     content: ["appearance", "lesson_settings", "content", "connections"],
-    management: ["students", "sales"]
+    management: ["students", "sales", "homework"]
   };
 
   function getAdminSectionForTab(tabId) {
@@ -306,7 +319,7 @@
   function getDefaultAdminTab() {
     try {
       var stored = window.localStorage.getItem("admin_active_tab");
-      if (stored === "appearance" || stored === "lesson_settings" || stored === "content" || stored === "students" || stored === "sales" || stored === "connections") {
+      if (stored === "appearance" || stored === "lesson_settings" || stored === "content" || stored === "students" || stored === "sales" || stored === "homework" || stored === "connections") {
         return stored;
       }
     } catch (error) {}
@@ -347,7 +360,7 @@
   }
 
   function setActiveAdminTab(tabId) {
-    var nextTab = (tabId === "lesson_settings" || tabId === "content" || tabId === "students" || tabId === "sales" || tabId === "connections") ? tabId : "appearance";
+    var nextTab = (tabId === "lesson_settings" || tabId === "content" || tabId === "students" || tabId === "sales" || tabId === "homework" || tabId === "connections") ? tabId : "appearance";
     var nextSection = getAdminSectionForTab(nextTab);
     state.activeAdminSection = nextSection;
     state.activeAdminTab = nextTab;
@@ -359,7 +372,7 @@
     });
 
     var isStudentsTab = nextTab === "students";
-    var isWideTab = isStudentsTab || nextTab === "sales";
+    var isWideTab = isStudentsTab || nextTab === "sales" || nextTab === "homework";
     var layout = document.querySelector(".admin-layout");
     if (layout) {
       layout.classList.toggle("admin-layout--students", isWideTab);
@@ -418,6 +431,9 @@
     }
     if (nextTab === "sales") {
       setActiveSalesTab(state.activeSalesTab);
+    }
+    if (nextTab === "homework") {
+      void loadHomeworkReviewQueue({ refresh: true });
     }
 
     try {
@@ -492,6 +508,158 @@
     ].join("\n"), false);
   }
 
+
+  var HOMEWORK_QUEUE_ERROR = "Не удалось загрузить работы. Попробуйте ещё раз.";
+
+  function homeworkStudentName(student) {
+    student = student || {};
+    var fullName = [student.first_name, student.last_name].filter(Boolean).join(" ").trim();
+    return String(student.display_name || fullName || student.username || "Ученик").trim();
+  }
+
+  function latestHomeworkAttempt(attempts) {
+    return (Array.isArray(attempts) ? attempts : []).reduce(function (latest, attempt) {
+      return !latest || Number(attempt.attempt_number) > Number(latest.attempt_number) ? attempt : latest;
+    }, null);
+  }
+
+  function formatHomeworkDate(value) {
+    var date = value ? new Date(value) : null;
+    return date && !Number.isNaN(date.getTime())
+      ? new Intl.DateTimeFormat("ru-RU", { dateStyle: "medium", timeStyle: "short" }).format(date) : "—";
+  }
+
+  function formatHomeworkFileSize(value) {
+    var bytes = Number(value);
+    if (!Number.isFinite(bytes) || bytes < 0) return "—";
+    if (bytes < 1024) return bytes + " Б";
+    if (bytes < 1048576) return (bytes / 1024).toFixed(1).replace(".0", "") + " КБ";
+    return (bytes / 1048576).toFixed(1).replace(".0", "") + " МБ";
+  }
+
+  function updateHomeworkPendingBadge() {
+    var badge = document.getElementById("homeworkPendingBadge");
+    if (!badge) return;
+    var count = state.homeworkSubmissions.length;
+    badge.textContent = count ? String(count) : "";
+    badge.hidden = count === 0;
+    badge.setAttribute("aria-label", count ? "Работ на проверку: " + count : "Новых работ нет");
+  }
+
+  function renderHomeworkReviewQueue() {
+    var status = document.getElementById("homeworkReviewState");
+    var queue = document.getElementById("homeworkReviewQueue");
+    if (!status || !queue) return;
+    updateHomeworkPendingBadge();
+    if (state.homeworkQueueLoading) {
+      status.innerHTML = "Загрузка работ…"; status.hidden = false; queue.innerHTML = ""; return;
+    }
+    if (state.homeworkQueueError) {
+      status.innerHTML = escapeHtml(state.homeworkQueueError) + '<button class="admin-btn-ghost" type="button" data-homework-queue-retry>Повторить</button>';
+      status.hidden = false; queue.innerHTML = ""; return;
+    }
+    if (!state.homeworkSubmissions.length) {
+      status.innerHTML = "<strong>Все домашние задания проверены</strong><span>Новых работ на проверку пока нет.</span>";
+      status.hidden = false; queue.innerHTML = ""; return;
+    }
+    status.hidden = true;
+    queue.innerHTML = state.homeworkSubmissions.map(function (item) {
+      var student = item.student || {}, attempt = item.latest_attempt || {};
+      var username = student.username ? '<span class="admin-hint">@' + escapeHtml(String(student.username).replace(/^@/, "")) + "</span>" : "";
+      var excerpt = attempt.student_text ? '<p class="admin-homework-review-card__text">' + escapeHtml(attempt.student_text) + "</p>" : "";
+      return '<article class="admin-card admin-homework-review-card"><div><h3>' + escapeHtml(homeworkStudentName(student)) + "</h3>" + username +
+        '<p><strong>' + escapeHtml((item.lesson && item.lesson.title) || "Урок") + "</strong> · " + escapeHtml((item.homework && item.homework.title) || "Домашнее задание") + "</p>" + excerpt +
+        '<time>' + escapeHtml(formatHomeworkDate(attempt.submitted_at || item.updated_at)) + '</time></div><button class="btn btn-primary" type="button" data-homework-open="' + escapeAttr(item.submission_id) + '">Открыть</button></article>';
+    }).join("");
+  }
+
+  function renderHomeworkReviewDetail() {
+    var root = document.getElementById("homeworkReviewDetail");
+    if (!root) return;
+    if (state.homeworkDetailLoading) { root.hidden = false; root.innerHTML = '<div class="admin-card">Загрузка работы…</div>'; return; }
+    if (state.homeworkDetailError) { root.hidden = false; root.innerHTML = '<div class="admin-card admin-homework-review-state">' + escapeHtml(state.homeworkDetailError) + '<button type="button" class="admin-btn-ghost" data-homework-detail-retry>Повторить</button><button type="button" class="admin-btn-ghost" data-homework-detail-close>Закрыть</button></div>'; return; }
+    var detail = state.homeworkDetail;
+    if (!detail) { root.hidden = true; root.innerHTML = ""; return; }
+    var attempt = latestHomeworkAttempt(detail.attempts);
+    var attachments = attempt && Array.isArray(attempt.attachments) ? attempt.attachments : [];
+    var textBlock = attempt && attempt.student_text ? '<section><h3>Текущая попытка</h3><p class="admin-homework-review-text">' + escapeHtml(attempt.student_text) + "</p></section>" : "";
+    var files = attachments.length ? '<section><h3>Вложения</h3><div class="admin-homework-attachments">' + attachments.map(function (file) {
+      var type = file.attachment_type === "image" ? "Фото" : (file.attachment_type === "video" ? "Видео" : "Файл");
+      return '<div class="admin-homework-attachment"><div><strong>' + escapeHtml(file.original_name || "Файл") + '</strong><span class="admin-hint">' + type + " · " + escapeHtml(formatHomeworkFileSize(file.size_bytes)) + '</span></div><button class="admin-btn-ghost" type="button" data-homework-attachment="' + escapeAttr(file.id) + '">Открыть</button></div>';
+    }).join("") + "</div></section>" : "";
+    var revision = state.homeworkRevisionOpen ? '<div class="admin-homework-revision"><label for="homeworkRevisionComment">Комментарий ученику</label><textarea id="homeworkRevisionComment" required></textarea><p id="homeworkRevisionError" class="admin-field-error" hidden>Введите комментарий ученику.</p><button class="btn btn-primary" type="button" data-homework-review="request_revision"' + (state.homeworkReviewSubmitting ? " disabled" : "") + '>Отправить на доработку</button></div>' : "";
+    root.hidden = false;
+    root.innerHTML = '<div class="admin-card admin-homework-detail-card"><div class="admin-homework-detail-head"><div><h2>' + escapeHtml(homeworkStudentName(detail.student)) + '</h2><p><strong>Урок:</strong> ' + escapeHtml((detail.lesson && detail.lesson.title) || "—") + '</p><p><strong>Домашнее задание:</strong> ' + escapeHtml((detail.homework && detail.homework.title) || "—") + '</p></div><button class="admin-btn-ghost" type="button" data-homework-detail-close>Закрыть</button></div>' + textBlock + files + '<p id="homeworkReviewError" class="admin-field-error"' + (state.homeworkReviewError ? "" : " hidden") + '>' + escapeHtml(state.homeworkReviewError || "") + '</p><div class="admin-homework-review-actions"><button class="btn btn-primary" type="button" data-homework-review="accept"' + (state.homeworkReviewSubmitting ? " disabled" : "") + '>Принять</button><button class="admin-btn-ghost" type="button" data-homework-revision-toggle' + (state.homeworkReviewSubmitting ? " disabled" : "") + '>На доработку</button></div>' + revision + "</div>";
+  }
+
+  async function loadHomeworkReviewQueue(options) {
+    var courseId = getActiveCourseId();
+    if (!courseId || !getAdminSessionToken()) return;
+    if (!(options && options.refresh) && state.homeworkQueueCourseId === courseId && !state.homeworkQueueError) { renderHomeworkReviewQueue(); return; }
+    var sequence = ++state.homeworkQueueSequence;
+    state.homeworkQueueLoading = true; state.homeworkQueueError = null; renderHomeworkReviewQueue();
+    try {
+      var config = getConfig();
+      var response = await window.fetch(config.supabaseUrl + "/functions/v1/get-homework-submissions", { method: "POST", headers: Object.assign({ "Content-Type": "application/json", apikey: config.supabaseAnonKey, Authorization: "Bearer " + config.supabaseAnonKey }, getAdminSessionHeaders()), body: JSON.stringify({ action: "list", course_id: courseId, status: "pending_review" }) });
+      if (response.status === 401) { clearAdminSession(); window.location.href = "admin.html"; return; }
+      var result = await response.json();
+      if (!response.ok || !result || result.ok !== true || !Array.isArray(result.submissions)) throw new Error(HOMEWORK_QUEUE_ERROR);
+      if (sequence !== state.homeworkQueueSequence || courseId !== getActiveCourseId()) return;
+      state.homeworkSubmissions = result.submissions; state.homeworkQueueCourseId = courseId;
+    } catch (error) { if (sequence === state.homeworkQueueSequence) state.homeworkQueueError = HOMEWORK_QUEUE_ERROR; }
+    finally { if (sequence === state.homeworkQueueSequence) { state.homeworkQueueLoading = false; renderHomeworkReviewQueue(); } }
+  }
+
+  async function loadHomeworkReviewDetail(submissionId) {
+    var courseId = getActiveCourseId(), sequence = ++state.homeworkDetailSequence;
+    state.homeworkSelectedSubmissionId = submissionId; state.homeworkDetail = null; state.homeworkDetailError = null; state.homeworkReviewError = null; state.homeworkDetailLoading = true; state.homeworkRevisionOpen = false; renderHomeworkReviewDetail();
+    try {
+      var config = getConfig();
+      var response = await window.fetch(config.supabaseUrl + "/functions/v1/get-homework-submissions", { method: "POST", headers: Object.assign({ "Content-Type": "application/json", apikey: config.supabaseAnonKey, Authorization: "Bearer " + config.supabaseAnonKey }, getAdminSessionHeaders()), body: JSON.stringify({ action: "detail", course_id: courseId, submission_id: submissionId }) });
+      if (response.status === 401) { clearAdminSession(); window.location.href = "admin.html"; return; }
+      var result = await response.json();
+      if (!response.ok || !result || result.ok !== true || !result.submission || !Array.isArray(result.attempts)) throw new Error();
+      if (sequence !== state.homeworkDetailSequence || courseId !== getActiveCourseId() || state.activeAdminTab !== "homework") return;
+      state.homeworkDetail = result;
+    } catch (error) { if (sequence === state.homeworkDetailSequence) state.homeworkDetailError = "Не удалось загрузить работу."; }
+    finally { if (sequence === state.homeworkDetailSequence) { state.homeworkDetailLoading = false; renderHomeworkReviewDetail(); } }
+  }
+
+  async function reviewHomeworkSubmission(action) {
+    if (state.homeworkReviewSubmitting || !state.homeworkDetail) return;
+    var comment = null;
+    if (action === "request_revision") {
+      var input = document.getElementById("homeworkRevisionComment"); comment = input ? input.value.trim() : "";
+      if (!comment) { var required = document.getElementById("homeworkRevisionError"); if (required) required.hidden = false; return; }
+    }
+    var submissionId = state.homeworkDetail.submission.submission_id;
+    state.homeworkReviewSubmitting = true; state.homeworkReviewError = null; renderHomeworkReviewDetail();
+    try {
+      var config = getConfig();
+      var response = await window.fetch(config.supabaseUrl + "/functions/v1/review-homework-submission", { method: "POST", headers: Object.assign({ "Content-Type": "application/json", apikey: config.supabaseAnonKey, Authorization: "Bearer " + config.supabaseAnonKey }, getAdminSessionHeaders()), body: JSON.stringify({ submission_id: submissionId, action: action, review_comment: comment }) });
+      if (response.status === 401) { clearAdminSession(); window.location.href = "admin.html"; return; }
+      var result = await response.json();
+      if (!response.ok || !result || result.ok !== true) throw new Error();
+      state.homeworkSubmissions = state.homeworkSubmissions.filter(function (item) { return String(item.submission_id) !== String(submissionId); });
+      state.homeworkDetail = null; state.homeworkDetailSequence += 1; renderHomeworkReviewDetail(); renderHomeworkReviewQueue();
+      showAdminNotice(action === "accept" ? "Домашнее задание принято" : "Работа отправлена на доработку");
+    } catch (error) { state.homeworkReviewError = "Не удалось проверить работу. Попробуйте ещё раз."; }
+    finally { state.homeworkReviewSubmitting = false; if (state.homeworkDetail) renderHomeworkReviewDetail(); }
+  }
+
+  async function openHomeworkAttachment(attachmentId, button) {
+    if (button.disabled) return;
+    button.disabled = true;
+    try {
+      var config = getConfig();
+      var response = await window.fetch(config.supabaseUrl + "/functions/v1/get-admin-homework-attachment-url", { method: "POST", headers: Object.assign({ "Content-Type": "application/json", apikey: config.supabaseAnonKey, Authorization: "Bearer " + config.supabaseAnonKey }, getAdminSessionHeaders()), body: JSON.stringify({ attachment_id: attachmentId }) });
+      if (response.status === 401) { clearAdminSession(); window.location.href = "admin.html"; return; }
+      var result = await response.json();
+      if (!response.ok || !result || result.ok !== true || !result.attachment || !result.attachment.url) throw new Error();
+      window.open(result.attachment.url, "_blank", "noopener,noreferrer");
+    } catch (error) { showAdminNotice("Не удалось открыть вложение. Попробуйте ещё раз.", "error"); }
+    finally { button.disabled = false; }
+  }
 
   var RENEWAL_STATUS_LABELS = {
     pending_payment: "Ожидает оплаты",
@@ -5124,6 +5292,22 @@
       if (request) void confirmRenewalPayment(request, button);
     });
 
+    var homeworkReviewSection = document.querySelector(".admin-homework-review-section");
+    if (homeworkReviewSection) homeworkReviewSection.addEventListener("click", function (event) {
+      var openButton = event.target.closest("[data-homework-open]");
+      if (openButton) { void loadHomeworkReviewDetail(openButton.getAttribute("data-homework-open")); return; }
+      if (event.target.closest("[data-homework-queue-retry]")) { void loadHomeworkReviewQueue({ refresh: true }); return; }
+      if (event.target.closest("[data-homework-detail-retry]")) { void loadHomeworkReviewDetail(state.homeworkSelectedSubmissionId); return; }
+      if (event.target.closest("[data-homework-detail-close]")) { state.homeworkDetailSequence += 1; state.homeworkDetail = null; state.homeworkDetailError = null; renderHomeworkReviewDetail(); return; }
+      if (event.target.closest("[data-homework-revision-toggle]")) { state.homeworkRevisionOpen = true; renderHomeworkReviewDetail(); return; }
+      var reviewButton = event.target.closest("[data-homework-review]");
+      if (reviewButton && !reviewButton.disabled) { void reviewHomeworkSubmission(reviewButton.getAttribute("data-homework-review")); return; }
+      var attachmentButton = event.target.closest("[data-homework-attachment]");
+      if (attachmentButton) void openHomeworkAttachment(attachmentButton.getAttribute("data-homework-attachment"), attachmentButton);
+    });
+    var homeworkReviewRefreshBtn = document.getElementById("homeworkReviewRefreshBtn");
+    if (homeworkReviewRefreshBtn) homeworkReviewRefreshBtn.addEventListener("click", function () { void loadHomeworkReviewQueue({ refresh: true }); });
+
     var studentsSearchInput = document.getElementById("studentsSearchInput");
     if (studentsSearchInput) {
       studentsSearchInput.addEventListener("input", function () {
@@ -5793,8 +5977,12 @@
     initPreviewIframe();
     state.activeStudentsTab = getDefaultStudentsTab();
     setActiveStudentsTab(state.activeStudentsTab);
-    setActiveAdminTab(getDefaultAdminTab());
+    var defaultAdminTab = getDefaultAdminTab();
+    setActiveAdminTab(defaultAdminTab);
     void loadRenewalRequests().catch(function () {});
+    if (defaultAdminTab !== "homework") {
+      void loadHomeworkReviewQueue().catch(function () {});
+    }
     renderConnectionScreen();
     await loadTelegramIntegration();
     state.courseAccessSettings = await fetchCourseAccessSettings();
