@@ -7,11 +7,16 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-
 const STATUSES = new Set(["pending_review", "revision_requested", "accepted", "all"]);
 const fields = {
   attempt: "id, submission_id, attempt_number, student_text, status, review_comment, submitted_at, reviewed_at",
+  attachment: "id, attempt_id, attachment_type, original_name, mime_type, size_bytes, created_at",
   student: "id, webapp_user_id",
   profile: "id, display_name, first_name, last_name, username, avatar_url",
 };
 
 function publicAttempt(row: Row) { const { submission_id: _id, ...result } = row; return result; }
+function publicAttachment(row: Row) {
+  return { id: row.id, attachment_type: row.attachment_type, original_name: row.original_name,
+    mime_type: row.mime_type, size_bytes: row.size_bytes, created_at: row.created_at };
+}
 
 Deno.serve(async (request: Request) => {
   if (request.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
@@ -78,6 +83,18 @@ Deno.serve(async (request: Request) => {
       supabase.from("product_users").select(fields.student).in("id", productUserIds).eq("course_id", courseId),
     ]);
     if (attemptResult.error || studentResult.error) throw new HomeworkAuthError("server_error", 500);
+    const attachmentsByAttempt = new Map<string, Row[]>();
+    if (action === "detail") {
+      const attemptIds = (attemptResult.data ?? []).map((row: Row) => row.id);
+      if (attemptIds.length) {
+        const attachmentResult = await supabase.from("homework_attachments").select(fields.attachment).in("attempt_id", attemptIds);
+        if (attachmentResult.error) throw new HomeworkAuthError("server_error", 500);
+        for (const attachment of attachmentResult.data ?? []) {
+          const list = attachmentsByAttempt.get(attachment.attempt_id) ?? [];
+          list.push(attachment); attachmentsByAttempt.set(attachment.attempt_id, list);
+        }
+      }
+    }
     const students: Row[] = studentResult.data ?? [];
     const webappIds = students.map((row) => row.webapp_user_id);
     const profileResult = await supabase.from("webapp_users").select(fields.profile).in("id", webappIds);
@@ -109,7 +126,9 @@ Deno.serve(async (request: Request) => {
       const item = decorate(submissions[0]);
       return jsonResponse({ ok: true, submission: { submission_id: item.base.submission_id, status: item.base.status,
         created_at: item.base.created_at, updated_at: item.base.updated_at }, homework: item.base.homework,
-        lesson: item.base.lesson, student: item.base.student, attempts: item.attempts.map(publicAttempt) });
+        lesson: item.base.lesson, student: item.base.student, attempts: item.attempts.map((attempt) => ({
+          ...publicAttempt(attempt), attachments: (attachmentsByAttempt.get(attempt.id) ?? []).map(publicAttachment),
+        })) });
     }
     return jsonResponse({ ok: true, submissions: submissions.map((submission) => {
       const item = decorate(submission);

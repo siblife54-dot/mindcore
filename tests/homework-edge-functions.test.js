@@ -6,6 +6,7 @@ const root = path.join(__dirname, "..", "supabase", "functions");
 const read = (fn, file) => fs.readFileSync(path.join(root, fn, file), "utf8");
 const submit = read("submit-homework-attempt", "index.ts");
 const review = read("review-homework-submission", "index.ts");
+const submissions = read("get-homework-submissions", "index.ts");
 const submitHttp = read("submit-homework-attempt", "http.ts");
 const reviewHttp = read("review-homework-submission", "http.ts");
 const uploadPath = path.join(root, "create-homework-upload-url", "index.ts");
@@ -29,6 +30,31 @@ for (const code of ["student_text_required", "text_response_not_allowed", "homew
 for (const code of ["invalid_review_action", "review_comment_required", "course_forbidden", "submission_not_found", "submission_not_pending"]) assert(reviewHttp.includes(code));
 assert(!submit.match(/console\.error\([^\n]*(platform_auth_data|initData)/));
 assert(!review.match(/console\.error\([^\n]*(sessionToken|X-Admin-Session)/));
+
+// Submission detail exposes safe attachment metadata only after course ownership is established.
+const ownershipCheck = submissions.indexOf("requireCourseOwnership(supabase, courseId, context.accountId)");
+const attachmentRead = submissions.indexOf('.from("homework_attachments")');
+assert(ownershipCheck > 0 && attachmentRead > ownershipCheck,
+  "Attachment metadata must only be read after admin ownership checks");
+assert(submissions.includes('.select(fields.attachment).in("attempt_id", attemptIds)'),
+  "Detail must load all attachment metadata with one attempt-ID query");
+assert.strictEqual((submissions.match(/\.from\("homework_attachments"\)/g) ?? []).length, 1,
+  "Attachments must not be queried once per attempt");
+assert(submissions.includes('if (action === "detail")'), "Attachment loading must be detail-only");
+assert(!submissions.includes("input.attempt_id"), "Client attempt_id must never be read");
+assert(!submissions.includes("input.product_user_id"), "Client product_user_id must never be read");
+assert(!submissions.includes("input.account_id"), "Client account_id must never be read");
+for (const field of ["id", "attachment_type", "original_name", "mime_type", "size_bytes", "created_at"]) {
+  assert(submissions.includes(`${field}: row.${field}`), `Public attachments must contain ${field}`);
+}
+const publicAttachmentStart = submissions.indexOf("function publicAttachment");
+const publicAttachmentEnd = submissions.indexOf("\n}", publicAttachmentStart);
+const publicAttachment = submissions.slice(publicAttachmentStart, publicAttachmentEnd);
+assert(!publicAttachment.includes("storage_path"), "Public attachments must not expose storage_path");
+assert(!publicAttachment.includes("attempt_id"), "Public attachments must not expose attempt_id");
+assert(submissions.includes("attachments: (attachmentsByAttempt.get(attempt.id) ?? []).map(publicAttachment)"),
+  "Every detail attempt must receive an attachments array, including an empty array when none exist");
+assert(submissions.includes("latest_attempt: publicAttempt(latest)"), "List response contract must remain attachment-free");
 
 // Presigned upload URLs are issued only from authenticated, course-scoped server state.
 assert(!upload.includes("../_shared/"), "Dashboard-deployed function must be self-contained");
