@@ -433,7 +433,7 @@
       setActiveSalesTab(state.activeSalesTab);
     }
     if (nextTab === "homework") {
-      void loadHomeworkReviewQueue();
+      void loadHomeworkReviewQueue({ refresh: true });
     }
 
     try {
@@ -5977,9 +5977,12 @@
     initPreviewIframe();
     state.activeStudentsTab = getDefaultStudentsTab();
     setActiveStudentsTab(state.activeStudentsTab);
-    setActiveAdminTab(getDefaultAdminTab());
+    var defaultAdminTab = getDefaultAdminTab();
+    setActiveAdminTab(defaultAdminTab);
     void loadRenewalRequests().catch(function () {});
-    void loadHomeworkReviewQueue().catch(function () {});
+    if (defaultAdminTab !== "homework") {
+      void loadHomeworkReviewQueue().catch(function () {});
+    }
     renderConnectionScreen();
     await loadTelegramIntegration();
     state.courseAccessSettings = await fetchCourseAccessSettings();

@@ -29,4 +29,18 @@ assert.doesNotMatch(html, />\s*submission_id\s*</);
 assert.doesNotMatch(html, />\s*attachment_id\s*</);
 assert.match(js, /Number\(attempt\.attempt_number\) > Number\(latest\.attempt_number\)/);
 
+const homeworkTabBranch = js.match(/if \(nextTab === "homework"\) \{([\s\S]*?)\n    \}/);
+assert(homeworkTabBranch, "homework tab activation branch must exist");
+assert.match(homeworkTabBranch[1], /loadHomeworkReviewQueue\(\{ refresh: true \}\)/,
+  "opening and reopening homework must always refresh the pending queue");
+assert.doesNotMatch(homeworkTabBranch[1], /loadHomeworkReviewQueue\(\)/,
+  "homework tab activation must not use the cached queue path");
+
+assert.match(js, /var defaultAdminTab = getDefaultAdminTab\(\);\s*setActiveAdminTab\(defaultAdminTab\);/,
+  "startup must resolve the default tab only once");
+assert.match(js, /if \(defaultAdminTab !== "homework"\) \{\s*void loadHomeworkReviewQueue\(\)\.catch/,
+  "startup badge loading must remain enabled without duplicating the default homework-tab request");
+assert.match(js, /homeworkReviewRefreshBtn[\s\S]*loadHomeworkReviewQueue\(\{ refresh: true \}\)/,
+  "the manual refresh control must continue to force a queue refresh");
+
 console.log("admin homework UI tests passed");
