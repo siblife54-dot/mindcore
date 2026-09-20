@@ -73,6 +73,7 @@
           <button class="admin-top-tab" type="button" data-admin-tab="connections" data-admin-group="content">Подключение</button>
           <button class="admin-top-tab" type="button" data-admin-tab="students" data-admin-group="management" hidden>Ученики</button>
           <button class="admin-top-tab" type="button" data-admin-tab="sales" data-admin-group="management" hidden>Продажи <span id="renewalPendingBadge" class="admin-sales-tab-badge" hidden aria-label="Новые заявки"></span></button>
+          <button class="admin-top-tab" type="button" data-admin-tab="homework" data-admin-group="management" hidden>Домашние задания <span id="homeworkPendingBadge" class="admin-sales-tab-badge" hidden aria-label="Новые работы"></span></button>
         </nav>
       </div>
 
@@ -410,6 +411,21 @@
               </div>
             </form>
           </section>
+        </div>
+      </section>
+
+      <section class="admin-tab-panel" data-admin-panel="homework" hidden>
+        <div class="admin-homework-review-section">
+          <header class="admin-local-header">
+            <div>
+              <h2>Домашние задания</h2>
+              <p class="admin-local-header__description">Работы учеников, ожидающие проверки</p>
+            </div>
+            <button id="homeworkReviewRefreshBtn" class="admin-btn-ghost" type="button">Обновить</button>
+          </header>
+          <div id="homeworkReviewState" class="admin-homework-review-state" hidden></div>
+          <div id="homeworkReviewQueue" class="admin-homework-review-queue"></div>
+          <div id="homeworkReviewDetail" class="admin-homework-review-detail" hidden></div>
         </div>
       </section>
 

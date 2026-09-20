@@ -14,7 +14,7 @@ assert(!js.includes('.from("lesson_homeworks")'));
 assert(js.includes('String(state.selectedLesson.id) !== String(lessonId)'));
 assert(js.includes("state.savedHomeworkSettings = cloneHomeworkSettings(state.homeworkSettings)"));
 assert(js.includes('content: ["appearance", "lesson_settings", "content", "connections"]'));
-assert(js.includes('management: ["students", "sales"]'));
+assert(js.includes('management: ["students", "sales", "homework"]'));
 assert(html.includes('data-admin-tab="lesson_settings"'));
 assert(html.includes('id="homeworkSettingsCard"'));
 
