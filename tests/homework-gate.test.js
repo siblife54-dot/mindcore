@@ -197,6 +197,10 @@ assert(dashboardSource.includes("renderLessonCard(lesson)"), "grouped cards must
 assert(!dashboardSource.includes('.from("lesson_homeworks")'), "dashboard must not read Homework tables directly");
 assert(dashboardSource.indexOf("await reconcileAcceptedHomeworks(") < dashboardSource.indexOf("getAccessibilityModel(lessons, completed"),
   "dashboard must reconcile accepted Homework before calculating accessibility");
+assert(dashboardSource.includes("if (dashboardHomeworkResolved)"),
+  "dashboard must only reconcile after a successful Homework fetch");
+assert(dashboardSource.includes("dashboardHomeworkResolved = false;"),
+  "a Homework fetch failure must explicitly remain unresolved");
 for (const forbiddenNavigation of ["location.reload", "navigateInternally(", "window.location.assign", "window.location.replace"]) {
   assert(!dashboardSource.includes(forbiddenNavigation), `dashboard reconciliation must not navigate via ${forbiddenNavigation}`);
 }
@@ -322,6 +326,44 @@ async function testDashboardReconciliation() {
   assert.deepStrictEqual(failed.localCompleted, [], "failed persistence must not update local completed");
   assert.strictEqual(failed.accessMap["lesson-2"], false, "failed persistence must keep the next lesson locked");
   assert.deepStrictEqual(failed.calls, [["markCompleted", "lesson-1"], ["error", "TypeError"]]);
+
+  const reconciliationLessons = dashboardLessons.concat([
+    { id: 103, lesson_id: "lesson-3", day_number: 3, is_locked: false }
+  ]);
+  const fetchedHomeworks = [
+    { lesson_id: 101, ...homework("after_approval", "accepted") },
+    { lesson_id: 102, ...homework("after_approval", "pending_review") }
+  ];
+  const fetchedHomeworkByLesson = buildHomeworkByLesson(fetchedHomeworks);
+  const preservedHomeworkByLesson = fetchedHomeworkByLesson;
+  const completedAfterToastFailure = [];
+  let homeworkResolved = true;
+  try {
+    await reconcileAcceptedHomeworks({
+      lessons: reconciliationLessons,
+      completed: completedAfterToastFailure,
+      homeworkByLesson: fetchedHomeworkByLesson,
+      markCompleted: async () => {},
+      onCompleted: () => { throw new TypeError("toast storage failed"); },
+      onError: () => {}
+    });
+  } catch (error) {
+    assert.strictEqual(error.name, "TypeError");
+  }
+
+  assert.strictEqual(homeworkResolved, true, "reconciliation failure must not change successful fetch state");
+  assert.strictEqual(fetchedHomeworkByLesson, preservedHomeworkByLesson,
+    "reconciliation failure must preserve the fetched Homework map");
+  assert.strictEqual(getLessonHomeworkGateState(reconciliationLessons[1], fetchedHomeworkByLesson).reason, "pending_review",
+    "unmet after_approval must not become no_homework after reconciliation failure");
+  const accessAfterToastFailure = plain(getAccessibilityModel(
+    reconciliationLessons,
+    completedAfterToastFailure,
+    fetchedHomeworkByLesson,
+    homeworkResolved
+  ).map);
+  assert.strictEqual(accessAfterToastFailure["lesson-3"], false,
+    "the next transition must remain closed by the preserved Homework gate");
 }
 
 Promise.all([testAutoCompletion(), testDashboardReconciliation()]).then(function () {

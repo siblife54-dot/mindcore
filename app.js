@@ -2899,25 +2899,35 @@
       try {
         dashboardHomeworkByLesson = buildHomeworkByLesson(await fetchStudentHomeworks());
         dashboardHomeworkResolved = true;
-        await reconcileAcceptedHomeworks({
-          lessons: lessons,
-          completed: completed,
-          homeworkByLesson: dashboardHomeworkByLesson,
-          markCompleted: markCompleted,
-          onCompleted: function () {
-            localStorage.setItem(DESIGNER_XP_TOAST_KEY, String(Date.now()));
-          },
-          onError: function (error) {
-            console.warn("[MindCore] Dashboard Homework reconciliation failed", {
-              error_type: error instanceof Error ? error.name : "UnknownError"
-            });
-          }
-        });
       } catch (error) {
         // Do not expose request/auth details. An unresolved gate deliberately
         // fails closed for new transitions in getAccessibilityModel().
         console.error("[MindCore] Dashboard Homework error", { error_type: "homework_fetch_failed" });
         dashboardHomeworkByLesson = {};
+        dashboardHomeworkResolved = false;
+      }
+
+      if (dashboardHomeworkResolved) {
+        try {
+          await reconcileAcceptedHomeworks({
+            lessons: lessons,
+            completed: completed,
+            homeworkByLesson: dashboardHomeworkByLesson,
+            markCompleted: markCompleted,
+            onCompleted: function () {
+              localStorage.setItem(DESIGNER_XP_TOAST_KEY, String(Date.now()));
+            },
+            onError: function (error) {
+              console.warn("[MindCore] Dashboard Homework reconciliation failed", {
+                error_type: error instanceof Error ? error.name : "UnknownError"
+              });
+            }
+          });
+        } catch (error) {
+          console.warn("[MindCore] Dashboard Homework reconciliation failed", {
+            error_type: error instanceof Error ? error.name : "UnknownError"
+          });
+        }
       }
     }
 
