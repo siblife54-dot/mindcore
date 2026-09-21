@@ -10,12 +10,13 @@ assert(helpersStart >= 0 && helpersEnd > helpersStart, "Homework gate helpers mu
 const helperSource = js.slice(helpersStart, helpersEnd);
 const context = {};
 vm.runInNewContext(
-  `${helperSource}\nthis.gate = { getHomeworkGateState, buildHomeworkByLesson, getLessonHomeworkGateState, getLessonCompletionControlState, shouldAutoCompleteHomework, autoCompleteAcceptedHomework, reconcileAcceptedHomeworks };`,
+  `${helperSource}\nthis.gate = { getHomeworkGateState, buildHomeworkByLesson, getHomeworkDashboardStatus, getLessonHomeworkGateState, getLessonCompletionControlState, shouldAutoCompleteHomework, autoCompleteAcceptedHomework, reconcileAcceptedHomeworks };`,
   context
 );
 const {
   getHomeworkGateState,
   buildHomeworkByLesson,
+  getHomeworkDashboardStatus,
   getLessonHomeworkGateState,
   getLessonCompletionControlState,
   shouldAutoCompleteHomework,
@@ -41,6 +42,24 @@ assert.deepStrictEqual(plain(getHomeworkGateState({ unlock_rule: " independent "
 
 function homework(rule, status) {
   return { unlock_rule: rule, submission: status === null ? null : { status } };
+}
+
+assert.strictEqual(getHomeworkDashboardStatus(null), null);
+assert.strictEqual(getHomeworkDashboardStatus(undefined), null);
+assert.deepStrictEqual(plain(getHomeworkDashboardStatus(homework("independent", null))), {
+  text: "ДЗ не отправлено", state: "not_submitted"
+});
+for (const [status, expected] of Object.entries({
+  pending_review: { text: "ДЗ на проверке", state: "pending" },
+  revision_requested: { text: "Нужна доработка", state: "revision" },
+  accepted: { text: "ДЗ принято", state: "accepted" }
+})) {
+  assert.deepStrictEqual(plain(getHomeworkDashboardStatus(homework("independent", status))), expected);
+}
+for (const malformed of ["homework", [], {}, { submission: undefined }, homework("independent", "future_status")]) {
+  assert.deepStrictEqual(plain(getHomeworkDashboardStatus(malformed)), {
+    text: "Статус ДЗ недоступен", state: "unknown"
+  });
 }
 
 assert.deepStrictEqual(plain(getHomeworkGateState(homework("after_submission", null))), {
@@ -194,6 +213,16 @@ assert(dashboardSource.includes("!isPreviewMode() && Boolean(getTelegramInitData
   "preview/no-Telegram must not request Homework");
 assert(dashboardSource.includes("lessons.map(renderLessonCard)"), "classic cards must share renderLessonCard");
 assert(dashboardSource.includes("renderLessonCard(lesson)"), "grouped cards must share renderLessonCard");
+assert(dashboardSource.includes("dashboardHomeworkByLesson[String(lesson.id)]"),
+  "dashboard cards must use the already-loaded Homework lookup");
+assert(dashboardSource.includes("getHomeworkDashboardStatus(dashboardHomework)"));
+assert(dashboardSource.includes("homework-status--"));
+assert(dashboardSource.indexOf("status done") < dashboardSource.indexOf("homework-status--"),
+  "completed cards must retain the lesson status alongside accepted Homework");
+assert(dashboardSource.indexOf("status locked") < dashboardSource.indexOf("homework-status--"),
+  "locked cards must retain the lock status alongside Homework");
+assert(!dashboardSource.slice(dashboardSource.indexOf("function renderLessonCard"), dashboardSource.indexOf("if (COURSE_SETTINGS")).includes("fetchStudentHomeworks"),
+  "card rendering must not fetch Homework");
 assert(!dashboardSource.includes('.from("lesson_homeworks")'), "dashboard must not read Homework tables directly");
 assert(dashboardSource.indexOf("await reconcileAcceptedHomeworks(") < dashboardSource.indexOf("getAccessibilityModel(lessons, completed"),
   "dashboard must reconcile accepted Homework before calculating accessibility");
