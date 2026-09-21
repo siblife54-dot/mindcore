@@ -10,10 +10,10 @@ assert(helpersStart >= 0 && helpersEnd > helpersStart, "Homework gate helpers mu
 const helperSource = js.slice(helpersStart, helpersEnd);
 const context = {};
 vm.runInNewContext(
-  `${helperSource}\nthis.gate = { getHomeworkGateState, buildHomeworkByLesson, getLessonHomeworkGateState };`,
+  `${helperSource}\nthis.gate = { getHomeworkGateState, buildHomeworkByLesson, getLessonHomeworkGateState, getLessonCompletionControlState };`,
   context
 );
-const { getHomeworkGateState, buildHomeworkByLesson, getLessonHomeworkGateState } = context.gate;
+const { getHomeworkGateState, buildHomeworkByLesson, getLessonHomeworkGateState, getLessonCompletionControlState } = context.gate;
 
 function plain(value) {
   return JSON.parse(JSON.stringify(value));
@@ -74,7 +74,44 @@ assert.deepStrictEqual(plain(getLessonHomeworkGateState({ id: 999 }, byLesson)),
   satisfied: true, rule: "none", reason: "no_homework"
 });
 
-// Stage 6.3 is logic-only: gate helpers must not touch I/O or existing access/completion flows.
+const completionState = (completed, gate) => plain(getLessonCompletionControlState(completed, gate));
+assert.deepStrictEqual(completionState(true, null), {
+  disabled: true, text: "Пройдено ✓", reason: "completed"
+});
+for (const gate of [
+  getHomeworkGateState(null),
+  getHomeworkGateState(homework("independent", null)),
+  getHomeworkGateState(homework("after_submission", "pending_review")),
+  getHomeworkGateState(homework("after_submission", "revision_requested")),
+  getHomeworkGateState(homework("after_approval", "accepted"))
+]) {
+  assert.strictEqual(completionState(false, gate).disabled, false);
+  assert.strictEqual(completionState(false, gate).text, "Отметить как пройдено");
+}
+assert.deepStrictEqual(completionState(false, getHomeworkGateState(homework("after_submission", null))), {
+  disabled: true, text: "Сначала отправьте домашнее задание", reason: "needs_submission"
+});
+assert.strictEqual(completionState(false, getHomeworkGateState(homework("after_approval", null))).disabled, true);
+assert.deepStrictEqual(completionState(false, getHomeworkGateState(homework("after_approval", "pending_review"))), {
+  disabled: true, text: "Домашнее задание на проверке", reason: "pending_review"
+});
+assert.deepStrictEqual(completionState(false, getHomeworkGateState(homework("after_approval", "revision_requested"))), {
+  disabled: true, text: "Требуется доработка", reason: "revision_requested"
+});
+for (const gate of [
+  null,
+  getHomeworkGateState(undefined),
+  getHomeworkGateState({ unlock_rule: "future_rule", submission: null }),
+  getHomeworkGateState(homework("after_approval", "future_status"))
+]) {
+  assert.strictEqual(completionState(false, gate).disabled, true);
+  assert.strictEqual(completionState(false, gate).text, "Не удалось проверить домашнее задание");
+}
+assert.deepStrictEqual(completionState(false, { satisfied: false, reason: "loading" }), {
+  disabled: true, text: "Проверяем домашнее задание...", reason: "loading"
+});
+
+// Gate helpers must not touch I/O or existing accessibility flows.
 for (const forbidden of ["document", "fetch(", "localStorage", "APP_STORAGE", "completedLessons"]) {
   assert(!helperSource.includes(forbidden), `pure helpers must not reference ${forbidden}`);
 }
@@ -83,11 +120,15 @@ const accessibilityEnd = js.indexOf("  function isDebugMode()", accessibilitySta
 const accessibilitySource = js.slice(accessibilityStart, accessibilityEnd);
 assert(!/Homework|homework/.test(accessibilitySource), "accessibility behavior must not use Homework yet");
 
-const completionStart = js.indexOf('var completeBtn = document.getElementById("completeBtn")');
-const completionEnd = js.indexOf("void renderLessonHomework(lesson)", completionStart);
-const completionSource = js.slice(completionStart, completionEnd);
-assert(completionStart >= 0 && completionEnd > completionStart);
-assert(!/HomeworkGate|getHomeworkGate/.test(completionSource), "lesson completion must not be gated yet");
+const renderLessonStart = js.indexOf("  async function renderLesson(lessons)");
+const renderLessonEnd = js.indexOf("  function pluralizeRu", renderLessonStart);
+const completionSource = js.slice(renderLessonStart, renderLessonEnd);
+assert(completionSource.includes('reason: "loading"'));
+assert(completionSource.includes("resolvedHomeworkGate.satisfied !== true"));
+assert(completionSource.includes("updateCompletionControl(null)"), "Homework errors must fail closed");
+assert.strictEqual((completionSource.match(/fetchStudentHomeworks\(\)/g) || []).length, 1);
+assert(completionSource.includes("!isPreviewMode() && Boolean(getTelegramInitData())"));
+assert(completionSource.includes("resolvedHomeworkGate = getHomeworkGateState(updatedHomework)"));
 assert(js.includes("await saveCompleted(completed)"), "completedLessons persistence must remain present");
 
 for (const table of ["lesson_homeworks", "homework_submissions", "homework_attempts", "homework_attachments"]) {
