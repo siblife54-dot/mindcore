@@ -2107,6 +2107,64 @@
       : "";
   }
 
+  function getHomeworkGateState(homework) {
+    if (homework === null || typeof homework !== "object") {
+      return { satisfied: true, rule: "none", reason: "no_homework" };
+    }
+
+    var rule = String(homework.unlock_rule).trim();
+    var hasSubmission = homework.submission !== null && typeof homework.submission === "object";
+
+    if (rule === "independent") {
+      return { satisfied: true, rule: rule, reason: "independent" };
+    }
+
+    if (rule === "after_submission") {
+      return {
+        satisfied: hasSubmission,
+        rule: rule,
+        reason: hasSubmission ? "submitted" : "needs_submission"
+      };
+    }
+
+    if (rule === "after_approval") {
+      if (!hasSubmission) {
+        return { satisfied: false, rule: rule, reason: "needs_submission" };
+      }
+
+      var submissionStatus = String(homework.submission.status).trim();
+      if (submissionStatus === "accepted") {
+        return { satisfied: true, rule: rule, reason: "accepted" };
+      }
+      if (submissionStatus === "pending_review" || submissionStatus === "revision_requested") {
+        return { satisfied: false, rule: rule, reason: submissionStatus };
+      }
+
+      return { satisfied: false, rule: rule, reason: "unknown_submission_status" };
+    }
+
+    return { satisfied: false, rule: rule, reason: "unknown_rule" };
+  }
+
+  function buildHomeworkByLesson(homeworks) {
+    var homeworkByLesson = {};
+    if (!Array.isArray(homeworks)) return homeworkByLesson;
+
+    homeworks.forEach(function (homework) {
+      if (!homework || typeof homework !== "object" || homework.lesson_id === null || homework.lesson_id === undefined) return;
+      homeworkByLesson[String(homework.lesson_id)] = homework;
+    });
+    return homeworkByLesson;
+  }
+
+  function getLessonHomeworkGateState(lesson, homeworkByLesson) {
+    var homework = null;
+    if (lesson && lesson.id !== null && lesson.id !== undefined && homeworkByLesson && typeof homeworkByLesson === "object") {
+      homework = homeworkByLesson[String(lesson.id)] || null;
+    }
+    return getHomeworkGateState(homework);
+  }
+
   async function fetchStudentHomeworks() {
     var telegramInitData = getTelegramInitData();
     if (isPreviewMode() || !telegramInitData) return [];
