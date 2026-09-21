@@ -2108,8 +2108,11 @@
   }
 
   function getHomeworkGateState(homework) {
-    if (homework === null || typeof homework !== "object") {
+    if (homework === null) {
       return { satisfied: true, rule: "none", reason: "no_homework" };
+    }
+    if (typeof homework !== "object" || Array.isArray(homework)) {
+      return { satisfied: false, rule: "unknown", reason: "invalid_homework" };
     }
 
     var rule = String(homework.unlock_rule).trim();

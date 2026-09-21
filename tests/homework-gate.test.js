@@ -22,6 +22,11 @@ function plain(value) {
 assert.deepStrictEqual(plain(getHomeworkGateState(null)), {
   satisfied: true, rule: "none", reason: "no_homework"
 });
+for (const malformedHomework of [undefined, "homework", 101, []]) {
+  assert.deepStrictEqual(plain(getHomeworkGateState(malformedHomework)), {
+    satisfied: false, rule: "unknown", reason: "invalid_homework"
+  });
+}
 assert.deepStrictEqual(plain(getHomeworkGateState({ unlock_rule: " independent ", submission: null })), {
   satisfied: true, rule: "independent", reason: "independent"
 });
