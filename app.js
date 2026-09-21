@@ -1182,7 +1182,7 @@
     return maxDay;
   }
 
-  function getAccessibilityModel(lessons, completed) {
+  function getAccessibilityModel(lessons, completed, homeworkByLesson, homeworkResolved) {
     if (isPreviewMode()) {
       var map = {};
       lessons.forEach(function (lesson) {
@@ -1200,8 +1200,29 @@
     var threshold = maxCompletedDayNumber + 1;
     var map = {};
 
-    lessons.forEach(function (lesson) {
-      var isSequentiallyOpen = lesson.day_number <= threshold;
+    var usesHomeworkGates = arguments.length >= 3;
+
+    lessons.forEach(function (lesson, index) {
+      var isCompleted = completed.includes(lesson.lesson_id);
+      var isSequentiallyOpen;
+
+      if (!usesHomeworkGates) {
+        isSequentiallyOpen = lesson.day_number <= threshold;
+      } else if (isCompleted || index === 0) {
+        // Completed content is never taken away. The first lesson has no
+        // predecessor whose Homework could gate it.
+        isSequentiallyOpen = true;
+      } else {
+        var previousLesson = lessons[index - 1];
+        var previousLessonCompleted = completed.includes(previousLesson.lesson_id);
+        var previousHomeworkGate = homeworkResolved === true
+          ? getLessonHomeworkGateState(previousLesson, homeworkByLesson)
+          : null;
+        isSequentiallyOpen = previousLessonCompleted
+          && previousHomeworkGate !== null
+          && previousHomeworkGate.satisfied === true;
+      }
+
       var isLockedBySheet = lesson.is_locked === true;
       map[lesson.lesson_id] = isLockedBySheet ? false : isSequentiallyOpen;
     });
@@ -2821,7 +2842,25 @@
     }
 
     var completed = await loadCompleted();
-    var accessModel = getAccessibilityModel(lessons, completed);
+    var usesTelegramHomework = !isPreviewMode() && Boolean(getTelegramInitData());
+    var dashboardHomeworkByLesson;
+    var dashboardHomeworkResolved = false;
+
+    if (usesTelegramHomework) {
+      try {
+        dashboardHomeworkByLesson = buildHomeworkByLesson(await fetchStudentHomeworks());
+        dashboardHomeworkResolved = true;
+      } catch (error) {
+        // Do not expose request/auth details. An unresolved gate deliberately
+        // fails closed for new transitions in getAccessibilityModel().
+        console.error("[MindCore] Dashboard Homework error", { error_type: "homework_fetch_failed" });
+        dashboardHomeworkByLesson = {};
+      }
+    }
+
+    var accessModel = usesTelegramHomework
+      ? getAccessibilityModel(lessons, completed, dashboardHomeworkByLesson, dashboardHomeworkResolved)
+      : getAccessibilityModel(lessons, completed);
 
     await renderNutritionCard();
     renderEmotionNavigator();

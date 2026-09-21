@@ -111,14 +111,60 @@ assert.deepStrictEqual(completionState(false, { satisfied: false, reason: "loadi
   disabled: true, text: "Проверяем домашнее задание...", reason: "loading"
 });
 
-// Gate helpers must not touch I/O or existing accessibility flows.
+// Gate helpers must stay pure and must not touch I/O.
 for (const forbidden of ["document", "fetch(", "localStorage", "APP_STORAGE", "completedLessons"]) {
   assert(!helperSource.includes(forbidden), `pure helpers must not reference ${forbidden}`);
 }
 const accessibilityStart = js.indexOf("  function getMaxCompletedDayNumber(");
 const accessibilityEnd = js.indexOf("  function isDebugMode()", accessibilityStart);
 const accessibilitySource = js.slice(accessibilityStart, accessibilityEnd);
-assert(!/Homework|homework/.test(accessibilitySource), "accessibility behavior must not use Homework yet");
+const accessibilityContext = { preview: false };
+vm.runInNewContext(
+  `${helperSource}\n${accessibilitySource}\nfunction isPreviewMode() { return preview; }\nthis.accessibility = getAccessibilityModel;`,
+  accessibilityContext
+);
+const getAccessibilityModel = accessibilityContext.accessibility;
+const lessons = [
+  { id: 101, lesson_id: "lesson-1", day_number: 1, is_locked: false },
+  { id: 102, lesson_id: "lesson-2", day_number: 2, is_locked: false },
+  { id: 103, lesson_id: "lesson-3", day_number: 3, is_locked: false }
+];
+const access = (completed, homeworks, resolved = true, customLessons = lessons) => plain(
+  getAccessibilityModel(customLessons, completed, buildHomeworkByLesson(homeworks), resolved).map
+);
+
+assert.strictEqual(access([], {})["lesson-1"], true, "the first lesson must be accessible");
+assert.strictEqual(access(["lesson-2"], [{ lesson_id: 102, ...homework("after_approval", "pending_review") }])["lesson-2"], true,
+  "a completed lesson must remain accessible despite its own unmet gate");
+assert.strictEqual(access([], {})["lesson-2"], false, "the next lesson requires previous completion");
+assert.strictEqual(access(["lesson-1"], [])["lesson-2"], true, "no Homework satisfies the gate");
+assert.strictEqual(access(["lesson-1"], [{ lesson_id: 101, ...homework("independent", null) }])["lesson-2"], true);
+assert.strictEqual(access(["lesson-1"], [{ lesson_id: 101, ...homework("after_submission", null) }])["lesson-2"], false);
+for (const status of ["pending_review", "revision_requested"]) {
+  assert.strictEqual(access(["lesson-1"], [{ lesson_id: 101, ...homework("after_submission", status) }])["lesson-2"], true);
+  assert.strictEqual(access(["lesson-1"], [{ lesson_id: 101, ...homework("after_approval", status) }])["lesson-2"], false);
+}
+assert.strictEqual(access(["lesson-1"], [{ lesson_id: 101, ...homework("after_approval", "accepted") }])["lesson-2"], true);
+assert.strictEqual(access(["lesson-1"], [{ lesson_id: 101, ...homework("future_rule", null) }])["lesson-2"], false);
+assert.strictEqual(access(["lesson-1"], [], true, [{ ...lessons[0], is_locked: true }])["lesson-1"], false,
+  "manual is_locked must always win");
+assert.strictEqual(access(["lesson-1"], [{ lesson_id: 101, ...homework("after_approval", "pending_review") }])["lesson-1"], true,
+  "a completed lesson's own unmet gate must not lock that lesson");
+
+const unresolved = access(["lesson-1"], [], false);
+assert.strictEqual(unresolved["lesson-1"], true, "the first lesson remains available after an API failure");
+assert.strictEqual(unresolved["lesson-2"], false, "new transitions fail closed after an API failure");
+assert.strictEqual(access(["lesson-1", "lesson-2"], [], false)["lesson-2"], true,
+  "completed lessons remain available after an API failure");
+
+// Omitting Homework arguments preserves the legacy completion-only behavior for
+// preview/no-Telegram and lesson direct-access checks.
+assert.strictEqual(plain(getAccessibilityModel(lessons, ["lesson-1"]).map)["lesson-2"], true);
+accessibilityContext.preview = true;
+assert.deepStrictEqual(plain(getAccessibilityModel(lessons, []).map), {
+  "lesson-1": true, "lesson-2": true, "lesson-3": true
+});
+accessibilityContext.preview = false;
 
 const renderLessonStart = js.indexOf("  async function renderLesson(lessons)");
 const renderLessonEnd = js.indexOf("  function pluralizeRu", renderLessonStart);
@@ -130,6 +176,17 @@ assert.strictEqual((completionSource.match(/fetchStudentHomeworks\(\)/g) || []).
 assert(completionSource.includes("!isPreviewMode() && Boolean(getTelegramInitData())"));
 assert(completionSource.includes("resolvedHomeworkGate = getHomeworkGateState(updatedHomework)"));
 assert(js.includes("await saveCompleted(completed)"), "completedLessons persistence must remain present");
+
+const dashboardStart = js.indexOf("  async function renderDashboard(lessons, config)");
+const dashboardEnd = js.indexOf("  async function renderLesson(lessons)", dashboardStart);
+const dashboardSource = js.slice(dashboardStart, dashboardEnd);
+assert.strictEqual((dashboardSource.match(/fetchStudentHomeworks\(\)/g) || []).length, 1,
+  "dashboard must make at most one Homework request");
+assert(dashboardSource.includes("!isPreviewMode() && Boolean(getTelegramInitData())"),
+  "preview/no-Telegram must not request Homework");
+assert(dashboardSource.includes("lessons.map(renderLessonCard)"), "classic cards must share renderLessonCard");
+assert(dashboardSource.includes("renderLessonCard(lesson)"), "grouped cards must share renderLessonCard");
+assert(!dashboardSource.includes('.from("lesson_homeworks")'), "dashboard must not read Homework tables directly");
 
 for (const table of ["lesson_homeworks", "homework_submissions", "homework_attempts", "homework_attachments"]) {
   assert(!js.includes(`.from("${table}")`), `app.js must not directly access ${table}`);
