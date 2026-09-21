@@ -10,10 +10,17 @@ assert(helpersStart >= 0 && helpersEnd > helpersStart, "Homework gate helpers mu
 const helperSource = js.slice(helpersStart, helpersEnd);
 const context = {};
 vm.runInNewContext(
-  `${helperSource}\nthis.gate = { getHomeworkGateState, buildHomeworkByLesson, getLessonHomeworkGateState, getLessonCompletionControlState };`,
+  `${helperSource}\nthis.gate = { getHomeworkGateState, buildHomeworkByLesson, getLessonHomeworkGateState, getLessonCompletionControlState, shouldAutoCompleteHomework, autoCompleteAcceptedHomework };`,
   context
 );
-const { getHomeworkGateState, buildHomeworkByLesson, getLessonHomeworkGateState, getLessonCompletionControlState } = context.gate;
+const {
+  getHomeworkGateState,
+  buildHomeworkByLesson,
+  getLessonHomeworkGateState,
+  getLessonCompletionControlState,
+  shouldAutoCompleteHomework,
+  autoCompleteAcceptedHomework
+} = context.gate;
 
 function plain(value) {
   return JSON.parse(JSON.stringify(value));
@@ -193,4 +200,70 @@ for (const table of ["lesson_homeworks", "homework_submissions", "homework_attem
 }
 assert(!helperSource.includes("supabase"), "gate helpers must not introduce backend access");
 
-console.log("Homework gate regression assertions passed");
+async function testAutoCompletion() {
+  async function run({ rule = "after_approval", status = "accepted", completed = false, last = false, fail = false } = {}) {
+    const calls = [];
+    const guard = { started: false };
+    const lesson = { lesson_id: "lesson-1" };
+    const nextLesson = last ? null : { lesson_id: "lesson-2" };
+    const options = {
+      guard,
+      isCompleted: () => completed,
+      homework: homework(rule, status),
+      lesson,
+      nextLesson,
+      markCompleted: async (id) => {
+        calls.push(["markCompleted", id]);
+        if (fail) throw new TypeError("storage failed");
+      },
+      onStarting: () => calls.push(["starting"]),
+      onCompleted: () => calls.push(["completed"]),
+      navigate: (next) => calls.push(["navigate", next && next.lesson_id]),
+      onError: (error) => calls.push(["error", error.name])
+    };
+    return { result: await autoCompleteAcceptedHomework(options), calls, guard, options };
+  }
+
+  const accepted = await run();
+  assert.strictEqual(accepted.result, true, "accepted after_approval must auto-complete");
+  assert.deepStrictEqual(accepted.calls, [
+    ["starting"], ["markCompleted", "lesson-1"], ["completed"], ["navigate", "lesson-2"]
+  ], "completion must persist before navigating to the next array lesson");
+
+  const last = await run({ last: true });
+  assert.deepStrictEqual(last.calls.at(-1), ["navigate", null], "the final lesson must navigate to dashboard");
+
+  for (const scenario of [
+    { completed: true },
+    { rule: "independent" },
+    { rule: "after_submission" },
+    { status: "pending_review" },
+    { status: "revision_requested" }
+  ]) {
+    const skipped = await run(scenario);
+    assert.strictEqual(skipped.result, false);
+    assert.deepStrictEqual(skipped.calls, [], `must not auto-complete: ${JSON.stringify(scenario)}`);
+  }
+
+  const guarded = await run();
+  assert.strictEqual(await autoCompleteAcceptedHomework(guarded.options), false, "guard must prevent a second execution");
+  assert.strictEqual(guarded.calls.filter(([name]) => name === "markCompleted").length, 1);
+
+  const failed = await run({ fail: true });
+  assert.strictEqual(failed.result, false);
+  assert.strictEqual(failed.guard.started, true, "failed attempts must not retry forever");
+  assert.deepStrictEqual(failed.calls, [
+    ["starting"], ["markCompleted", "lesson-1"], ["error", "TypeError"]
+  ], "a persistence error must be logged without navigation");
+
+  assert.strictEqual(shouldAutoCompleteHomework(false, homework("after_approval", "accepted")), true);
+  assert(!completionSource.includes("setInterval("), "lesson auto-completion must not poll");
+  assert(!completionSource.includes("Realtime"), "lesson auto-completion must not add Realtime");
+}
+
+testAutoCompletion().then(function () {
+  console.log("Homework gate regression assertions passed");
+}).catch(function (error) {
+  console.error(error);
+  process.exitCode = 1;
+});
