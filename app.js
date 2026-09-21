@@ -2185,6 +2185,29 @@
     return homeworkByLesson;
   }
 
+  function getHomeworkDashboardStatus(homework) {
+    if (homework === null || homework === undefined) return null;
+
+    if (typeof homework !== "object" || Array.isArray(homework)) {
+      return { text: "Статус ДЗ недоступен", state: "unknown" };
+    }
+    if (homework.submission === null) {
+      return { text: "ДЗ не отправлено", state: "not_submitted" };
+    }
+    if (typeof homework.submission !== "object" || Array.isArray(homework.submission)) {
+      return { text: "Статус ДЗ недоступен", state: "unknown" };
+    }
+
+    var status = String(homework.submission.status || "").trim();
+    var dashboardStatusBySubmissionStatus = {
+      pending_review: { text: "ДЗ на проверке", state: "pending" },
+      revision_requested: { text: "Нужна доработка", state: "revision" },
+      accepted: { text: "ДЗ принято", state: "accepted" }
+    };
+    return dashboardStatusBySubmissionStatus[status]
+      || { text: "Статус ДЗ недоступен", state: "unknown" };
+  }
+
   function getLessonHomeworkGateState(lesson, homeworkByLesson) {
     var homework = null;
     if (lesson && lesson.id !== null && lesson.id !== undefined && homeworkByLesson && typeof homeworkByLesson === "object") {
@@ -2957,6 +2980,10 @@
       var done = completed.includes(lesson.lesson_id);
       var accessible = Boolean(accessModel.map[lesson.lesson_id]);
       var locked = isPreviewMode() ? false : !accessible;
+      var dashboardHomework = dashboardHomeworkByLesson
+        ? dashboardHomeworkByLesson[String(lesson.id)]
+        : null;
+      var homeworkStatus = getHomeworkDashboardStatus(dashboardHomework);
 
       return [
         '<article class="lesson-card' + (locked ? ' locked' : '') + '">',
@@ -2969,6 +2996,9 @@
         '<div class="lesson-indicators">',
         (done ? '<span class="status done">Пройдено</span>' : ''),
         (locked ? '<span class="status locked">Закрыто</span>' : ''),
+        (homeworkStatus
+          ? '<span class="status homework-status homework-status--' + escapeAttr(homeworkStatus.state) + '">' + escapeHtml(homeworkStatus.text) + '</span>'
+          : ''),
         '</div>',
         '</div>',
         '<h3>' + escapeHtml(lesson.title) + '</h3>',

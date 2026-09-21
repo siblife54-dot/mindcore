@@ -424,6 +424,8 @@ a { color: inherit; }
 
 .lesson-indicators {
   display: inline-flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
   gap: 6px;
 }
 
@@ -442,6 +444,33 @@ a { color: inherit; }
 .status.locked {
   color: #ffe2e5;
   background: rgba(255, 111, 125, 0.16);
+}
+
+.status.homework-status {
+  color: var(--muted);
+  background: color-mix(in srgb, var(--card-2) 82%, var(--accent) 18%);
+  border: 1px solid var(--border);
+}
+
+.status.homework-status--pending {
+  color: color-mix(in srgb, var(--text) 72%, var(--accent) 28%);
+  background: color-mix(in srgb, var(--card-2) 84%, var(--accent) 16%);
+}
+
+.status.homework-status--revision {
+  color: var(--text);
+  background: color-mix(in srgb, var(--card-2) 62%, var(--accent) 38%);
+  border-color: color-mix(in srgb, var(--border) 35%, var(--accent) 65%);
+  font-weight: 700;
+}
+
+.status.homework-status--accepted {
+  color: var(--badge-text, var(--text));
+  background: var(--badge-bg, color-mix(in srgb, var(--card-2) 72%, var(--accent) 28%));
+}
+
+.status.homework-status--unknown {
+  border-style: dashed;
 }
 
 .lesson-card h3 {
