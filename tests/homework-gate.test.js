@@ -10,7 +10,7 @@ assert(helpersStart >= 0 && helpersEnd > helpersStart, "Homework gate helpers mu
 const helperSource = js.slice(helpersStart, helpersEnd);
 const context = {};
 vm.runInNewContext(
-  `${helperSource}\nthis.gate = { getHomeworkGateState, buildHomeworkByLesson, getLessonHomeworkGateState, getLessonCompletionControlState, shouldAutoCompleteHomework, autoCompleteAcceptedHomework };`,
+  `${helperSource}\nthis.gate = { getHomeworkGateState, buildHomeworkByLesson, getLessonHomeworkGateState, getLessonCompletionControlState, shouldAutoCompleteHomework, autoCompleteAcceptedHomework, reconcileAcceptedHomeworks };`,
   context
 );
 const {
@@ -19,7 +19,8 @@ const {
   getLessonHomeworkGateState,
   getLessonCompletionControlState,
   shouldAutoCompleteHomework,
-  autoCompleteAcceptedHomework
+  autoCompleteAcceptedHomework,
+  reconcileAcceptedHomeworks
 } = context.gate;
 
 function plain(value) {
@@ -194,6 +195,18 @@ assert(dashboardSource.includes("!isPreviewMode() && Boolean(getTelegramInitData
 assert(dashboardSource.includes("lessons.map(renderLessonCard)"), "classic cards must share renderLessonCard");
 assert(dashboardSource.includes("renderLessonCard(lesson)"), "grouped cards must share renderLessonCard");
 assert(!dashboardSource.includes('.from("lesson_homeworks")'), "dashboard must not read Homework tables directly");
+assert(dashboardSource.indexOf("await reconcileAcceptedHomeworks(") < dashboardSource.indexOf("getAccessibilityModel(lessons, completed"),
+  "dashboard must reconcile accepted Homework before calculating accessibility");
+for (const forbiddenNavigation of ["location.reload", "navigateInternally(", "window.location.assign", "window.location.replace"]) {
+  assert(!dashboardSource.includes(forbiddenNavigation), `dashboard reconciliation must not navigate via ${forbiddenNavigation}`);
+}
+
+const earlyHomeworkAwait = completionSource.indexOf("var earlyHomeworkResult = await homeworkRequest");
+assert(earlyHomeworkAwait >= 0, "lesson must await its single Homework request early");
+assert(earlyHomeworkAwait < completionSource.indexOf("main.hidden = false"), "Homework must resolve before showing lesson main");
+assert(earlyHomeworkAwait < completionSource.indexOf("fetchLessonBlocks(lesson.id)"), "Homework must resolve before loading blocks");
+assert(completionSource.includes("if (await autoCompleteHomeworkIfAccepted(resolvedHomework)) return;"),
+  "successful early auto-completion must stop lesson rendering");
 
 for (const table of ["lesson_homeworks", "homework_submissions", "homework_attempts", "homework_attachments"]) {
   assert(!js.includes(`.from("${table}")`), `app.js must not directly access ${table}`);
@@ -261,7 +274,57 @@ async function testAutoCompletion() {
   assert(!completionSource.includes("Realtime"), "lesson auto-completion must not add Realtime");
 }
 
-testAutoCompletion().then(function () {
+async function testDashboardReconciliation() {
+  const dashboardLessons = [
+    { id: 101, lesson_id: "lesson-1", day_number: 1, is_locked: false },
+    { id: 102, lesson_id: "lesson-2", day_number: 2, is_locked: false }
+  ];
+
+  async function run({ completed = [], rule = "after_approval", status = "accepted", fail = false } = {}) {
+    const calls = [];
+    const localCompleted = completed.slice();
+    const didComplete = await reconcileAcceptedHomeworks({
+      lessons: dashboardLessons,
+      completed: localCompleted,
+      homeworkByLesson: buildHomeworkByLesson([{ lesson_id: 101, ...homework(rule, status) }]),
+      markCompleted: async (id) => {
+        calls.push(["markCompleted", id]);
+        if (fail) throw new TypeError("save failed");
+      },
+      onCompleted: () => calls.push(["designerXpTimestamp"]),
+      onError: (error) => calls.push(["error", error.name])
+    });
+    const accessMap = access(localCompleted, [{ lesson_id: 101, ...homework(rule, status) }]);
+    return { calls, localCompleted, didComplete, accessMap };
+  }
+
+  const accepted = await run();
+  assert.strictEqual(accepted.didComplete, true);
+  assert.deepStrictEqual(accepted.calls, [["markCompleted", "lesson-1"], ["designerXpTimestamp"]]);
+  assert.deepStrictEqual(accepted.localCompleted, ["lesson-1"], "successful persistence must update local completed");
+  assert.strictEqual(accepted.accessMap["lesson-2"], true, "next lesson must open in the same render");
+
+  const alreadyCompleted = await run({ completed: ["lesson-1"] });
+  assert.deepStrictEqual(alreadyCompleted.calls, [], "completed lessons must not be saved again");
+
+  for (const scenario of [
+    { rule: "independent", status: null },
+    { rule: "after_submission", status: "accepted" },
+    { status: "pending_review" },
+    { status: "revision_requested" }
+  ]) {
+    const skipped = await run(scenario);
+    assert.deepStrictEqual(skipped.calls, [], `dashboard must not reconcile ${JSON.stringify(scenario)}`);
+  }
+
+  const failed = await run({ fail: true });
+  assert.strictEqual(failed.didComplete, false);
+  assert.deepStrictEqual(failed.localCompleted, [], "failed persistence must not update local completed");
+  assert.strictEqual(failed.accessMap["lesson-2"], false, "failed persistence must keep the next lesson locked");
+  assert.deepStrictEqual(failed.calls, [["markCompleted", "lesson-1"], ["error", "TypeError"]]);
+}
+
+Promise.all([testAutoCompletion(), testDashboardReconciliation()]).then(function () {
   console.log("Homework gate regression assertions passed");
 }).catch(function (error) {
   console.error(error);

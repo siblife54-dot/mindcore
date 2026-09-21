@@ -2243,6 +2243,27 @@
     }
   }
 
+  async function reconcileAcceptedHomeworks(options) {
+    var completedAny = false;
+
+    for (var lessonIndex = 0; lessonIndex < options.lessons.length; lessonIndex += 1) {
+      var lesson = options.lessons[lessonIndex];
+      var homework = options.homeworkByLesson[String(lesson.id)] || null;
+      if (!shouldAutoCompleteHomework(options.completed.includes(lesson.lesson_id), homework)) continue;
+
+      try {
+        await options.markCompleted(lesson.lesson_id);
+        options.completed.push(lesson.lesson_id);
+        completedAny = true;
+      } catch (error) {
+        options.onError(error);
+      }
+    }
+
+    if (completedAny) options.onCompleted();
+    return completedAny;
+  }
+
   async function fetchStudentHomeworks() {
     var telegramInitData = getTelegramInitData();
     if (isPreviewMode() || !telegramInitData) return [];
@@ -2878,6 +2899,20 @@
       try {
         dashboardHomeworkByLesson = buildHomeworkByLesson(await fetchStudentHomeworks());
         dashboardHomeworkResolved = true;
+        await reconcileAcceptedHomeworks({
+          lessons: lessons,
+          completed: completed,
+          homeworkByLesson: dashboardHomeworkByLesson,
+          markCompleted: markCompleted,
+          onCompleted: function () {
+            localStorage.setItem(DESIGNER_XP_TOAST_KEY, String(Date.now()));
+          },
+          onError: function (error) {
+            console.warn("[MindCore] Dashboard Homework reconciliation failed", {
+              error_type: error instanceof Error ? error.name : "UnknownError"
+            });
+          }
+        });
       } catch (error) {
         // Do not expose request/auth details. An unresolved gate deliberately
         // fails closed for new transitions in getAccessibilityModel().
@@ -3199,6 +3234,7 @@
         })
       : null;
     var resolvedHomeworkGate = usesTelegramHomework ? null : getHomeworkGateState(null);
+    var resolvedHomework = null;
     var completeBtn = document.getElementById("completeBtn");
     var autoCompletionGuard = { started: false };
 
@@ -3240,6 +3276,27 @@
           updateCompletionControl(resolvedHomeworkGate);
         }
       });
+    }
+
+    if (usesTelegramHomework) {
+      var earlyHomeworkResult = await homeworkRequest;
+      if (earlyHomeworkResult.error) {
+        resolvedHomeworkGate = null;
+        console.warn("[MindCore] Student Homework could not be loaded", {
+          error_type: earlyHomeworkResult.error instanceof Error ? earlyHomeworkResult.error.name : "UnknownError"
+        });
+      } else {
+        var earlyHomeworkByLesson = buildHomeworkByLesson(earlyHomeworkResult.homeworks);
+        resolvedHomework = earlyHomeworkByLesson[String(lesson.id)] || null;
+        resolvedHomeworkGate = getLessonHomeworkGateState(lesson, earlyHomeworkByLesson);
+        if (shouldAutoCompleteHomework(isLessonCompleted, resolvedHomework)) {
+          if (main) main.hidden = true;
+          stateBox.hidden = false;
+          stateBox.classList.remove("skeleton");
+          stateBox.textContent = "Открываем следующий урок...";
+          if (await autoCompleteHomeworkIfAccepted(resolvedHomework)) return;
+        }
+      }
     }
 
     wireLessonBackLinks();
@@ -3454,26 +3511,15 @@
     });
 
     if (usesTelegramHomework) {
-      try {
-        var homeworkResult = await homeworkRequest;
-        if (homeworkResult.error) throw homeworkResult.error;
-        var homeworks = homeworkResult.homeworks;
-        var homeworkByLesson = buildHomeworkByLesson(homeworks);
-        var homework = homeworkByLesson[String(lesson.id)] || null;
-        resolvedHomeworkGate = getLessonHomeworkGateState(lesson, homeworkByLesson);
-        if (!shouldAutoCompleteHomework(isLessonCompleted, homework)) updateCompletionControl(resolvedHomeworkGate);
-        void renderLessonHomework(lesson, homework, function (updatedHomework) {
+      if (resolvedHomeworkGate) {
+        updateCompletionControl(resolvedHomeworkGate);
+        void renderLessonHomework(lesson, resolvedHomework, function (updatedHomework) {
           resolvedHomeworkGate = getHomeworkGateState(updatedHomework);
           if (!shouldAutoCompleteHomework(isLessonCompleted, updatedHomework)) updateCompletionControl(resolvedHomeworkGate);
           void autoCompleteHomeworkIfAccepted(updatedHomework);
         });
-        void autoCompleteHomeworkIfAccepted(homework);
-      } catch (error) {
-        resolvedHomeworkGate = null;
+      } else {
         updateCompletionControl(null);
-        console.warn("[MindCore] Student Homework could not be loaded", {
-          error_type: error instanceof Error ? error.name : "UnknownError"
-        });
       }
     }
   }

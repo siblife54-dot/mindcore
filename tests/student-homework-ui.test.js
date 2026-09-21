@@ -147,7 +147,7 @@ for (const field of ["mime_type", "size_bytes", "product_user_id", "webapp_user_
 assert(finalizeSource.includes('student_text: text || ""'));
 for (const stage of ["create_upload_url", "upload", "finalize"])
   assert(homeworkRenderSource.includes(`homeworkStage = "${stage}"`));
-const homeworkCall = js.indexOf("void renderLessonHomework(lesson, homework", renderLessonStart);
+const homeworkCall = js.indexOf("void renderLessonHomework(lesson, resolvedHomework", renderLessonStart);
 assert(homeworkCall > completionHandlerStart && homeworkCall < renderLessonEnd);
 assert(!lessonRenderSource.includes("await renderLessonHomework(lesson"));
 assert.strictEqual((lessonRenderSource.match(/fetchStudentHomeworks\(\)/g) || []).length, 1);
