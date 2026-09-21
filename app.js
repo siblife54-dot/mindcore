@@ -2168,6 +2168,32 @@
     return getHomeworkGateState(homework);
   }
 
+  function getLessonCompletionControlState(isCompleted, gateState) {
+    if (isCompleted) {
+      return { disabled: true, text: "Пройдено ✓", reason: "completed" };
+    }
+    if (!gateState || typeof gateState !== "object") {
+      return { disabled: true, text: "Не удалось проверить домашнее задание", reason: "unresolved_gate" };
+    }
+    if (gateState.reason === "loading") {
+      return { disabled: true, text: "Проверяем домашнее задание...", reason: "loading" };
+    }
+    if (gateState.satisfied === true) {
+      return { disabled: false, text: "Отметить как пройдено", reason: gateState.reason };
+    }
+
+    var blockedTextByReason = {
+      needs_submission: "Сначала отправьте домашнее задание",
+      pending_review: "Домашнее задание на проверке",
+      revision_requested: "Требуется доработка"
+    };
+    return {
+      disabled: true,
+      text: blockedTextByReason[gateState.reason] || "Не удалось проверить домашнее задание",
+      reason: gateState.reason || "unresolved_gate"
+    };
+  }
+
   async function fetchStudentHomeworks() {
     var telegramInitData = getTelegramInitData();
     if (isPreviewMode() || !telegramInitData) return [];
@@ -2336,21 +2362,15 @@
     return (size / (1024 * 1024)).toFixed(1) + " MB";
   }
 
-  async function renderLessonHomework(lesson) {
+  async function renderLessonHomework(lesson, homework, onHomeworkStateChanged) {
     var host = document.getElementById("lessonHomeworkHost");
     if (!host) return;
 
     host.hidden = true;
     host.innerHTML = "";
-    if (isPreviewMode() || !getTelegramInitData()) return;
+    if (isPreviewMode() || !getTelegramInitData() || !homework) return;
 
     try {
-      var homeworks = await fetchStudentHomeworks();
-      var homework = homeworks.find(function (item) {
-        return String(item.lesson_id) === String(lesson.id);
-      });
-      if (!homework) return;
-
       var responseTypeLabels = {
         text: "Текст",
         image: "Фото",
@@ -2573,6 +2593,11 @@
                 '<p class="lesson-homework__status-title"><span aria-hidden="true">✓</span> На проверке</p>' +
                 '<p class="lesson-homework__status-text">Домашнее задание отправлено и ожидает проверки.</p></div>';
             }
+            if (typeof onHomeworkStateChanged === "function") {
+              onHomeworkStateChanged(Object.assign({}, homework, {
+                submission: { status: "pending_review" }
+              }));
+            }
             form.remove();
           } catch (error) {
             isSubmitting = false;
@@ -2588,7 +2613,7 @@
     } catch (error) {
       host.hidden = true;
       host.innerHTML = "";
-      console.warn("[MindCore] Student Homework could not be loaded", {
+      console.warn("[MindCore] Student Homework could not be rendered", {
         error_type: error instanceof Error ? error.name : "UnknownError"
       });
     }
@@ -3097,6 +3122,28 @@
       return;
     }
 
+    var isLessonCompleted = completed.includes(lesson.lesson_id);
+    var usesTelegramHomework = !isPreviewMode() && Boolean(getTelegramInitData());
+    var homeworkRequest = usesTelegramHomework
+      ? fetchStudentHomeworks().then(function (homeworks) {
+          return { homeworks: homeworks, error: null };
+        }, function (error) {
+          return { homeworks: null, error: error };
+        })
+      : null;
+    var resolvedHomeworkGate = usesTelegramHomework ? null : getHomeworkGateState(null);
+    var completeBtn = document.getElementById("completeBtn");
+
+    function updateCompletionControl(gateState) {
+      var controlState = getLessonCompletionControlState(isLessonCompleted, gateState);
+      completeBtn.textContent = controlState.text;
+      completeBtn.disabled = controlState.disabled;
+    }
+
+    updateCompletionControl(usesTelegramHomework
+      ? { satisfied: false, rule: "unknown", reason: "loading" }
+      : resolvedHomeworkGate);
+
     wireLessonBackLinks();
 
     stateBox.hidden = true;
@@ -3296,15 +3343,11 @@
     }
     // ======================================
 
-    var completeBtn = document.getElementById("completeBtn");
-    if (completed.includes(lesson.lesson_id)) {
-      completeBtn.textContent = "Пройдено ✓";
-      completeBtn.disabled = true;
-    }
-
     completeBtn.addEventListener("click", async function () {
+      if (usesTelegramHomework && (!resolvedHomeworkGate || resolvedHomeworkGate.satisfied !== true)) return;
       await markCompleted(lesson.lesson_id);
       localStorage.setItem(DESIGNER_XP_TOAST_KEY, String(Date.now()));
+      isLessonCompleted = true;
       completeBtn.textContent = "Пройдено ✓";
       completeBtn.disabled = true;
       setTimeout(function () {
@@ -3312,7 +3355,27 @@
       }, 250);
     });
 
-    void renderLessonHomework(lesson);
+    if (usesTelegramHomework) {
+      try {
+        var homeworkResult = await homeworkRequest;
+        if (homeworkResult.error) throw homeworkResult.error;
+        var homeworks = homeworkResult.homeworks;
+        var homeworkByLesson = buildHomeworkByLesson(homeworks);
+        var homework = homeworkByLesson[String(lesson.id)] || null;
+        resolvedHomeworkGate = getLessonHomeworkGateState(lesson, homeworkByLesson);
+        updateCompletionControl(resolvedHomeworkGate);
+        void renderLessonHomework(lesson, homework, function (updatedHomework) {
+          resolvedHomeworkGate = getHomeworkGateState(updatedHomework);
+          updateCompletionControl(resolvedHomeworkGate);
+        });
+      } catch (error) {
+        resolvedHomeworkGate = null;
+        updateCompletionControl(null);
+        console.warn("[MindCore] Student Homework could not be loaded", {
+          error_type: error instanceof Error ? error.name : "UnknownError"
+        });
+      }
+    }
   }
 
   function pluralizeRu(count, forms) {
