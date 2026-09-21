@@ -3856,13 +3856,19 @@ body[data-page="admin"] h5 { color: var(--admin-text); letter-spacing: -0.03em; 
 .admin-homework-detail-head, .admin-homework-review-actions, .admin-homework-attachment { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; }
 .admin-homework-review-text { white-space: pre-wrap; overflow-wrap: anywhere; }
 .admin-homework-attachments, .admin-homework-revision { display: grid; gap: 12px; }
+.admin-homework-attempt { display: grid; gap: 14px; padding: 18px; border: 1px solid var(--admin-border); border-radius: 16px; background: var(--admin-bg-elevated); }
+.admin-homework-attempt header { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+.admin-homework-attempt header time { color: var(--admin-text-secondary); }
+.admin-homework-attempt h4, .admin-homework-review-comment p { margin: 0; }
+.admin-homework-attempt-files, .admin-homework-history, .admin-homework-history__list { display: grid; gap: 12px; }
+.admin-homework-review-comment { display: grid; gap: 8px; padding: 14px; border-left: 3px solid var(--admin-border); background: var(--admin-bg); }
 .admin-homework-attachment { align-items: center; padding: 12px; border: 1px solid var(--admin-border); border-radius: 14px; background: var(--admin-bg-elevated); }
 .admin-homework-attachment span { display: block; margin-top: 4px; }
 .admin-homework-revision label { font-weight: 700; }
 .admin-homework-revision textarea { min-height: 110px; resize: vertical; }
 @media (max-width: 640px) {
   .admin-homework-review-queue { grid-template-columns: 1fr; }
-  .admin-homework-review-card, .admin-homework-detail-head { flex-direction: column; }
+  .admin-homework-review-card, .admin-homework-detail-head, .admin-homework-attempt header { flex-direction: column; }
   .admin-homework-review-card .btn, .admin-homework-review-actions .btn, .admin-homework-review-actions .admin-btn-ghost { flex: 1; }
   .admin-homework-review-detail { padding: 10px; }
   .admin-homework-detail-card { max-height: calc(100vh - 20px); }
