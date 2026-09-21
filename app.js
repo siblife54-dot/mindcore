@@ -188,6 +188,10 @@
     return appendPreviewParams("./index.html?course=" + encodeURIComponent(courseId));
   }
 
+  function getLessonUrlWithCourse(lessonId) {
+    return appendPreviewParams("./lesson.html?id=" + encodeURIComponent(lessonId) + "&course=" + encodeURIComponent(getActiveCourseId()));
+  }
+
   function wireLessonBackLinks() {
     var backUrl = getIndexUrlWithCourse();
     var selectors = [
@@ -2215,6 +2219,30 @@
     };
   }
 
+  function shouldAutoCompleteHomework(isCompleted, homework) {
+    return !isCompleted
+      && Boolean(homework)
+      && String(homework.unlock_rule).trim() === "after_approval"
+      && Boolean(homework.submission)
+      && String(homework.submission.status).trim() === "accepted";
+  }
+
+  async function autoCompleteAcceptedHomework(options) {
+    if (options.guard.started || !shouldAutoCompleteHomework(options.isCompleted(), options.homework)) return false;
+
+    options.guard.started = true;
+    options.onStarting();
+    try {
+      await options.markCompleted(options.lesson.lesson_id);
+      options.onCompleted();
+      options.navigate(options.nextLesson || null);
+      return true;
+    } catch (error) {
+      options.onError(error);
+      return false;
+    }
+  }
+
   async function fetchStudentHomeworks() {
     var telegramInitData = getTelegramInitData();
     if (isPreviewMode() || !telegramInitData) return [];
@@ -3172,6 +3200,7 @@
       : null;
     var resolvedHomeworkGate = usesTelegramHomework ? null : getHomeworkGateState(null);
     var completeBtn = document.getElementById("completeBtn");
+    var autoCompletionGuard = { started: false };
 
     function updateCompletionControl(gateState) {
       var controlState = getLessonCompletionControlState(isLessonCompleted, gateState);
@@ -3182,6 +3211,36 @@
     updateCompletionControl(usesTelegramHomework
       ? { satisfied: false, rule: "unknown", reason: "loading" }
       : resolvedHomeworkGate);
+
+    function autoCompleteHomeworkIfAccepted(homework) {
+      var lessonIndex = lessons.indexOf(lesson);
+      var nextLesson = lessonIndex >= 0 ? lessons[lessonIndex + 1] || null : null;
+      return autoCompleteAcceptedHomework({
+        guard: autoCompletionGuard,
+        isCompleted: function () { return isLessonCompleted; },
+        homework: homework,
+        lesson: lesson,
+        nextLesson: nextLesson,
+        markCompleted: markCompleted,
+        onStarting: function () {
+          completeBtn.textContent = "Открываем следующий урок...";
+          completeBtn.disabled = true;
+        },
+        onCompleted: function () {
+          localStorage.setItem(DESIGNER_XP_TOAST_KEY, String(Date.now()));
+          isLessonCompleted = true;
+        },
+        navigate: function (next) {
+          navigateInternally(next ? getLessonUrlWithCourse(next.lesson_id) : getIndexUrlWithCourse());
+        },
+        onError: function (error) {
+          console.warn("[MindCore] Homework auto-completion failed", {
+            error_type: error instanceof Error ? error.name : "UnknownError"
+          });
+          updateCompletionControl(resolvedHomeworkGate);
+        }
+      });
+    }
 
     wireLessonBackLinks();
 
@@ -3402,11 +3461,13 @@
         var homeworkByLesson = buildHomeworkByLesson(homeworks);
         var homework = homeworkByLesson[String(lesson.id)] || null;
         resolvedHomeworkGate = getLessonHomeworkGateState(lesson, homeworkByLesson);
-        updateCompletionControl(resolvedHomeworkGate);
+        if (!shouldAutoCompleteHomework(isLessonCompleted, homework)) updateCompletionControl(resolvedHomeworkGate);
         void renderLessonHomework(lesson, homework, function (updatedHomework) {
           resolvedHomeworkGate = getHomeworkGateState(updatedHomework);
-          updateCompletionControl(resolvedHomeworkGate);
+          if (!shouldAutoCompleteHomework(isLessonCompleted, updatedHomework)) updateCompletionControl(resolvedHomeworkGate);
+          void autoCompleteHomeworkIfAccepted(updatedHomework);
         });
+        void autoCompleteHomeworkIfAccepted(homework);
       } catch (error) {
         resolvedHomeworkGate = null;
         updateCompletionControl(null);
