@@ -30,8 +30,11 @@ assert.doesNotMatch(html, />\s*attachment_id\s*</);
 assert.match(js, /Number\(attempt\.attempt_number\) > Number\(latest\.attempt_number\)/);
 assert.match(js, /Number\(right\.attempt_number\) - Number\(left\.attempt_number\)/,
   "attempt history must be sorted newest first instead of trusting the backend order");
-assert.match(js, /Текущая попытка/);
-assert.match(js, /previousAttempts\.length \?[^;]*Предыдущие попытки/);
+assert.match(js, /Текущий ответ/);
+assert.match(js, /isCurrent \? "Текущий ответ" : "Ответ " \+ escapeHtml\(attempt\.attempt_number\)/);
+assert.match(js, /previousAttempts\.length \?[^;]*Предыдущие ответы/);
+assert.doesNotMatch(js, /Текущая попытка|Предыдущие попытки|"Попытка " \+ escapeHtml\(attempt\.attempt_number\)/,
+  "attempt history must use answer-oriented UI labels");
 assert.match(js, /attempt\.student_text[^;]*escapeHtml\(attempt\.student_text\)/,
   "student text from every attempt must be escaped and rendered");
 assert.match(js, /attempt\.review_comment[^;]*Комментарий эксперта[^;]*escapeHtml\(attempt\.review_comment\)/,

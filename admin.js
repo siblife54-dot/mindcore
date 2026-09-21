@@ -554,7 +554,7 @@
 
   function renderHomeworkAttempt(attempt, isCurrent) {
     if (!attempt) return "";
-    var title = isCurrent ? "Текущая попытка" : "Попытка " + escapeHtml(attempt.attempt_number);
+    var title = isCurrent ? "Текущий ответ" : "Ответ " + escapeHtml(attempt.attempt_number);
     var text = attempt.student_text ? '<p class="admin-homework-review-text">' + escapeHtml(attempt.student_text) + "</p>" : "";
     var comment = !isCurrent && attempt.review_comment ? '<aside class="admin-homework-review-comment"><h4>Комментарий эксперта</h4><p class="admin-homework-review-text">' + escapeHtml(attempt.review_comment) + "</p></aside>" : "";
     return '<article class="admin-homework-attempt' + (isCurrent ? " admin-homework-attempt--current" : "") + '"><header><h3>' + title + '</h3><time>' + escapeHtml(formatHomeworkDate(attempt.submitted_at)) + "</time></header>" + text + renderHomeworkAttachments(attempt) + comment + "</article>";
@@ -607,7 +607,7 @@
     var attempt = latestHomeworkAttempt(attempts);
     var previousAttempts = attempts.filter(function (item) { return item !== attempt; });
     var currentAttempt = renderHomeworkAttempt(attempt, true);
-    var attemptHistory = previousAttempts.length ? '<section class="admin-homework-history"><h3>Предыдущие попытки</h3><div class="admin-homework-history__list">' + previousAttempts.map(function (item) { return renderHomeworkAttempt(item, false); }).join("") + "</div></section>" : "";
+    var attemptHistory = previousAttempts.length ? '<section class="admin-homework-history"><h3>Предыдущие ответы</h3><div class="admin-homework-history__list">' + previousAttempts.map(function (item) { return renderHomeworkAttempt(item, false); }).join("") + "</div></section>" : "";
     var revision = state.homeworkRevisionOpen ? '<div class="admin-homework-revision"><label for="homeworkRevisionComment">Комментарий ученику</label><textarea id="homeworkRevisionComment" required></textarea><p id="homeworkRevisionError" class="admin-field-error" hidden>Введите комментарий ученику.</p><button class="btn btn-primary" type="button" data-homework-review="request_revision"' + (state.homeworkReviewSubmitting ? " disabled" : "") + '>Отправить на доработку</button></div>' : "";
     root.hidden = false;
     root.innerHTML = '<div class="admin-card admin-homework-detail-card"><div class="admin-homework-detail-head"><div><h2>' + escapeHtml(homeworkStudentName(detail.student)) + '</h2><p><strong>Урок:</strong> ' + escapeHtml((detail.lesson && detail.lesson.title) || "—") + '</p><p><strong>Домашнее задание:</strong> ' + escapeHtml((detail.homework && detail.homework.title) || "—") + '</p></div><button class="admin-btn-ghost" type="button" data-homework-detail-close>Закрыть</button></div>' + currentAttempt + '<p id="homeworkReviewError" class="admin-field-error"' + (state.homeworkReviewError ? "" : " hidden") + '>' + escapeHtml(state.homeworkReviewError || "") + '</p><div class="admin-homework-review-actions"><button class="btn btn-primary" type="button" data-homework-review="accept"' + (state.homeworkReviewSubmitting ? " disabled" : "") + '>Принять</button><button class="admin-btn-ghost" type="button" data-homework-revision-toggle' + (state.homeworkReviewSubmitting ? " disabled" : "") + '>На доработку</button></div>' + revision + attemptHistory + "</div>";
