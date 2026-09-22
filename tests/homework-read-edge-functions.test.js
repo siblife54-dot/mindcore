@@ -8,8 +8,28 @@ const admin = read("get-homework-submissions", "index.ts");
 const studentHttp = read("get-student-homeworks", "http.ts");
 const adminHttp = read("get-homework-submissions", "http.ts");
 
-// Student reads are authorized first, course-scoped, enabled-only and batched.
-assert(student.indexOf("resolveStudentContext") < student.indexOf('.from("lessons")'));
+// The public preflight only establishes course existence and whether enabled Homework exists.
+const courseLookup = student.indexOf('.from("courses")');
+const lessonsLookup = student.indexOf('.from("lessons")');
+const homeworkLookup = student.indexOf('.from("lesson_homeworks")');
+const emptyLessons = student.indexOf('if (!lessonIds.length)');
+const emptyHomeworks = student.indexOf('if (!homeworkIds.length)');
+const studentAuth = student.indexOf("const context = await resolveStudentContext");
+assert(courseLookup > 0 && courseLookup < lessonsLookup, "Course existence must be checked first");
+assert(student.includes('if (!courseResult.data) throw new HomeworkAuthError("course_not_found", 404)'));
+assert(lessonsLookup < emptyLessons && emptyLessons < homeworkLookup,
+  "A course without lessons must return before reading or authorizing Homework");
+assert(homeworkLookup < emptyHomeworks && emptyHomeworks < studentAuth,
+  "Zero enabled Homework must return before student authorization");
+assert.strictEqual(student.match(/\.from\("lesson_homeworks"\)/g)?.length, 1,
+  "The enabled Homework preflight result must be reused after authorization");
+assert(student.indexOf('.eq("is_enabled", true)') < studentAuth,
+  "Only an enabled Homework may trigger student authorization");
+
+// Enabled Homework remains authenticated, course-scoped, student-scoped and batched.
+const submissionQuery = student.indexOf('.from("homework_submissions")');
+assert(studentAuth < submissionQuery, "No submission or Homework response is allowed before authorization");
+assert(student.indexOf("context.courseId !== courseId") > studentAuth);
 assert(!student.includes("input.product_user_id"));
 assert(student.includes('.eq("product_user_id", context.productUserId)'));
 assert(student.includes('.eq("course_id", courseId)'));
@@ -26,8 +46,8 @@ assert(admin.indexOf("requireCourseOwnership") < admin.indexOf('.from("lessons")
 assert(!admin.includes("input.account_id"));
 assert(admin.includes('.eq("course_id", courseId)'));
 const emptyBoundary = admin.indexOf('if (!homeworkIds.length)');
-const submissionQuery = admin.indexOf('.from("homework_submissions")');
-assert(emptyBoundary > 0 && emptyBoundary < submissionQuery, "Empty course boundary must return before querying submissions");
+const adminSubmissionQuery = admin.indexOf('.from("homework_submissions")');
+assert(emptyBoundary > 0 && emptyBoundary < adminSubmissionQuery, "Empty course boundary must return before querying submissions");
 assert(admin.includes('action === "detail"\n        ? jsonResponse({ ok: false, error: { code: "submission_not_found" } }, 404)'));
 assert(admin.includes(': jsonResponse({ ok: true, submissions: [] })'));
 assert(!admin.includes('.in("homework_id", [])'));

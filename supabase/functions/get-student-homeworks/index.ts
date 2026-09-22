@@ -27,13 +27,12 @@ Deno.serve(async (request: Request) => {
     const supabase = createClient(url, key, { auth: { autoRefreshToken: false, persistSession: false } });
     const courseId = input.course_id.trim();
 
-    // Authentication and course access deliberately precede every Homework read.
-    const context = await resolveStudentContext(supabase, {
-      courseId,
-      platform: input.platform.toLowerCase(),
-      platformAuthData: input.platform_auth_data,
-    });
-    if (context.courseId !== courseId) throw new HomeworkAuthError("course_access_denied", 403);
+    // A course with no enabled Homework is a public, empty preflight result. Nothing
+    // selected here is returned unless the protected student context is resolved.
+    const courseResult = await supabase.from("courses").select("course_id")
+      .eq("course_id", courseId).maybeSingle();
+    if (courseResult.error) throw new HomeworkAuthError("server_error", 500);
+    if (!courseResult.data) throw new HomeworkAuthError("course_not_found", 404);
 
     const lessonsResult = await supabase.from("lessons").select("id").eq("course_id", courseId);
     if (lessonsResult.error) throw new HomeworkAuthError("server_error", 500);
@@ -47,6 +46,14 @@ Deno.serve(async (request: Request) => {
     const homeworks: Row[] = homeworkResult.data ?? [];
     const homeworkIds = homeworks.map((row) => row.id);
     if (!homeworkIds.length) return jsonResponse({ ok: true, homeworks: [] });
+
+    // Enabled Homework keeps the complete authentication and course-access gate.
+    const context = await resolveStudentContext(supabase, {
+      courseId,
+      platform: input.platform.toLowerCase(),
+      platformAuthData: input.platform_auth_data,
+    });
+    if (context.courseId !== courseId) throw new HomeworkAuthError("course_access_denied", 403);
 
     // The trusted student id comes exclusively from resolveStudentContext.
     const submissionResult = await supabase.from("homework_submissions")
