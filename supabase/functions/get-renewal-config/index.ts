@@ -132,7 +132,7 @@ Deno.serve(async (req: Request) => {
   try {
     const { data: courseSettings, error: courseSettingsError } = await supabase
       .from("course_settings")
-      .select("course_id, renewal_enabled")
+      .select("course_id, renewal_enabled, access_expired_button_text, access_expired_button_url")
       .eq("course_id", courseId)
       .maybeSingle();
 
@@ -149,10 +149,59 @@ Deno.serve(async (req: Request) => {
     }
 
     if (courseSettings.renewal_enabled !== true) {
+      const supportUrl = typeof courseSettings.access_expired_button_url === "string"
+        ? courseSettings.access_expired_button_url.trim()
+        : "";
+
+      if (!supportUrl) {
+        return jsonResponse({
+          ok: true,
+          enabled: false,
+          settings: null,
+          options: [],
+        });
+      }
+
+      const { data: renewalSettings, error: renewalSettingsError } = await supabase
+        .from("course_renewal_settings")
+        .select("show_before_days")
+        .eq("course_id", courseId)
+        .maybeSingle();
+
+      if (renewalSettingsError) {
+        console.error("Renewal configuration load error", {
+          course_id: courseId,
+          reason: "renewal_settings_query_failed",
+        });
+        return safeErrorResponse();
+      }
+
+      if (
+        !renewalSettings ||
+        !Number.isInteger(renewalSettings.show_before_days) ||
+        renewalSettings.show_before_days < 0
+      ) {
+        return jsonResponse({
+          ok: true,
+          enabled: false,
+          settings: null,
+          options: [],
+        });
+      }
+
       return jsonResponse({
         ok: true,
-        enabled: false,
-        settings: null,
+        enabled: true,
+        mode: "expert_contact",
+        settings: {
+          show_before_days: renewalSettings.show_before_days,
+          support_url: supportUrl,
+          support_label:
+            typeof courseSettings.access_expired_button_text === "string" &&
+              courseSettings.access_expired_button_text.trim() !== ""
+              ? courseSettings.access_expired_button_text.trim()
+              : "Связаться с экспертом",
+        },
         options: [],
       });
     }

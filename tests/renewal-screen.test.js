@@ -132,12 +132,33 @@ function config(overrides) {
   }, overrides || {});
 }
 
+function expertContactConfig(overrides) {
+  return Object.assign({
+    ok: true,
+    enabled: true,
+    mode: "expert_contact",
+    settings: {
+      show_before_days: 7,
+      support_url: "https://t.me/expert",
+      support_label: "Написать эксперту"
+    },
+    options: []
+  }, overrides || {});
+}
+
 async function flush() {
   await new Promise((resolve) => setTimeout(resolve, 0));
 }
 
 async function run() {
   const appSource = fs.readFileSync(path.join(rootDir, "app.js"), "utf8");
+  const configFunctionSource = fs.readFileSync(path.join(rootDir, "supabase/functions/get-renewal-config/index.ts"), "utf8");
+  assert.match(configFunctionSource, /renewal_enabled, access_expired_button_text, access_expired_button_url/,
+    "manual renewal must reuse the expiry-screen contact fields");
+  assert.match(configFunctionSource, /mode: "expert_contact"/,
+    "disabled paid renewal must expose expert-contact mode when configured");
+  assert.match(configFunctionSource, /\.select\("show_before_days"\)/,
+    "manual renewal warning must reuse course_renewal_settings.show_before_days");
   const eligibilityContext = {
     window: { RenewalScreen: {} },
     COURSE_SETTINGS: { access_control_enabled: true },
@@ -181,6 +202,30 @@ async function run() {
   assert.equal(RenewalScreen.formatPrice(0, "RUB").replace(/\s/g, " "), "0 ₽");
   assert.equal(RenewalScreen.normalizeConfig(config({ options: [option({ price_minor: Number.MAX_SAFE_INTEGER + 1 })] })), null);
   assert.equal(RenewalScreen.normalizeConfig(config({ options: [option({ price_minor: 1000000000001 })] })), null);
+  assert.equal(RenewalScreen.normalizeConfig(expertContactConfig()).mode, "expert_contact");
+  assert.equal(RenewalScreen.normalizeConfig(expertContactConfig({ settings: { show_before_days: 7, support_url: "javascript:alert(1)", support_label: "Эксперт" } })), null);
+
+  const expertHost = new FakeElement("section");
+  assert.equal(RenewalScreen.render({
+    mode: "warning",
+    container: expertHost,
+    courseId: "course",
+    productUser: { id: "user" },
+    renewalConfig: expertContactConfig()
+  }), true);
+  const expertRoot = expertHost.children[0];
+  assert.equal(findElement(expertRoot, (element) => element.className === "renewal-screen__tariffs"), null, "expert warning must not show tariffs");
+  assert.equal(findElement(expertRoot, (element) => element.tagName === "button"), null, "expert warning must not create a request button");
+  const expertLink = findElement(expertRoot, (element) => element.className === "renewal-screen__support");
+  assert.equal(expertLink.href, "https://t.me/expert");
+  assert.equal(expertLink.textContent, "Написать эксперту");
+  assert.equal(RenewalScreen.render({
+    mode: "expired",
+    container: new FakeElement("section"),
+    courseId: "course",
+    productUser: { id: "user" },
+    renewalConfig: expertContactConfig()
+  }), false, "expired access must keep using the course_settings screen");
 
   const lessonHost = new FakeElement("section");
   let backTarget = null;

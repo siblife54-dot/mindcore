@@ -23,6 +23,24 @@
     if (!isObject(value) || value.ok !== true || value.enabled !== true || !isObject(value.settings)) return null;
     var showBeforeDays = value.settings.show_before_days;
     if (!Number.isInteger(showBeforeDays) || showBeforeDays < 0 || showBeforeDays > 365) return null;
+    var supportUrl = value.settings.support_url;
+    if (supportUrl != null && typeof supportUrl !== "string") return null;
+    var supportLabel = value.settings.support_label;
+    if (supportLabel != null && typeof supportLabel !== "string") return null;
+    if (value.mode === "expert_contact") {
+      if (!isHttpsUrl(supportUrl)) return null;
+      return {
+        ok: true,
+        enabled: true,
+        mode: "expert_contact",
+        settings: {
+          show_before_days: showBeforeDays,
+          support_url: supportUrl.trim(),
+          support_label: typeof supportLabel === "string" && supportLabel.trim() ? supportLabel.trim() : "Связаться с экспертом"
+        },
+        options: []
+      };
+    }
     if (!Array.isArray(value.options) || value.options.length < 1 || value.options.length > 2) return null;
 
     var options = value.options.slice().sort(function (left, right) {
@@ -40,11 +58,6 @@
         && Number.isInteger(option.sort_order);
     });
     if (!valid) return null;
-
-    var supportUrl = value.settings.support_url;
-    if (supportUrl != null && typeof supportUrl !== "string") return null;
-    var supportLabel = value.settings.support_label;
-    if (supportLabel != null && typeof supportLabel !== "string") return null;
 
     return {
       ok: true,
@@ -213,6 +226,8 @@
     destroy(container);
 
     var mode = options.mode === "expired" ? "expired" : "warning";
+    var isExpertContact = config.mode === "expert_contact";
+    if (isExpertContact && mode === "expired") return false;
     var root = document.createElement("section");
     root.className = "card renewal-screen renewal-screen--" + mode;
     root.setAttribute("aria-live", "polite");
@@ -222,32 +237,36 @@
     appendTextElement(root, "h2", "renewal-screen__title", mode === "expired" ? "Доступ к программе завершён" : "Продлите доступ заранее");
     if (mode === "expired") {
       appendTextElement(root, "p", "renewal-screen__lead", "Выберите вариант продления. После оплаты эксперт подтвердит её, и доступ откроется при следующем запуске кабинета.");
+    } else if (isExpertContact) {
+      appendTextElement(root, "p", "renewal-screen__lead", "Чтобы продлить доступ, напишите эксперту в личные сообщения.");
     }
     var dateText = formatDate(options.accessExpiresAt);
     if (dateText) appendTextElement(root, "p", "renewal-screen__date", (mode === "expired" ? "Доступ был активен до: " : "Доступ открыт до: ") + dateText);
 
-    var tariffList = document.createElement("div");
-    tariffList.className = "renewal-screen__tariffs";
     var buttons = [];
-    config.options.forEach(function (option) {
-      var tariff = document.createElement("article");
-      tariff.className = "renewal-screen__tariff";
-      appendTextElement(tariff, "h3", "renewal-screen__tariff-title", option.title);
-      appendTextElement(tariff, "p", "renewal-screen__days", "+" + option.days_to_add + " дней доступа");
-      if (option.description && option.description.trim()) appendTextElement(tariff, "p", "renewal-screen__description", option.description.trim());
-      var price = formatPrice(option.price_minor, option.currency);
-      appendTextElement(tariff, "p", "renewal-screen__price", price);
-      var button = document.createElement("button");
-      button.type = "button";
-      button.className = "btn btn-primary renewal-screen__action";
-      button.dataset.optionId = option.id;
-      button.dataset.defaultLabel = "Выбрать за " + price;
-      button.textContent = button.dataset.defaultLabel;
-      tariff.appendChild(button);
-      buttons.push(button);
-      tariffList.appendChild(tariff);
-    });
-    root.appendChild(tariffList);
+    if (!isExpertContact) {
+      var tariffList = document.createElement("div");
+      tariffList.className = "renewal-screen__tariffs";
+      config.options.forEach(function (option) {
+        var tariff = document.createElement("article");
+        tariff.className = "renewal-screen__tariff";
+        appendTextElement(tariff, "h3", "renewal-screen__tariff-title", option.title);
+        appendTextElement(tariff, "p", "renewal-screen__days", "+" + option.days_to_add + " дней доступа");
+        if (option.description && option.description.trim()) appendTextElement(tariff, "p", "renewal-screen__description", option.description.trim());
+        var price = formatPrice(option.price_minor, option.currency);
+        appendTextElement(tariff, "p", "renewal-screen__price", price);
+        var button = document.createElement("button");
+        button.type = "button";
+        button.className = "btn btn-primary renewal-screen__action";
+        button.dataset.optionId = option.id;
+        button.dataset.defaultLabel = "Выбрать за " + price;
+        button.textContent = button.dataset.defaultLabel;
+        tariff.appendChild(button);
+        buttons.push(button);
+        tariffList.appendChild(tariff);
+      });
+      root.appendChild(tariffList);
+    }
 
     var error = appendTextElement(root, "p", "renewal-screen__error", "");
     error.setAttribute("role", "alert");

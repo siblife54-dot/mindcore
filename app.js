@@ -2080,6 +2080,7 @@
 
   function renderRenewal(container, mode, accessResult) {
     if (!window.RenewalScreen || !RENEWAL_CONFIG || !container) return false;
+    if (mode === "expired" && RENEWAL_CONFIG.mode === "expert_contact") return false;
     return window.RenewalScreen.render({
       mode: mode,
       container: container,
