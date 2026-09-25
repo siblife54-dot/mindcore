@@ -142,7 +142,9 @@
   function createSupportLink(config) {
     if (!config.settings.support_url) return null;
     var link = document.createElement("a");
-    link.className = "renewal-screen__support";
+    link.className = config.mode === "expert_contact"
+      ? "btn btn-primary renewal-screen__support renewal-screen__support--primary"
+      : "renewal-screen__support";
     link.href = config.settings.support_url;
     link.target = "_blank";
     link.rel = "noopener noreferrer";
@@ -293,6 +295,7 @@
       supabaseUrl: String(options.supabaseUrl || ""),
       anonKey: String(options.anonKey || ""),
       onNavigate: options.onNavigate,
+      onSupportNavigate: options.onSupportNavigate,
       onBack: options.onBack,
       buttons: buttons,
       error: error,
@@ -304,6 +307,11 @@
       if (backLink && root.contains(backLink) && typeof instance.onBack === "function") {
         event.preventDefault();
         instance.onBack(backLink.href);
+        return;
+      }
+      var supportLink = event.target.closest("a.renewal-screen__support");
+      if (isExpertContact && supportLink && root.contains(supportLink) && typeof instance.onSupportNavigate === "function") {
+        if (instance.onSupportNavigate(supportLink.href) === "external") event.preventDefault();
         return;
       }
       var button = event.target.closest("button[data-option-id]");

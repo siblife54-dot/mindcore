@@ -2032,6 +2032,12 @@
       (model.buttonUrl ? '<a class="btn btn-primary access-expired-btn" href="' + escapeAttr(model.buttonUrl) + '" target="_blank" rel="noopener noreferrer">' + escapeHtml(model.buttonText) + '</a>' : ''),
       '</section>'
     ].join("");
+    if (RENEWAL_CONFIG && RENEWAL_CONFIG.mode === "expert_contact" && model.buttonUrl) {
+      var expertLink = host.querySelector("a.access-expired-btn");
+      if (expertLink) expertLink.addEventListener("click", function (event) {
+        if (openExpertContactUrl(expertLink.href) === "external") event.preventDefault();
+      });
+    }
   }
 
   function getAccessClassification(accessResult) {
@@ -2078,6 +2084,21 @@
     return "current";
   }
 
+  function openExpertContactUrl(contactUrl) {
+    var parsedUrl;
+    try {
+      parsedUrl = new URL(contactUrl);
+    } catch (error) {
+      return "default";
+    }
+    var tg = globalThis.Telegram && globalThis.Telegram.WebApp;
+    if (parsedUrl.protocol === "https:" && parsedUrl.hostname === "t.me" && tg && typeof tg.openTelegramLink === "function") {
+      tg.openTelegramLink(parsedUrl.href);
+      return "external";
+    }
+    return "default";
+  }
+
   function renderRenewal(container, mode, accessResult) {
     if (!window.RenewalScreen || !RENEWAL_CONFIG || !container) return false;
     if (mode === "expired" && RENEWAL_CONFIG.mode === "expert_contact") return false;
@@ -2091,6 +2112,7 @@
       supabaseUrl: getConfig().supabaseUrl,
       anonKey: getConfig().supabaseAnonKey,
       onNavigate: openRenewalPaymentUrl,
+      onSupportNavigate: openExpertContactUrl,
       backUrl: mode === "expired" && document.body.getAttribute("data-page") === "lesson"
         ? getIndexUrlWithCourse()
         : null,

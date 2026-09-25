@@ -152,6 +152,16 @@
   overflow-wrap: anywhere;
 }
 
+.renewal-screen__support--primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: 11px 18px;
+  color: var(--button-text, var(--text));
+  text-decoration: none;
+}
+
 body.dashboard-course-content-blocked > :not(.header-brand):not(.profile-card):not(#renewalBannerHost):not(#lessonsContainer):not(#mindcoreStartupScreen):not(#mindcoreAgreementScreen) {
   display: none !important;
 }

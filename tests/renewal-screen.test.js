@@ -57,6 +57,9 @@ class FakeElement {
     if (selector === "a.renewal-screen__back") {
       return this.tagName === "a" && this.className.split(/\s+/).includes("renewal-screen__back") ? this : null;
     }
+    if (selector === "a.renewal-screen__support") {
+      return this.tagName === "a" && this.className.split(/\s+/).includes("renewal-screen__support") ? this : null;
+    }
     return null;
   }
 
@@ -180,19 +183,54 @@ async function run() {
   assert.equal(eligibilityContext.shouldLoad({ allowed: false, reason: "status_blocked" }), false, "blocked + null must not load renewal");
 
   let telegramOpenUrl = null;
+  let telegramContactUrl = null;
   const navigationContext = {
-    globalThis: { Telegram: { WebApp: { openLink: (url) => { telegramOpenUrl = url; } } } },
+    URL,
+    globalThis: { Telegram: { WebApp: {
+      openLink: (url) => { telegramOpenUrl = url; },
+      openTelegramLink: (url) => { telegramContactUrl = url; }
+    } } },
     window: { location: { assign() { throw new Error("assign must not be used for Telegram"); } } }
   };
   vm.createContext(navigationContext);
-  vm.runInContext(extractFunction(appSource, "openRenewalPaymentUrl") + "\nthis.openPayment = openRenewalPaymentUrl;", navigationContext);
+  vm.runInContext([
+    extractFunction(appSource, "openRenewalPaymentUrl"),
+    extractFunction(appSource, "openExpertContactUrl"),
+    "this.openPayment = openRenewalPaymentUrl;",
+    "this.openContact = openExpertContactUrl;"
+  ].join("\n"), navigationContext);
   assert.equal(navigationContext.openPayment("https://pay.example"), "external");
   assert.equal(telegramOpenUrl, "https://pay.example");
+  assert.equal(navigationContext.openContact("https://t.me/expert"), "external");
+  assert.equal(telegramContactUrl, "https://t.me/expert");
+  assert.equal(navigationContext.openContact("https://example.com/expert"), "default", "non-Telegram links must use normal navigation");
   let assignedByApp = null;
   navigationContext.globalThis.Telegram = null;
   navigationContext.window.location.assign = (url) => { assignedByApp = url; };
   assert.equal(navigationContext.openPayment("https://pay.example/current"), "current");
   assert.equal(assignedByApp, "https://pay.example/current");
+  assert.equal(navigationContext.openContact("https://t.me/expert"), "default", "browser fallback must keep the anchor navigation");
+
+  let expiredContactOpened = null;
+  let expiredClickHandler = null;
+  const expiredLink = { href: "https://t.me/expert", addEventListener(type, handler) { if (type === "click") expiredClickHandler = handler; } };
+  const expiredHost = { innerHTML: "", querySelector: () => expiredLink };
+  const expiredScreenContext = {
+    RENEWAL_CONFIG: { mode: "expert_contact" },
+    getAccessExpiredScreenModel: () => ({ title: "Завершён", text: "Напишите эксперту", buttonText: "Написать", buttonUrl: "https://t.me/expert", accessExpiresAt: null }),
+    formatAccessDate: () => "",
+    escapeHtml: (value) => String(value),
+    escapeAttr: (value) => String(value),
+    openExpertContactUrl: (url) => { expiredContactOpened = url; return "external"; }
+  };
+  vm.createContext(expiredScreenContext);
+  vm.runInContext(extractFunction(appSource, "renderAccessExpiredScreen") + "\nthis.renderExpired = renderAccessExpiredScreen;", expiredScreenContext);
+  expiredScreenContext.renderExpired(expiredHost, { allowed: false });
+  let expiredDefaultPrevented = false;
+  assert.equal(typeof expiredClickHandler, "function");
+  expiredClickHandler({ preventDefault() { expiredDefaultPrevented = true; } });
+  assert.equal(expiredContactOpened, "https://t.me/expert", "expired expert contact must use the same Telegram navigation");
+  assert.equal(expiredDefaultPrevented, true);
 
   const context = loadRenewalScreen();
   const RenewalScreen = context.window.RenewalScreen;
@@ -206,19 +244,26 @@ async function run() {
   assert.equal(RenewalScreen.normalizeConfig(expertContactConfig({ settings: { show_before_days: 7, support_url: "javascript:alert(1)", support_label: "Эксперт" } })), null);
 
   const expertHost = new FakeElement("section");
+  let openedExpertUrl = null;
   assert.equal(RenewalScreen.render({
     mode: "warning",
     container: expertHost,
     courseId: "course",
     productUser: { id: "user" },
-    renewalConfig: expertContactConfig()
+    renewalConfig: expertContactConfig(),
+    onSupportNavigate: (url) => { openedExpertUrl = url; return "external"; }
   }), true);
   const expertRoot = expertHost.children[0];
   assert.equal(findElement(expertRoot, (element) => element.className === "renewal-screen__tariffs"), null, "expert warning must not show tariffs");
   assert.equal(findElement(expertRoot, (element) => element.tagName === "button"), null, "expert warning must not create a request button");
-  const expertLink = findElement(expertRoot, (element) => element.className === "renewal-screen__support");
+  const expertLink = findElement(expertRoot, (element) => element.className.split(/\s+/).includes("renewal-screen__support"));
   assert.equal(expertLink.href, "https://t.me/expert");
   assert.equal(expertLink.textContent, "Написать эксперту");
+  assert.equal(expertLink.className.split(/\s+/).includes("btn-primary"), true, "expert link must use the primary themed button");
+  let expertDefaultPrevented = false;
+  expertRoot.listeners.click({ target: expertLink, preventDefault() { expertDefaultPrevented = true; } });
+  assert.equal(openedExpertUrl, "https://t.me/expert");
+  assert.equal(expertDefaultPrevented, true, "Telegram navigation must suppress duplicate anchor navigation");
   assert.equal(RenewalScreen.render({
     mode: "expired",
     container: new FakeElement("section"),
