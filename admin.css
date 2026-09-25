@@ -3266,7 +3266,7 @@ body[data-page="admin"] {
   }
   to {
     opacity: 1;
-    max-height: 640px;
+    max-height: 820px;
     transform: translateY(0) scaleY(1);
   }
 }
