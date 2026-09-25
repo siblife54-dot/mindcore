@@ -1159,7 +1159,7 @@
     try {
       var productResult = await client
         .from("product_users")
-        .select("id,course_id,webapp_user_id,user_display_name,status,access_started_at,access_expires_at,created_at,updated_at,last_seen_at")
+        .select("id,course_id,webapp_user_id,user_display_name,status,access_started_at,access_expires_at,created_at,updated_at,last_seen_at,contact_first_name,contact_last_name,contact_phone,contact_email")
         .eq("course_id", courseId)
         .order("created_at", { ascending: false });
 
@@ -1345,6 +1345,12 @@
     var initials = name === "—" ? "?" : name.split(" ").filter(Boolean).slice(0, 2).map(function (part) { return part.charAt(0); }).join("").toUpperCase();
     var lastSeen = productUser.last_seen_at || webappUser.last_seen_at;
     var formSectionsHtml = StudentFormsSections(student);
+    var contactFields = [
+      ["Имя", productUser.contact_first_name],
+      ["Фамилия", productUser.contact_last_name],
+      ["Телефон", productUser.contact_phone],
+      ["Email", productUser.contact_email]
+    ];
     var sections = [
       ["✓", "Домашние задания", "Пока нет данных"],
       ["↗", "Аналитика", "Будет доступна позже"]
@@ -1362,6 +1368,9 @@
       '<div><dt>Доступ с</dt><dd>' + escapeHtml(formatStudentDetailDate(productUser.access_started_at)) + '</dd></div>',
       '<div><dt>Доступ до</dt><dd>' + escapeHtml(formatStudentDetailDate(productUser.access_expires_at)) + '</dd></div>',
       '</dl>',
+      '<section class="admin-student-contact-details" aria-label="Контактные данные"><h4>Контактные данные</h4><dl>',
+      contactFields.map(function (field) { return '<div><dt>' + escapeHtml(field[0]) + '</dt><dd>' + escapeHtml(String(field[1] || "").trim() || "Не указано") + '</dd></div>'; }).join(""),
+      '</dl></section>',
       StudentAccessControl(student),
       '<div class="admin-student-details-sections">' + formSectionsHtml + sections.map(function (section) { return '<article class="admin-student-details-section"><span class="admin-student-details-section-icon" aria-hidden="true">' + escapeHtml(section[0]) + '</span><span><strong>' + escapeHtml(section[1]) + '</strong><em>' + escapeHtml(section[2]) + '</em></span></article>'; }).join("") + '</div>',
       '</article>'
@@ -1414,7 +1423,7 @@
         .update(payload)
         .eq("id", student.productUser.id)
         .eq("course_id", courseId)
-        .select("id,course_id,webapp_user_id,user_display_name,status,access_started_at,access_expires_at,created_at,updated_at,last_seen_at")
+        .select("id,course_id,webapp_user_id,user_display_name,status,access_started_at,access_expires_at,created_at,updated_at,last_seen_at,contact_first_name,contact_last_name,contact_phone,contact_email")
         .maybeSingle();
       if (result.error) throw result.error;
       if (!result.data) throw new Error("Запись ученика не найдена в текущем курсе.");
