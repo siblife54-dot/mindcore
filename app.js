@@ -53,6 +53,19 @@
   var INTERNAL_NAVIGATION_TTL_MS = 10000;
   var STARTUP_MODE = "external";
 
+  function t(key, parameters) {
+    return window.MindCoreI18n ? window.MindCoreI18n.t(key, parameters) : key;
+  }
+
+  function applyLocalizedShell() {
+    document.title = t(document.body.getAttribute("data-page") === "lesson" ? "lesson.title" : "dashboard.title");
+    var values = { studentName: "dashboard.student", progressText: "dashboard.progress", lessonState: "lesson.loading", lessonDay: "lesson.title", lessonTitle: "lesson.namePlaceholder", videoLinkButton: "common.open", completeBtn: "lesson.complete", lessonBackBtn: "lesson.back" };
+    Object.keys(values).forEach(function (id) { var node = document.getElementById(id); if (node) node.textContent = t(values[id], { completed: 0, total: 0 }); });
+    document.querySelectorAll("[data-back-to-dashboard]").forEach(function (node) { node.textContent = (node.classList.contains("top-back") ? "← " : "") + t("lesson.back"); });
+    var selectors = [[".profile-meta > p:first-of-type", "dashboard.premium"], ["body[data-page=dashboard] .section-title:first-of-type", "dashboard.progressTitle"], ["body[data-page=dashboard] > .section-title:last-of-type", "dashboard.lessons"], ["#videoLinkCard strong", "lesson.video"], ["#videoLinkCard p", "lesson.browser"], ["#attachmentsWrap > strong", "lesson.materials"]];
+    selectors.forEach(function (item) { var node = document.querySelector(item[0]); if (node) node.textContent = t(item[1]); });
+  }
+
   function getConfig() {
     return window.APP_CONFIG || {};
   }
@@ -231,7 +244,7 @@
     document.body.classList.add(WEBAPP_THEME_IDS[normalizeThemeId(themeId)]);
 
     var brand = document.getElementById("brandName");
-    if (brand) brand.textContent = config.brandName || "Кабинет курса";
+    if (brand) brand.textContent = config.brandName || t("dashboard.title");
   }
 
   var previewThemeOverride = null;
@@ -333,9 +346,9 @@
 
     host.innerHTML = [
       '<div class="dashboard-watermark-wrap">',
-      '<a class="dashboard-watermark-link" href="https://t.me/mindcore_miniapp_bot" target="_blank" rel="noopener noreferrer" aria-label="Открыть MindCore в Telegram">',
+      '<a class="dashboard-watermark-link" href="https://t.me/mindcore_miniapp_bot" target="_blank" rel="noopener noreferrer" aria-label="' + escapeHtml(t("dashboard.telegramAria")) + '">',
       '<span class="dashboard-watermark-icon" aria-hidden="true">⚡</span>',
-      '<span>Создано в MindCore</span>',
+      '<span>' + escapeHtml(t("dashboard.created")) + '</span>',
       '</a>',
       '</div>'
     ].join("");
@@ -483,14 +496,14 @@
   }
 
   function getUserName(profile) {
-    if (!profile) return "Студент";
-    return profile.fullName || profile.firstName || profile.username || "Студент";
+    if (!profile) return t("dashboard.student");
+    return profile.fullName || profile.firstName || profile.username || t("dashboard.student");
   }
 
   function getInitials(name) {
-    var clean = (name || "Студент").trim();
+    var clean = (name || t("dashboard.student")).trim();
     var words = clean.split(/\s+/).filter(Boolean);
-    if (!words.length) return "СТ";
+    if (!words.length) return "ST";
     if (words.length === 1) return words[0].slice(0, 2).toUpperCase();
     return (words[0][0] + words[1][0]).toUpperCase();
   }
@@ -689,9 +702,9 @@
       platform: (platform.detectPlatform && platform.detectPlatform()) || "browser",
       userId: null,
       id: null,
-      firstName: "Студент",
+      firstName: t("dashboard.student"),
       lastName: "",
-      fullName: "Студент",
+      fullName: t("dashboard.student"),
       username: "",
       photoUrl: "",
       avatarUrl: "",
@@ -733,7 +746,7 @@
   function getDisplayNameFromProfile(profile) {
     profile = profile || {};
     var fullName = [profile.firstName, profile.lastName].filter(Boolean).join(" ").trim();
-    return fullName || profile.fullName || profile.username || "Студент";
+    return fullName || profile.fullName || profile.username || t("dashboard.student");
   }
 
   function addDays(date, days) {
@@ -930,7 +943,7 @@
 
   async function fetchCourseAgreement() {
     var client = window.getSupabaseClient();
-    if (!client) throw new Error("Не удалось загрузить соглашение");
+    if (!client) throw new Error(t("agreement.loadError"));
 
     var result = await client
       .from("course_agreements")
@@ -940,7 +953,7 @@
 
     if (result.error || !result.data) {
       console.warn("Supabase course_agreements load error:", result.error || "Agreement not found");
-      throw new Error("Не удалось загрузить соглашение");
+      throw new Error(t("agreement.loadError"));
     }
 
     return result.data;
@@ -953,7 +966,7 @@
 
   async function saveAgreementAcceptance(agreement, formData) {
     var client = window.getSupabaseClient();
-    if (!client || !PRODUCT_USER || !PRODUCT_USER.id) throw new Error("Не удалось сохранить данные. Попробуйте ещё раз.");
+    if (!client || !PRODUCT_USER || !PRODUCT_USER.id) throw new Error(t("agreement.saveError"));
 
     var payload = {
       agreement_accepted: true,
@@ -979,7 +992,7 @@
 
     if (result.error || !result.data) {
       console.warn("Supabase agreement save error:", result.error || "Product user not updated");
-      throw new Error("Не удалось сохранить данные. Попробуйте ещё раз.");
+      throw new Error(t("agreement.saveError"));
     }
 
     PRODUCT_USER = result.data;
@@ -988,13 +1001,13 @@
 
   async function ensureAgreementAcceptedBeforeCourse(onAccepted) {
     if (!isAgreementEnabled()) return false;
-    if (!PRODUCT_USER || !PRODUCT_USER.id) throw new Error("Не удалось загрузить соглашение");
+    if (!PRODUCT_USER || !PRODUCT_USER.id) throw new Error(t("agreement.loadError"));
 
     var agreement = await fetchCourseAgreement();
     if (isAgreementAccepted(PRODUCT_USER, agreement)) return false;
 
     if (window.StartupScreen && typeof window.StartupScreen.hide === "function") window.StartupScreen.hide();
-    if (!window.AgreementScreen || typeof window.AgreementScreen.show !== "function") throw new Error("Не удалось загрузить соглашение");
+    if (!window.AgreementScreen || typeof window.AgreementScreen.show !== "function") throw new Error(t("agreement.loadError"));
 
     window.AgreementScreen.show({
       agreement: agreement,
@@ -1010,18 +1023,18 @@
   function showAgreementLoadError(retryHandler) {
     if (window.StartupScreen && typeof window.StartupScreen.hide === "function") window.StartupScreen.hide();
     if (window.AgreementScreen && typeof window.AgreementScreen.showError === "function") {
-      window.AgreementScreen.showError("Не удалось загрузить соглашение", retryHandler);
+      window.AgreementScreen.showError(t("agreement.loadError"), retryHandler);
       return;
     }
 
     if (document.body.getAttribute("data-page") === "dashboard") {
-      showDashboardError("Не удалось загрузить соглашение");
+      showDashboardError(t("agreement.loadError"));
     } else {
       var stateBox = document.getElementById("lessonState");
       if (stateBox) {
         stateBox.classList.remove("skeleton");
         stateBox.hidden = false;
-        stateBox.textContent = "Не удалось загрузить соглашение";
+        stateBox.textContent = t("agreement.loadError");
       }
     }
   }
@@ -1048,7 +1061,7 @@
       lesson_label: raw.lesson_label || "",
       group_title: raw.group_title || "",
       is_locked: isLocked,
-      title: raw.title || "Без названия",
+      title: raw.title || t("lesson.untitled"),
       subtitle: raw.subtitle || "",
       preview_image_url: raw.preview_image_url || "",
       preview_image_: raw.preview_image_ || "",
@@ -1082,16 +1095,16 @@
   }
 
   function getLessonDisplayLabel(lesson) {
-    if (!lesson) return "Урок";
+    if (!lesson) return t("lesson.title");
 
     var customLabel = String(lesson.lesson_label || "").trim();
     if (customLabel) return customLabel;
 
     if (lesson.day_number) {
-      return "День " + lesson.day_number;
+      return t("lesson.day", { number: lesson.day_number });
     }
 
-    return "Урок";
+    return t("lesson.title");
   }
 
    async function fetchLessons(config) {
@@ -1451,15 +1464,15 @@
       return {
         id: id,
         type: type,
-        title: question.title || question.label || question.question || ("Вопрос " + (index + 1)),
+        title: question.title || question.label || question.question || (t("forms.question", { number: index + 1 })),
         required: question.required === true,
         options: options.map(function (option) {
           if (option && typeof option === "object") return { value: String(option.value || option.label || ""), label: String(option.label || option.value || "") };
           return { value: String(option), label: String(option) };
         }).filter(function (option) { return option.value || option.label; }),
         allowOther: question.allow_other === true,
-        otherLabel: String(question.other_label || "").trim() || "Другое",
-        otherPlaceholder: String(question.other_placeholder || "").trim() || "Напишите свой вариант"
+        otherLabel: String(question.other_label || "").trim() || t("forms.other"),
+        otherPlaceholder: String(question.other_placeholder || "").trim() || t("forms.otherPlaceholder")
       };
     }).filter(Boolean);
   }
@@ -1634,7 +1647,7 @@
     modal.setAttribute("aria-hidden", "true");
     modal.innerHTML = [
       '<div class="nutrition-modal__backdrop" data-course-form-close></div>',
-      '<div class="nutrition-modal__sheet" role="dialog" aria-modal="true" aria-label="Форма курса">',
+      '<div class="nutrition-modal__sheet" role="dialog" aria-modal="true" aria-label="' + escapeHtml(t("forms.aria")) + '">',
       '<div class="nutrition-modal__content"></div>',
       '</div>'
     ].join("");
@@ -1670,7 +1683,7 @@
   function getSubmittedFormTitle(form, settings) {
     var resultTitle = settings && typeof settings.result_title === "string" ? settings.result_title.trim() : "";
     if (resultTitle) return resultTitle;
-    return "Ваша " + (form.title || "форма").toLowerCase();
+    return t("forms.yourForm", { title: form.title || t("forms.defaultTitle").toLowerCase() });
   }
 
   function formatCourseFormSubmittedDate(answer) {
@@ -1679,7 +1692,9 @@
     var date = new Date(value);
     if (Number.isNaN(date.getTime())) return "";
     try {
-      return new Intl.DateTimeFormat("ru-RU", { day: "numeric", month: "long", year: "numeric" }).format(date);
+      return window.MindCoreI18n
+        ? window.MindCoreI18n.formatDate(date, { day: "numeric", month: "long", year: "numeric" })
+        : new Intl.DateTimeFormat("ru-RU", { day: "numeric", month: "long", year: "numeric" }).format(date);
     } catch (error) {
       return date.toLocaleDateString("ru-RU");
     }
@@ -1694,7 +1709,7 @@
     for (var i = 0; i < candidates.length; i += 1) {
       if (typeof candidates[i] === "string" && candidates[i].trim()) return candidates[i].trim();
     }
-    return "Посмотреть ответы";
+    return t("forms.viewAnswers");
   }
 
   function renderCourseFormView(form, answer) {
@@ -1706,19 +1721,19 @@
       '<div class="course-form-modal__header">',
       '<div class="course-form-modal__heading">',
       '<h2 class="nutrition-title">' + escapeHtml(getSubmittedFormTitle(form, settings)) + '</h2>',
-      (submittedDate ? '<p class="nutrition-text course-form-submitted-at">Зафиксировано ' + escapeHtml(submittedDate) + '</p>' : ''),
-      (form.description ? '<p class="nutrition-text">' + escapeHtml(form.description) + '</p>' : '<p class="nutrition-text">Ответы по форме сохранены.</p>'),
+      (submittedDate ? '<p class="nutrition-text course-form-submitted-at">' + escapeHtml(t("forms.recorded", { date: submittedDate })) + '</p>' : ''),
+      (form.description ? '<p class="nutrition-text">' + escapeHtml(form.description) + '</p>' : '<p class="nutrition-text">' + escapeHtml(t("forms.answersSaved")) + '</p>'),
       '</div>',
-      '<button class="nutrition-modal__close" type="button" data-course-form-close aria-label="Закрыть">×</button>',
+      '<button class="nutrition-modal__close" type="button" data-course-form-close aria-label="' + escapeHtml(t("common.close")) + '">×</button>',
       '</div>',
       '<div class="course-form-modal__body">',
       '<div class="course-form-summary">',
-      (items.length ? '<ul class="course-form-answer-list">' + items.map(function (item) { return '<li>' + escapeHtml(item) + '</li>'; }).join("") + '</ul>' : '<p>Ответ сохранён.</p>'),
+      (items.length ? '<ul class="course-form-answer-list">' + items.map(function (item) { return '<li>' + escapeHtml(item) + '</li>'; }).join("") + '</ul>' : '<p>' + escapeHtml(t("forms.answerSaved")) + '</p>'),
       '</div>',
       '</div>',
       '<div class="nutrition-actions course-form-modal__footer">',
-      (settings.allow_edit === true ? '<button type="button" class="btn btn-primary" id="courseFormEditBtn">Редактировать</button>' : ''),
-      '<button type="button" class="btn" data-course-form-close>Закрыть</button>',
+      (settings.allow_edit === true ? '<button type="button" class="btn btn-primary" id="courseFormEditBtn">' + escapeHtml(t("common.edit")) + '</button>' : ''),
+      '<button type="button" class="btn" data-course-form-close>' + escapeHtml(t("common.close")) + '</button>',
       '</div>'
     ].join("");
     var editBtn = document.getElementById("courseFormEditBtn");
@@ -1731,10 +1746,10 @@
     content.innerHTML = [
       '<div class="course-form-modal__header">',
       '<div class="course-form-modal__heading">',
-      '<h2 class="nutrition-title">' + escapeHtml(form.title || "Форма") + '</h2>',
+      '<h2 class="nutrition-title">' + escapeHtml(form.title || t("forms.defaultTitle")) + '</h2>',
       (form.description ? '<p class="nutrition-text">' + escapeHtml(form.description) + '</p>' : ''),
       '</div>',
-      '<button class="nutrition-modal__close" type="button" data-course-form-close aria-label="Закрыть">×</button>',
+      '<button class="nutrition-modal__close" type="button" data-course-form-close aria-label="' + escapeHtml(t("common.close")) + '">×</button>',
       '</div>',
       '<form class="nutrition-form course-form" id="courseFormEditor">',
       '<div class="course-form-modal__body">',
@@ -1757,7 +1772,7 @@
       }).join(""),
       '</div>',
       '<div class="course-form-modal__footer">',
-      '<button type="submit" class="btn btn-primary nutrition-submit">Сохранить</button>',
+      '<button type="submit" class="btn btn-primary nutrition-submit">' + escapeHtml(t("common.save")) + '</button>',
       '</div>',
       '</form>'
     ].join("");
@@ -1795,18 +1810,18 @@
           if (otherToggle && otherToggle.checked && !other) {
             hasErrors = true;
             var otherError = formElement.querySelector(getCourseFormDataSelector("data-course-form-error", question.id));
-            if (otherError) { otherError.textContent = "Заполните поле «" + question.otherLabel + "» или снимите выбор."; otherError.hidden = false; }
+            if (otherError) { otherError.textContent = t("forms.otherRequired", { label: question.otherLabel }); otherError.hidden = false; }
           } else if (question.required && !selected.length && !other) {
             hasErrors = true;
             var requiredError = formElement.querySelector(getCourseFormDataSelector("data-course-form-error", question.id));
-            if (requiredError) { requiredError.textContent = "Выберите хотя бы один вариант ответа."; requiredError.hidden = false; }
+            if (requiredError) { requiredError.textContent = t("forms.chooseOne"); requiredError.hidden = false; }
           }
         } else {
           answers[question.id] = selected;
           if (question.required && !selected.length) {
             hasErrors = true;
             var errorNode = formElement.querySelector(getCourseFormDataSelector("data-course-form-error", question.id));
-            if (errorNode) { errorNode.textContent = "Выберите хотя бы один вариант ответа."; errorNode.hidden = false; }
+            if (errorNode) { errorNode.textContent = t("forms.chooseOne"); errorNode.hidden = false; }
           }
         }
       } else {
@@ -1896,11 +1911,11 @@
     }
     section.hidden = false;
     if (COURSE_FORM_ANSWERS_LOADING || (!COURSE_FORM_ANSWERS_LOADED && !COURSE_FORM_ANSWERS_ERROR)) {
-      host.innerHTML = '<section class="card course-form-card"><p>Проверяем сохранённые ответы…</p></section>';
+      host.innerHTML = '<section class="card course-form-card"><p>' + escapeHtml(t("forms.checking")) + '</p></section>';
       return;
     }
     if (COURSE_FORM_ANSWERS_ERROR) {
-      host.innerHTML = '<section class="card course-form-card"><p>Не удалось загрузить ответы. Попробуйте обновить страницу.</p></section>';
+      host.innerHTML = '<section class="card course-form-card"><p>' + escapeHtml(t("forms.loadError")) + '</p></section>';
       return;
     }
     host.innerHTML = COURSE_FORMS.map(function (form) {
@@ -1914,14 +1929,14 @@
         '<div class="course-form-card__header">',
         (showSubmitted ? '<span class="course-form-card__accent" aria-hidden="true"></span>' : ''),
         '<div class="course-form-card__heading">',
-        '<h3>' + escapeHtml(showSubmitted ? getSubmittedFormTitle(form, settings) : (form.title || "Форма")) + '</h3>',
-        (submittedDate ? '<p class="course-form-card__meta">Зафиксировано ' + escapeHtml(submittedDate) + '</p>' : ''),
+        '<h3>' + escapeHtml(showSubmitted ? getSubmittedFormTitle(form, settings) : (form.title || t("forms.defaultTitle"))) + '</h3>',
+        (submittedDate ? '<p class="course-form-card__meta">' + escapeHtml(t("forms.recorded", { date: submittedDate })) + '</p>' : ''),
         '</div>',
         '</div>',
         (showSubmitted
           ? '<ul class="course-form-card__summary course-form-answer-list">' + items.map(function (item) { return '<li>' + escapeHtml(item) + '</li>'; }).join("") + '</ul>'
           : '<p>' + escapeHtml(form.description || "") + '</p>'),
-        '<button type="button" class="btn btn-primary course-form-open" data-form-id="' + escapeAttr(form.id) + '">' + escapeHtml(showSubmitted ? getSubmittedFormButtonText(settings) : (form.button_text || "Заполнить")) + '</button>',
+        '<button type="button" class="btn btn-primary course-form-open" data-form-id="' + escapeAttr(form.id) + '">' + escapeHtml(showSubmitted ? getSubmittedFormButtonText(settings) : (form.button_text || t("forms.fill"))) + '</button>',
         '</section>'
       ].join("");
     }).join("");
@@ -2006,9 +2021,9 @@
   function getAccessExpiredScreenModel(accessResult) {
     var settings = COURSE_SETTINGS || {};
     return {
-      title: String(settings.access_expired_title || "").trim() || "Доступ к программе завершён",
-      text: String(settings.access_expired_text || "").trim() || "Срок доступа к программе закончился. Чтобы продлить доступ, нажмите кнопку ниже.",
-      buttonText: String(settings.access_expired_button_text || "").trim() || "Продлить доступ",
+      title: String(settings.access_expired_title || "").trim() || t("access.expiredTitle"),
+      text: String(settings.access_expired_text || "").trim() || t("access.expiredText"),
+      buttonText: String(settings.access_expired_button_text || "").trim() || t("access.renew"),
       buttonUrl: String(settings.access_expired_button_url || "").trim(),
       accessExpiresAt: accessResult && accessResult.productUser && accessResult.productUser.access_expires_at
     };
@@ -2018,7 +2033,9 @@
     if (!value) return "";
     var date = new Date(value);
     if (Number.isNaN(date.getTime())) return "";
-    return date.toLocaleDateString("ru-RU", { day: "2-digit", month: "2-digit", year: "numeric" });
+    return window.MindCoreI18n
+      ? window.MindCoreI18n.formatDate(date, { day: "2-digit", month: "2-digit", year: "numeric" })
+      : date.toLocaleDateString("ru-RU", { day: "2-digit", month: "2-digit", year: "numeric" });
   }
 
   function renderAccessExpiredScreen(host, accessResult) {
@@ -2030,7 +2047,7 @@
       '<div class="access-expired-icon" aria-hidden="true">⏳</div>',
       '<h2>' + escapeHtml(model.title) + '</h2>',
       '<p>' + escapeHtml(model.text) + '</p>',
-      (expiredDate ? '<p class="access-expired-date">Доступ был активен до: <strong>' + escapeHtml(expiredDate) + '</strong></p>' : ''),
+      (expiredDate ? '<p class="access-expired-date">' + escapeHtml(t("access.expiredUntil", { date: expiredDate })) + '</p>' : ''),
       (model.buttonUrl ? '<a class="btn btn-primary access-expired-btn" href="' + escapeAttr(model.buttonUrl) + '" target="_blank" rel="noopener noreferrer">' + escapeHtml(model.buttonText) + '</a>' : ''),
       '</section>'
     ].join("");
@@ -2214,23 +2231,23 @@
     if (homework === null || homework === undefined) return null;
 
     if (typeof homework !== "object" || Array.isArray(homework)) {
-      return { text: "Статус ДЗ недоступен", state: "unknown" };
+      return { text: t("homework.unavailable"), state: "unknown" };
     }
     if (homework.submission === null) {
-      return { text: "ДЗ не отправлено", state: "not_submitted" };
+      return { text: t("homework.notSubmitted"), state: "not_submitted" };
     }
     if (typeof homework.submission !== "object" || Array.isArray(homework.submission)) {
-      return { text: "Статус ДЗ недоступен", state: "unknown" };
+      return { text: t("homework.unavailable"), state: "unknown" };
     }
 
     var status = String(homework.submission.status || "").trim();
     var dashboardStatusBySubmissionStatus = {
-      pending_review: { text: "ДЗ на проверке", state: "pending" },
-      revision_requested: { text: "Нужна доработка", state: "revision" },
-      accepted: { text: "ДЗ принято", state: "accepted" }
+      pending_review: { text: t("homework.pendingShort"), state: "pending" },
+      revision_requested: { text: t("homework.revisionShort"), state: "revision" },
+      accepted: { text: t("homework.acceptedShort"), state: "accepted" }
     };
     return dashboardStatusBySubmissionStatus[status]
-      || { text: "Статус ДЗ недоступен", state: "unknown" };
+      || { text: t("homework.unavailable"), state: "unknown" };
   }
 
   function getLessonHomeworkGateState(lesson, homeworkByLesson) {
@@ -2243,26 +2260,26 @@
 
   function getLessonCompletionControlState(isCompleted, gateState) {
     if (isCompleted) {
-      return { disabled: true, text: "Пройдено ✓", reason: "completed" };
+      return { disabled: true, text: t("lesson.completed"), reason: "completed" };
     }
     if (!gateState || typeof gateState !== "object") {
-      return { disabled: true, text: "Не удалось проверить домашнее задание", reason: "unresolved_gate" };
+      return { disabled: true, text: t("homework.checkError"), reason: "unresolved_gate" };
     }
     if (gateState.reason === "loading") {
-      return { disabled: true, text: "Проверяем домашнее задание...", reason: "loading" };
+      return { disabled: true, text: t("homework.checking"), reason: "loading" };
     }
     if (gateState.satisfied === true) {
-      return { disabled: false, text: "Отметить как пройдено", reason: gateState.reason };
+      return { disabled: false, text: t("lesson.complete"), reason: gateState.reason };
     }
 
     var blockedTextByReason = {
-      needs_submission: "Сначала отправьте домашнее задание",
-      pending_review: "Домашнее задание на проверке",
-      revision_requested: "Требуется доработка"
+      needs_submission: t("homework.submitFirst"),
+      pending_review: t("homework.pendingGate"),
+      revision_requested: t("homework.revisionGate")
     };
     return {
       disabled: true,
-      text: blockedTextByReason[gateState.reason] || "Не удалось проверить домашнее задание",
+      text: blockedTextByReason[gateState.reason] || t("homework.checkError"),
       reason: gateState.reason || "unresolved_gate"
     };
   }
@@ -2368,15 +2385,15 @@
 
   var HOMEWORK_ATTACHMENT_RULES = {
     image: {
-      label: "Фото",
-      action: "Добавить фото",
+      labelKey: "homework.photo",
+      actionKey: "homework.addPhoto",
       accept: "image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp",
       mimeTypes: ["image/jpeg", "image/png", "image/webp"],
       maxSize: 10 * 1024 * 1024
     },
     file: {
-      label: "Файл",
-      action: "Добавить файл",
+      labelKey: "homework.file",
+      actionKey: "homework.addFile",
       accept: "application/pdf,text/plain,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/zip,.pdf,.txt,.doc,.docx,.xls,.xlsx,.zip",
       mimeTypes: [
         "application/pdf", "text/plain", "application/msword",
@@ -2388,8 +2405,8 @@
       maxSize: 25 * 1024 * 1024
     },
     video: {
-      label: "Видео",
-      action: "Добавить видео",
+      labelKey: "homework.video",
+      actionKey: "homework.addVideo",
       accept: "video/mp4,video/webm,video/quicktime,.mp4,.webm,.mov",
       mimeTypes: ["video/mp4", "video/webm", "video/quicktime"],
       maxSize: 100 * 1024 * 1024
@@ -2490,10 +2507,10 @@
 
     try {
       var responseTypeLabels = {
-        text: "Текст",
-        image: "Фото",
-        file: "Файл",
-        video: "Видео"
+        text: t("homework.text"),
+        image: t("homework.photo"),
+        file: t("homework.file"),
+        video: t("homework.video")
       };
       var responseTypes = Array.isArray(homework.allowed_response_types)
         ? homework.allowed_response_types.filter(function (type, index, types) {
@@ -2514,15 +2531,15 @@
         ? String(submission.latest_attempt.student_text || "")
         : "";
       var textFieldHtml = canSubmitText ? [
-        '<label class="lesson-homework__answer-label" for="homeworkStudentText">Ваш ответ</label>',
-        '<textarea class="lesson-homework__textarea" id="homeworkStudentText" name="student_text" placeholder="Напишите ответ...">' + escapeHtml(previousStudentText) + '</textarea>'
+        '<label class="lesson-homework__answer-label" for="homeworkStudentText">' + escapeHtml(t("homework.answer")) + '</label>',
+        '<textarea class="lesson-homework__textarea" id="homeworkStudentText" name="student_text" placeholder="' + escapeAttr(t("homework.answerPlaceholder")) + '">' + escapeHtml(previousStudentText) + '</textarea>'
       ].join("") : "";
       var attachmentControlsHtml = attachmentTypes.length ? [
         '<div class="lesson-homework__upload-controls">',
         attachmentTypes.map(function (type) {
           var rules = HOMEWORK_ATTACHMENT_RULES[type];
           return '<input class="lesson-homework__file-input" id="homeworkAttachment-' + type + '" type="file" data-attachment-type="' + type + '" accept="' + rules.accept + '" multiple>' +
-            '<label class="lesson-homework__upload-control" for="homeworkAttachment-' + type + '">' + rules.action + '</label>';
+            '<label class="lesson-homework__upload-control" for="homeworkAttachment-' + type + '">' + escapeHtml(t(rules.actionKey)) + '</label>';
         }).join(""),
         '</div>',
         '<ul class="lesson-homework__file-list" aria-live="polite" hidden></ul>'
@@ -2530,33 +2547,33 @@
       var statusHtml = "";
       if (submissionStatus === "pending_review") {
         statusHtml = '<div class="lesson-homework__status lesson-homework__status--pending" role="status">' +
-          '<p class="lesson-homework__status-title">На проверке</p>' +
-          '<p class="lesson-homework__status-text">Домашнее задание отправлено и ожидает проверки.</p></div>';
+          '<p class="lesson-homework__status-title">' + escapeHtml(t("homework.pending")) + '</p>' +
+          '<p class="lesson-homework__status-text">' + escapeHtml(t("homework.pendingText")) + '</p></div>';
       } else if (submissionStatus === "accepted") {
         statusHtml = '<div class="lesson-homework__status lesson-homework__status--accepted" role="status">' +
-          '<p class="lesson-homework__status-title">Принято</p>' +
-          '<p class="lesson-homework__status-text">Домашнее задание принято экспертом.</p></div>';
+          '<p class="lesson-homework__status-title">' + escapeHtml(t("homework.accepted")) + '</p>' +
+          '<p class="lesson-homework__status-text">' + escapeHtml(t("homework.acceptedText")) + '</p></div>';
       } else if (isRevisionRequested) {
         var reviewComment = submission.latest_attempt && submission.latest_attempt.review_comment;
         statusHtml = '<div class="lesson-homework__status-wrap">' +
           '<div class="lesson-homework__status lesson-homework__status--revision" role="status">' +
-          '<p class="lesson-homework__status-title">Нужна доработка</p></div>' +
-          (reviewComment ? '<div class="lesson-homework__review"><p class="lesson-homework__review-title">Комментарий эксперта</p>' +
+          '<p class="lesson-homework__status-title">' + escapeHtml(t("homework.revision")) + '</p></div>' +
+          (reviewComment ? '<div class="lesson-homework__review"><p class="lesson-homework__review-title">' + escapeHtml(t("homework.expertComment")) + '</p>' +
             '<p class="lesson-homework__review-text">' + escapeHtml(String(reviewComment)) + '</p></div>' : '') +
           '</div>';
       } else if (submission !== null) {
         statusHtml = '<div class="lesson-homework__status lesson-homework__status--unknown" role="status">' +
-          '<p class="lesson-homework__status-text">Статус домашнего задания временно недоступен.</p></div>';
+          '<p class="lesson-homework__status-text">' + escapeHtml(t("homework.statusUnavailable")) + '</p></div>';
         console.warn("[MindCore] Student Homework has an unknown submission status");
       }
 
       host.innerHTML = [
-        '<p class="lesson-homework__section-title">Домашнее задание</p>',
+        '<p class="lesson-homework__section-title">' + escapeHtml(t("homework.title")) + '</p>',
         '<div class="lesson-homework__card">',
-        '<h2 class="lesson-homework__title">' + escapeHtml(homework.title || "Домашнее задание") + '</h2>',
+        '<h2 class="lesson-homework__title">' + escapeHtml(homework.title || t("homework.title")) + '</h2>',
         homework.description ? '<p class="lesson-homework__description">' + escapeHtml(homework.description) + '</p>' : '',
         '<div class="lesson-homework__response-types">',
-        '<p class="lesson-homework__response-label">Можно отправить</p>',
+        '<p class="lesson-homework__response-label">' + escapeHtml(t("homework.canSend")) + '</p>',
         '<div class="lesson-homework__chips">' + responseTypes.map(function (type) {
           return '<span class="lesson-homework__chip">' + responseTypeLabels[type] + '</span>';
         }).join("") + '</div>',
@@ -2567,7 +2584,7 @@
           textFieldHtml,
           attachmentControlsHtml,
           '<p class="lesson-homework__message" role="alert" aria-live="polite" hidden></p>',
-          '<button class="btn btn-primary lesson-homework__submit" type="submit">Отправить домашнее задание</button>',
+          '<button class="btn btn-primary lesson-homework__submit" type="submit">' + escapeHtml(t("homework.submit")) + '</button>',
           '</form>'
         ].join("") : '',
         '</div>'
@@ -2608,7 +2625,7 @@
             name.className = "lesson-homework__file-name";
             details.className = "lesson-homework__file-details";
             name.textContent = attachment.file.name;
-            details.textContent = HOMEWORK_ATTACHMENT_RULES[attachment.attachmentType].label + " · " + formatHomeworkFileSize(attachment.file.size);
+            details.textContent = t(HOMEWORK_ATTACHMENT_RULES[attachment.attachmentType].labelKey) + " · " + formatHomeworkFileSize(attachment.file.size);
             item.append(name, details);
             fileList.appendChild(item);
           });
@@ -2640,34 +2657,34 @@
           var studentText = textarea ? textarea.value.trim() : "";
           var selectedAttachments = getSelectedAttachments();
           if (!studentText && selectedAttachments.length === 0) {
-            showMessage("Добавьте ответ или прикрепите файл.");
+            showMessage(t("homework.empty"));
             if (textarea) textarea.focus();
             return;
           }
           if (selectedAttachments.length > 10) {
-            showMessage("Можно прикрепить не более 10 файлов.");
+            showMessage(t("homework.maxFiles"));
             return;
           }
           for (var index = 0; index < selectedAttachments.length; index += 1) {
             var selected = selectedAttachments[index];
             var rules = HOMEWORK_ATTACHMENT_RULES[selected.attachmentType];
             if (selected.file.size <= 0) {
-              showMessage("Файл «" + selected.file.name + "» пустой.");
+              showMessage(t("homework.emptyFile", { name: selected.file.name }));
               return;
             }
             if (!rules.mimeTypes.includes(String(selected.file.type || "").toLowerCase())) {
-              showMessage("Этот формат файла не поддерживается.");
+              showMessage(t("homework.unsupported"));
               return;
             }
             if (selected.file.size > rules.maxSize) {
-              showMessage("Файл «" + selected.file.name + "» слишком большой.");
+              showMessage(t("homework.tooLarge", { name: selected.file.name }));
               return;
             }
           }
 
           isSubmitting = true;
           setFormDisabled(true);
-          submitButton.textContent = selectedAttachments.length ? "Подготавливаем..." : "Отправляем...";
+          submitButton.textContent = selectedAttachments.length ? t("homework.preparing") : t("homework.sending");
           message.hidden = true;
 
           try {
@@ -2684,7 +2701,7 @@
                   error.homeworkStage = "create_upload_url";
                   throw error;
                 }
-                submitButton.textContent = "Загружаем " + (uploadIndex + 1) + " из " + selectedAttachments.length + "...";
+                submitButton.textContent = t("homework.uploading", { current: uploadIndex + 1, total: selectedAttachments.length });
                 try {
                   await uploadStudentHomeworkFile(attachment.file, upload);
                 } catch (error) {
@@ -2697,7 +2714,7 @@
                   upload: upload
                 });
               }
-              submitButton.textContent = "Отправляем...";
+              submitButton.textContent = t("homework.sending");
               try {
                 await finalizeStudentHomework(homework, studentText, uploadedAttachments);
               } catch (error) {
@@ -2708,8 +2725,8 @@
             var submissionState = host.querySelector(".lesson-homework__submission-state");
             if (submissionState) {
               submissionState.innerHTML = '<div class="lesson-homework__status lesson-homework__status--pending" role="status">' +
-                '<p class="lesson-homework__status-title"><span aria-hidden="true">✓</span> На проверке</p>' +
-                '<p class="lesson-homework__status-text">Домашнее задание отправлено и ожидает проверки.</p></div>';
+                '<p class="lesson-homework__status-title"><span aria-hidden="true">✓</span> ' + escapeHtml(t("homework.pending")) + '</p>' +
+                '<p class="lesson-homework__status-text">' + escapeHtml(t("homework.pendingText")) + '</p></div>';
             }
             if (typeof onHomeworkStateChanged === "function") {
               onHomeworkStateChanged(Object.assign({}, homework, {
@@ -2720,8 +2737,8 @@
           } catch (error) {
             isSubmitting = false;
             setFormDisabled(false);
-            submitButton.textContent = "Отправить домашнее задание";
-            showMessage("Не удалось отправить домашнее задание. Попробуйте ещё раз.");
+            submitButton.textContent = t("homework.submit");
+            showMessage(t("homework.sendError"));
             var safeError = { error_code: error && error.code ? error.code : "request_failed" };
             if (error && error.homeworkStage) safeError.stage = error.homeworkStage;
             console.warn("[MindCore] Student Homework could not be submitted", safeError);
@@ -2791,23 +2808,23 @@
     if (reason === "telegram_auth_required") {
       return {
         icon: "🔒",
-        title: "Откройте кабинет в Telegram",
-        text: "Для проверки доступа откройте личный кабинет через кнопку в закрытом Telegram-канале."
+        title: t("access.telegramTitle"),
+        text: t("access.telegramText")
       };
     }
 
     if (reason === "not_telegram_channel_member") {
       return {
         icon: "🚫",
-        title: "Доступ не найден",
-        text: "Этот кабинет доступен только участникам программы."
+        title: t("access.notFoundTitle"),
+        text: t("access.notFoundText")
       };
     }
 
     return {
       icon: "⚠️",
-      title: "Не удалось проверить доступ",
-      text: "Закройте кабинет и попробуйте открыть его снова чуть позже."
+      title: t("access.errorTitle"),
+      text: t("access.errorText")
     };
   }
 
@@ -2893,7 +2910,7 @@
     if (progressWrap) progressWrap.hidden = blocked;
     sectionTitles.forEach(function (title) {
       var text = String(title.textContent || "").trim().toLowerCase();
-      if (text === "ваш прогресс" || text === "уроки") title.hidden = blocked;
+      if (text === t("dashboard.progressTitle").toLowerCase() || text === t("dashboard.lessons").toLowerCase()) title.hidden = blocked;
     });
     if (blocked && list) list.innerHTML = "";
     if (blocked && stateBox) stateBox.hidden = true;
@@ -2994,7 +3011,7 @@
     if (!lessons.length) {
       list.innerHTML = "";
       stateBox.hidden = false;
-      stateBox.textContent = "Нет доступных уроков";
+      stateBox.textContent = t("dashboard.empty");
       await renderProgress(lessons);
       return;
     }
@@ -3013,25 +3030,25 @@
       return [
         '<article class="lesson-card' + (locked ? ' locked' : '') + '">',
         '<div class="lesson-preview">',
-        (getPreviewSrc(lesson) ? '<img src="' + escapeAttr(getPreviewSrc(lesson)) + '" alt="Превью урока" loading="lazy" data-lesson-id="' + escapeAttr(lesson.lesson_id) + '">' : ''),
+        (getPreviewSrc(lesson) ? '<img src="' + escapeAttr(getPreviewSrc(lesson)) + '" alt="' + escapeAttr(t("lesson.previewAlt")) + '" loading="lazy" data-lesson-id="' + escapeAttr(lesson.lesson_id) + '">' : ''),
         '</div>',
         '<div class="lesson-card-body">',
         '<div class="lesson-meta">',
         '<span class="lesson-day">' + escapeHtml(getLessonDisplayLabel(lesson)) + '</span>',
         '<div class="lesson-indicators">',
-        (done ? '<span class="status done">Пройдено</span>' : ''),
-        (locked ? '<span class="status locked">Закрыто</span>' : ''),
+        (done ? '<span class="status done">' + escapeHtml(t("lesson.statusDone")) + '</span>' : ''),
+        (locked ? '<span class="status locked">' + escapeHtml(t("lesson.statusLocked")) + '</span>' : ''),
         (homeworkStatus
           ? '<span class="status homework-status homework-status--' + escapeAttr(homeworkStatus.state) + '">' + escapeHtml(homeworkStatus.text) + '</span>'
           : ''),
         '</div>',
         '</div>',
         '<h3>' + escapeHtml(lesson.title) + '</h3>',
-        '<p>' + escapeHtml(lesson.subtitle || "Описание отсутствует") + '</p>',
+        '<p>' + escapeHtml(lesson.subtitle || t("lesson.descriptionMissing")) + '</p>',
         '<div class="lesson-actions">',
         (locked
-          ? '<button class="btn btn-open" type="button" disabled>Открыть</button>'
-          : '<a class="btn btn-open" href="' + escapeAttr(appendPreviewParams("./lesson.html?id=" + encodeURIComponent(lesson.lesson_id) + "&course=" + encodeURIComponent(getActiveCourseId()))) + '">Открыть</a>'),
+          ? '<button class="btn btn-open" type="button" disabled>' + escapeHtml(t("common.open")) + '</button>'
+          : '<a class="btn btn-open" href="' + escapeAttr(appendPreviewParams("./lesson.html?id=" + encodeURIComponent(lesson.lesson_id) + "&course=" + encodeURIComponent(getActiveCourseId()))) + '">' + escapeHtml(t("common.open")) + '</a>'),
         '</div>',
         '</div>',
         '</article>'
@@ -3103,7 +3120,7 @@
 
     var pct = total ? Math.round((completedCount / total) * 100) : 0;
 
-    document.getElementById("progressText").textContent = "Пройдено: " + completedCount + " из " + total;
+    document.getElementById("progressText").textContent = t("dashboard.progress", { completed: completedCount, total: total });
     document.getElementById("progressPct").textContent = pct + "%";
     document.getElementById("progressFill").style.width = pct + "%";
   }
@@ -3192,7 +3209,7 @@
       .filter(Boolean);
 
     var files = lines.map(function (line, idx) {
-      var name = "Материал " + (idx + 1);
+      var name = t("lesson.material", { number: idx + 1 });
       var url = "";
 
       if (line.indexOf("|") !== -1) {
@@ -3251,7 +3268,7 @@
 
     if (!id) {
       stateBox.classList.remove("skeleton");
-      stateBox.textContent = "ID урока не найден. Откройте урок из списка.";
+      stateBox.textContent = t("lesson.notFoundId");
       return;
     }
 
@@ -3261,7 +3278,7 @@
 
     if (!lesson) {
       stateBox.classList.remove("skeleton");
-      stateBox.textContent = "Урок не найден для выбранного курса.";
+      stateBox.textContent = t("lesson.notFound");
       return;
     }
 
@@ -3285,7 +3302,7 @@
 
     if (!isPreviewMode() && !accessModel.map[lesson.lesson_id]) {
       stateBox.classList.remove("skeleton");
-      stateBox.textContent = "Этот урок пока недоступен.";
+      stateBox.textContent = t("lesson.unavailable");
       return;
     }
 
@@ -3324,7 +3341,7 @@
         nextLesson: nextLesson,
         markCompleted: markCompleted,
         onStarting: function () {
-          completeBtn.textContent = "Открываем следующий урок...";
+          completeBtn.textContent = t("lesson.openingNext");
           completeBtn.disabled = true;
         },
         onCompleted: function () {
@@ -3358,7 +3375,7 @@
           if (main) main.hidden = true;
           stateBox.hidden = false;
           stateBox.classList.remove("skeleton");
-          stateBox.textContent = "Открываем следующий урок...";
+          stateBox.textContent = t("lesson.openingNext");
           if (await autoCompleteHomeworkIfAccepted(resolvedHomework)) return;
         }
       }
@@ -3427,12 +3444,12 @@
           if (item.item_type === "file" && item.file_id) {
             var fileUrl = resolveLessonFileUrl(item.file_id);
             if (!fileUrl) return;
-            var fileLabel = item.file_label || "Материал";
+            var fileLabel = item.file_label || t("lesson.materials");
             html += '<ul class="attachments-list"><li class="attach-item"><a class="attach-link" href="' + escapeAttr(fileUrl) + '" target="_blank" rel="noopener noreferrer"><span class="attach-name">' + escapeHtml(fileLabel) + '</span><span class="file-tag">FILE</span></a></li></ul>';
           }
 
           if (item.item_type === "image" && item.image_url) {
-            html += '<figure class="lesson-inline-image"><img src="' + escapeAttr(item.image_url) + '" alt="' + escapeAttr(item.image_alt || "Изображение урока") + '" loading="lazy">' + (item.image_alt ? '<figcaption>' + escapeHtml(item.image_alt) + '</figcaption>' : "") + '</figure>';
+            html += '<figure class="lesson-inline-image"><img src="' + escapeAttr(item.image_url) + '" alt="' + escapeAttr(item.image_alt || t("lesson.imageAlt")) + '" loading="lazy">' + (item.image_alt ? '<figcaption>' + escapeHtml(item.image_alt) + '</figcaption>' : "") + '</figure>';
           }
         });
 
@@ -3492,10 +3509,10 @@
           groupedHtml.push([
             '<details class="lesson-block-group">',
             '<summary class="lesson-block-group__summary">',
-            '<span class="lesson-block-group__text"><strong>' + escapeHtml(group.title || "Материалы") + '</strong>',
+            '<span class="lesson-block-group__text"><strong>' + escapeHtml(group.title || t("lesson.materials")) + '</strong>',
             group.description ? '<small>' + escapeHtml(group.description) + '</small>' : '',
             '</span>',
-            '<span class="lesson-block-group__count">' + groupBlocks.length + ' ' + pluralizeRu(groupBlocks.length, ["блок", "блока", "блоков"]) + '</span>',
+            '<span class="lesson-block-group__count">' + escapeHtml(t("lesson.blocks", { count: groupBlocks.length, word: pluralizeRu(groupBlocks.length, [t("lesson.block.one"), t("lesson.block.few"), t("lesson.block.many")]) })) + '</span>',
             '<span class="lesson-block-group__arrow">⌄</span>',
             '</summary>',
             '<div class="lesson-block-group__content">' + groupBlocksHtml + '</div>',
@@ -3508,7 +3525,7 @@
     } else if (lesson.content_html) {
       content.innerHTML = '<div class="rich-text-content">' + lesson.content_html + '</div>';
     } else {
-      content.textContent = lesson.content_text || "Содержимое урока пока пустое.";
+      content.textContent = lesson.content_text || t("lesson.contentEmpty");
     }
 
     var videoModel = getVideoRenderModel(lesson.video_url);
@@ -3568,7 +3585,7 @@
       await markCompleted(lesson.lesson_id);
       localStorage.setItem(DESIGNER_XP_TOAST_KEY, String(Date.now()));
       isLessonCompleted = true;
-      completeBtn.textContent = "Пройдено ✓";
+      completeBtn.textContent = t("lesson.completed");
       completeBtn.disabled = true;
       setTimeout(function () {
         navigateInternally(getIndexUrlWithCourse());
@@ -3615,7 +3632,7 @@
     var list = document.getElementById("lessonsContainer");
     var box = document.getElementById("stateBox");
     box.hidden = false;
-    box.textContent = "Загрузка уроков...";
+    box.textContent = t("dashboard.loading");
     list.innerHTML = [
       '<div class="lesson-card skeleton" aria-hidden="true" style="height:220px"></div>',
       '<div class="lesson-card skeleton" aria-hidden="true" style="height:220px"></div>'
@@ -3626,7 +3643,7 @@
     document.getElementById("lessonsContainer").innerHTML = "";
     var box = document.getElementById("stateBox");
     box.hidden = false;
-    box.textContent = message || "Ошибка загрузки данных";
+    box.textContent = message || t("dashboard.error");
   }
 
   async function init() {
@@ -3650,6 +3667,8 @@
     COURSE_ACCESS = await fetchCourseAccessInfo();
     COURSE_SETTINGS = courseSettings;
     if (window.MindCoreI18n) window.MindCoreI18n.setLanguage(courseSettings.language);
+    applyLocalizedShell();
+    if (window.StartupScreen && typeof window.StartupScreen.refresh === "function") window.StartupScreen.refresh();
     if (isPreviewMode()) {
       var previewThemeId = getPreviewThemeId();
       if (previewThemeId) themeId = previewThemeId;
@@ -3728,11 +3747,11 @@
         return;
       }
       if (page === "dashboard") {
-        showDashboardError(error.message || "Ошибка загрузки данных");
+        showDashboardError(error.message || t("dashboard.error"));
       } else {
         var stateBox = document.getElementById("lessonState");
         stateBox.classList.remove("skeleton");
-        stateBox.textContent = error.message || "Не удалось загрузить урок.";
+        stateBox.textContent = error.message || t("lesson.loadError");
       }
     }
   }
@@ -3787,6 +3806,8 @@ document.addEventListener("click", function (e) {
       COURSE_ACCESS = await fetchCourseAccessInfo();
       COURSE_SETTINGS = courseSettings;
       if (window.MindCoreI18n) window.MindCoreI18n.setLanguage(courseSettings.language);
+    applyLocalizedShell();
+    if (window.StartupScreen && typeof window.StartupScreen.refresh === "function") window.StartupScreen.refresh();
 
       if (isNutritionCalculatorEnabled(COURSE_SETTINGS)
         && !NUTRITION
@@ -3835,7 +3856,7 @@ document.addEventListener("click", function (e) {
             if (stateBox) {
               stateBox.hidden = false;
               stateBox.classList.remove("skeleton");
-              stateBox.textContent = "Урок не найден для выбранного курса.";
+              stateBox.textContent = t("lesson.notFound");
             }
             return;
           }

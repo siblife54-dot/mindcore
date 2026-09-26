@@ -3,6 +3,7 @@
 
   var ROOT_ID = "mindcoreAgreementScreen";
   var EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  function t(key, parameters) { return window.MindCoreI18n ? window.MindCoreI18n.t(key, parameters) : key; }
 
   function escapeHtml(value) {
     return String(value == null ? "" : value)
@@ -50,9 +51,9 @@
 
   function getFieldsConfig(agreement) {
     var defaults = {
-      first_name: { label: "Имя", placeholder: "", enabled: true, required: true },
-      last_name: { label: "Фамилия", placeholder: "", enabled: true, required: true },
-      phone: { label: "Телефон", placeholder: "", enabled: true, required: true },
+      first_name: { label: t("agreement.firstName"), placeholder: "", enabled: true, required: true },
+      last_name: { label: t("agreement.lastName"), placeholder: "", enabled: true, required: true },
+      phone: { label: t("agreement.phone"), placeholder: "", enabled: true, required: true },
       email: { label: "E-mail", placeholder: "", enabled: true, required: true }
     };
     var source = agreement && agreement.fields_config && typeof agreement.fields_config === "object"
@@ -127,9 +128,9 @@
     var agreement = options.agreement || {};
     var collectDataEnabled = Boolean(agreement.collect_data_enabled === true);
     var root = ensureRoot();
-    var title = agreement.title || "Пользовательское соглашение";
-    var checkboxText = agreement.checkbox_text || "Я принимаю условия соглашения";
-    var buttonText = agreement.button_text || "Продолжить";
+    var title = agreement.title || t("agreement.title");
+    var checkboxText = agreement.checkbox_text || t("agreement.accept");
+    var buttonText = agreement.button_text || t("agreement.continue");
     var saved = options.productUser || {};
     var fieldsConfig = getFieldsConfig(agreement);
     var fieldsHtml = [
@@ -147,7 +148,7 @@
       '<div class="mindcore-agreement-screen__body">',
       '<section class="mindcore-agreement-screen__text" tabindex="0">' + escapeHtml(agreement.agreement_text || "").replace(/\n/g, "<br>") + '</section>',
       collectDataEnabled && fieldsHtml ? [
-        '<div class="mindcore-agreement-screen__fields" aria-label="Контактные данные">',
+        '<div class="mindcore-agreement-screen__fields" aria-label="' + escapeHtml(t("agreement.contacts")) + '">',
         fieldsHtml,
         '</div>'
       ].join("") : "",
@@ -173,7 +174,7 @@
   function setBusy(root, busy) {
     var button = root.querySelector("[data-agreement-submit]");
     if (button) button.classList.toggle("is-loading", Boolean(busy));
-    if (button) button.textContent = busy ? "Сохраняем…" : (button.getAttribute("data-label") || button.textContent);
+    if (button) button.textContent = busy ? t("agreement.saving") : (button.getAttribute("data-label") || button.textContent);
     Array.from(root.querySelectorAll("input, button")).forEach(function (el) { el.disabled = Boolean(busy) || (el.matches("[data-agreement-submit]") && el.hasAttribute("data-invalid")); });
   }
 
@@ -184,7 +185,7 @@
       var collectDataEnabled = Boolean(options.agreement && options.agreement.collect_data_enabled === true);
       var fieldsConfig = getFieldsConfig(options.agreement || {});
       var submit = root.querySelector("[data-agreement-submit]");
-      if (submit) submit.setAttribute("data-label", submit.textContent || "Продолжить");
+      if (submit) submit.setAttribute("data-label", submit.textContent || t("agreement.continue"));
 
       function updateState() {
         var valid = validate(readForm(root, collectDataEnabled), collectDataEnabled, fieldsConfig);
@@ -204,7 +205,7 @@
         setBusy(root, true);
         Promise.resolve(options.onSubmit && options.onSubmit(readForm(root, collectDataEnabled)))
           .then(function () { window.AgreementScreen.hide(); })
-          .catch(function (error) { setError(root, error && error.message ? error.message : "Не удалось сохранить данные. Попробуйте ещё раз."); })
+          .catch(function (error) { setError(root, error && error.message ? error.message : t("agreement.saveError")); })
           .finally(function () { setBusy(root, false); updateState(); });
       });
 
@@ -218,9 +219,9 @@
       var root = ensureRoot();
       root.innerHTML = [
         '<div class="mindcore-agreement-screen__sheet card mindcore-agreement-screen__sheet--error">',
-        '<h1 id="mindcoreAgreementTitle">' + escapeHtml(message || "Не удалось загрузить соглашение") + '</h1>',
-        '<p class="mindcore-agreement-screen__error-text">Попробуйте повторить загрузку.</p>',
-        '<button type="button" class="btn btn-primary" data-agreement-retry>Повторить</button>',
+        '<h1 id="mindcoreAgreementTitle">' + escapeHtml(message || t("agreement.loadError")) + '</h1>',
+        '<p class="mindcore-agreement-screen__error-text">' + escapeHtml(t("agreement.retryHint")) + '</p>',
+        '<button type="button" class="btn btn-primary" data-agreement-retry>' + escapeHtml(t("common.retry")) + '</button>',
         '</div>'
       ].join("");
       root.querySelector("[data-agreement-retry]").addEventListener("click", function () {

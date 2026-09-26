@@ -5,6 +5,7 @@
   var instances = new Map();
   var configRequests = new Map();
   var generation = 0;
+  function t(key, parameters) { return window.MindCoreI18n ? window.MindCoreI18n.t(key, parameters) : key; }
 
   function isObject(value) {
     return Boolean(value) && typeof value === "object" && !Array.isArray(value);
@@ -36,7 +37,7 @@
         settings: {
           show_before_days: showBeforeDays,
           support_url: supportUrl.trim(),
-          support_label: typeof supportLabel === "string" && supportLabel.trim() ? supportLabel.trim() : "Связаться с экспертом"
+          support_label: typeof supportLabel === "string" && supportLabel.trim() ? supportLabel.trim() : t("renewal.expert")
         },
         options: []
       };
@@ -65,7 +66,7 @@
       settings: {
         show_before_days: showBeforeDays,
         support_url: typeof supportUrl === "string" && isHttpsUrl(supportUrl) ? supportUrl.trim() : null,
-        support_label: typeof supportLabel === "string" && supportLabel.trim() ? supportLabel.trim() : "Связаться с поддержкой"
+        support_label: typeof supportLabel === "string" && supportLabel.trim() ? supportLabel.trim() : t("renewal.support")
       },
       options: options
     };
@@ -112,7 +113,7 @@
   function formatPrice(minor, currency) {
     var whole = Math.floor(minor / 100);
     var remainder = minor % 100;
-    var formatted = new Intl.NumberFormat("ru-RU", { maximumFractionDigits: 0 }).format(whole);
+    var formatted = new Intl.NumberFormat(window.MindCoreI18n && window.MindCoreI18n.getLanguage() === "tr" ? "tr-TR" : "ru-RU", { maximumFractionDigits: 0 }).format(whole);
     if (remainder !== 0) formatted += "," + String(remainder).padStart(2, "0");
     return currency === "RUB" ? formatted + " ₽" : formatted + " " + currency;
   }
@@ -121,7 +122,7 @@
     if (value == null || String(value).trim() === "") return "";
     var date = new Date(value);
     if (Number.isNaN(date.getTime())) return "";
-    return date.toLocaleDateString("ru-RU", { day: "numeric", month: "long", year: "numeric" });
+    return window.MindCoreI18n ? window.MindCoreI18n.formatDate(date, { day: "numeric", month: "long", year: "numeric" }) : date.toLocaleDateString("ru-RU");
   }
 
   function shouldShowWarning(accessExpiresAt, showBeforeDays, nowMs) {
@@ -157,7 +158,7 @@
     instance.root.setAttribute("aria-busy", "true");
     instance.buttons.forEach(function (button) {
       button.disabled = true;
-      if (button.dataset.optionId === optionId) button.textContent = "Создаём заявку…";
+      if (button.dataset.optionId === optionId) button.textContent = t("renewal.creating");
     });
   }
 
@@ -213,8 +214,7 @@
     } catch (error) {
       if (instance.destroyed) return;
       showError(instance, error && error.conflict
-        ? "У вас уже есть незавершённая заявка на продление. Для изменения тарифа свяжитесь с поддержкой."
-        : "Не удалось перейти к оплате. Попробуйте ещё раз.");
+        ? t("renewal.conflict") : t("renewal.payError"));
     }
     clearBusy(instance);
   }
@@ -235,15 +235,15 @@
     root.setAttribute("aria-live", "polite");
     root.setAttribute("aria-busy", "false");
 
-    appendTextElement(root, "p", "renewal-screen__eyebrow", mode === "expired" ? "Доступ завершён" : "Доступ скоро закончится");
-    appendTextElement(root, "h2", "renewal-screen__title", mode === "expired" ? "Доступ к программе завершён" : "Продлите доступ заранее");
+    appendTextElement(root, "p", "renewal-screen__eyebrow", t(mode === "expired" ? "renewal.ended" : "renewal.soon"));
+    appendTextElement(root, "h2", "renewal-screen__title", t(mode === "expired" ? "renewal.endedTitle" : "renewal.title"));
     if (mode === "expired") {
-      appendTextElement(root, "p", "renewal-screen__lead", "Выберите вариант продления. После оплаты эксперт подтвердит её, и доступ откроется при следующем запуске кабинета.");
+      appendTextElement(root, "p", "renewal-screen__lead", t("renewal.lead"));
     } else if (isExpertContact) {
-      appendTextElement(root, "p", "renewal-screen__lead", "Чтобы продлить доступ, напишите эксперту в личные сообщения.");
+      appendTextElement(root, "p", "renewal-screen__lead", t("renewal.expertLead"));
     }
     var dateText = formatDate(options.accessExpiresAt);
-    if (dateText) appendTextElement(root, "p", "renewal-screen__date", (mode === "expired" ? "Доступ был активен до: " : "Доступ открыт до: ") + dateText);
+    if (dateText) appendTextElement(root, "p", "renewal-screen__date", t(mode === "expired" ? "renewal.wasUntil" : "renewal.until", { date: dateText }));
 
     var buttons = [];
     if (!isExpertContact) {
@@ -253,7 +253,7 @@
         var tariff = document.createElement("article");
         tariff.className = "renewal-screen__tariff";
         appendTextElement(tariff, "h3", "renewal-screen__tariff-title", option.title);
-        appendTextElement(tariff, "p", "renewal-screen__days", "+" + option.days_to_add + " дней доступа");
+        appendTextElement(tariff, "p", "renewal-screen__days", t("renewal.days", { count: option.days_to_add }));
         if (option.description && option.description.trim()) appendTextElement(tariff, "p", "renewal-screen__description", option.description.trim());
         var price = formatPrice(option.price_minor, option.currency);
         appendTextElement(tariff, "p", "renewal-screen__price", price);
@@ -261,7 +261,7 @@
         button.type = "button";
         button.className = "btn btn-primary renewal-screen__action";
         button.dataset.optionId = option.id;
-        button.dataset.defaultLabel = "Выбрать за " + price;
+        button.dataset.defaultLabel = t("renewal.choose", { price: price });
         button.textContent = button.dataset.defaultLabel;
         tariff.appendChild(button);
         buttons.push(button);
@@ -279,7 +279,7 @@
       var backLink = document.createElement("a");
       backLink.className = "btn renewal-screen__back";
       backLink.href = options.backUrl;
-      backLink.textContent = "Назад в кабинет";
+      backLink.textContent = t("lesson.back");
       root.appendChild(backLink);
     }
 

@@ -52,8 +52,8 @@ assert(!submitSource.includes("webapp_user_id"));
 assert(!submitSource.includes("submission_id"));
 assert(!submitSource.includes("attempt_id"));
 
-for (const [type, label] of Object.entries({ text: "Текст", image: "Фото", file: "Файл", video: "Видео" })) {
-  assert(homeworkRenderSource.includes(`${type}: "${label}"`));
+for (const [type, key] of Object.entries({ text: "homework.text", image: "homework.photo", file: "homework.file", video: "homework.video" })) {
+  assert(homeworkRenderSource.includes(`${type}: t("${key}")`));
 }
 
 assert(homeworkRenderSource.includes("try {"));
@@ -63,48 +63,38 @@ assert(homeworkRenderSource.includes("submission === null || isRevisionRequested
 assert(homeworkRenderSource.includes('type === "text" || HOMEWORK_ATTACHMENT_RULES[type]'));
 assert(homeworkRenderSource.includes('class="lesson-homework__form"'));
 assert(homeworkRenderSource.includes('canSubmitText ? ['));
-assert(homeworkRenderSource.includes('placeholder="Напишите ответ..."'));
+for (const key of [
+  "homework.answerPlaceholder", "homework.pending", "homework.revision", "homework.accepted",
+  "homework.statusUnavailable", "homework.empty", "homework.maxFiles", "homework.emptyFile",
+  "homework.unsupported", "homework.tooLarge", "homework.sending", "homework.preparing",
+  "homework.uploading", "homework.pendingText", "homework.sendError"
+]) assert(homeworkRenderSource.includes(`t("${key}"`), `Missing localized ${key}`);
 assert(homeworkRenderSource.includes('submissionStatus === "pending_review"'));
 assert(homeworkRenderSource.includes('submissionStatus === "accepted"'));
 assert(homeworkRenderSource.includes('submissionStatus === "revision_requested"'));
-assert(homeworkRenderSource.includes("На проверке"));
-assert(homeworkRenderSource.includes("Нужна доработка"));
-assert(homeworkRenderSource.includes("Принято"));
-assert(homeworkRenderSource.includes("Статус домашнего задания временно недоступен."));
 assert(homeworkRenderSource.includes("escapeHtml(String(reviewComment))"));
 assert(homeworkRenderSource.includes("escapeHtml(previousStudentText)"));
 assert(homeworkRenderSource.includes("submission.latest_attempt.student_text || \"\""));
 assert(!homeworkRenderSource.includes("latest_attempt.attachments"));
-for (const [type, action] of Object.entries({ image: "Добавить фото", file: "Добавить файл", video: "Добавить видео" })) {
+for (const [type, key] of Object.entries({ image: "homework.addPhoto", file: "homework.addFile", video: "homework.addVideo" })) {
   assert(rulesSource.includes(`${type}: {`));
-  assert(rulesSource.includes(`action: "${action}"`));
+  assert(rulesSource.includes(`actionKey: "${key}"`));
 }
 assert(homeworkRenderSource.includes('data-attachment-type="'));
 assert(homeworkRenderSource.includes('type="file"'));
 assert(homeworkRenderSource.includes(" multiple>"));
 assert(homeworkRenderSource.includes("textarea ? textarea.value.trim() : \"\""));
-assert(homeworkRenderSource.includes("Добавьте ответ или прикрепите файл."));
 assert(homeworkRenderSource.includes("selectedAttachments.length > 10"));
-assert(homeworkRenderSource.includes("Можно прикрепить не более 10 файлов."));
 assert(homeworkRenderSource.includes("selected.file.size <= 0"));
-assert(homeworkRenderSource.includes('showMessage("Файл «" + selected.file.name + "» пустой.")'));
-assert(homeworkRenderSource.indexOf("selected.file.size <= 0") <
-  homeworkRenderSource.indexOf("await createStudentHomeworkUpload(homework, attachment)"));
-assert(homeworkRenderSource.includes("Этот формат файла не поддерживается."));
-assert(homeworkRenderSource.includes("слишком большой."));
+assert(homeworkRenderSource.indexOf("selected.file.size <= 0") < homeworkRenderSource.indexOf("await createStudentHomeworkUpload(homework, attachment)"));
 assert(homeworkRenderSource.includes("if (isSubmitting) return"));
 assert(homeworkRenderSource.includes("if (textarea) textarea.disabled = disabled"));
 assert(homeworkRenderSource.includes("input.disabled = disabled"));
 assert(homeworkRenderSource.includes("submitButton.disabled = disabled"));
-assert(homeworkRenderSource.includes('submitButton.textContent = "Отправляем..."'));
-assert(homeworkRenderSource.includes('"Подготавливаем..."'));
-assert(homeworkRenderSource.includes('"Загружаем " + (uploadIndex + 1) + " из "'));
-assert(homeworkRenderSource.includes("Домашнее задание отправлено и ожидает проверки."));
 assert(homeworkRenderSource.includes("form.remove()"));
 assert(homeworkRenderSource.includes('submission: { status: "pending_review" }'));
 assert(homeworkRenderSource.includes("onHomeworkStateChanged"));
 assert(homeworkRenderSource.includes("setFormDisabled(false)"));
-assert(homeworkRenderSource.includes("Не удалось отправить домашнее задание. Попробуйте ещё раз."));
 assert(!homeworkRenderSource.includes('textarea.value = ""'));
 
 // Client rules mirror create-homework-upload-url and remain attachment-type based.
