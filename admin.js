@@ -5,6 +5,7 @@
     lessons: [],
     selectedLesson: null,
     selectedThemeId: "dark_premium",
+    courseLanguage: "ru",
     blocks: [],
     blockGroups: [],
     blockItemsByBlockId: {},
@@ -2215,6 +2216,28 @@
       access_expired_button_text: "",
       access_expired_button_url: ""
     };
+  }
+
+  function normalizeCourseLanguage(language) {
+    return language === "tr" ? "tr" : "ru";
+  }
+
+  async function fetchCourseLanguage() {
+    var result = await getClient().from("course_settings").select("language").eq("course_id", getActiveCourseId()).maybeSingle();
+    if (result.error) throw result.error;
+    return normalizeCourseLanguage(result.data && result.data.language);
+  }
+
+  async function saveCourseLanguage() {
+    var input = document.getElementById("courseLanguageInput");
+    var status = document.getElementById("courseLanguageStatus");
+    var language = normalizeCourseLanguage(input && input.value);
+    var result = await getClient().from("course_settings").update({ language: language }).eq("course_id", getActiveCourseId()).select("language").maybeSingle();
+    if (result.error) throw result.error;
+    state.courseLanguage = normalizeCourseLanguage(result.data && result.data.language);
+    if (input) input.value = state.courseLanguage;
+    if (status) { status.hidden = false; status.textContent = "Язык курса сохранён"; }
+    refreshPreviewData();
   }
 
   function normalizeCourseAccessSettings(settings) {
@@ -5475,6 +5498,15 @@
       });
     }
 
+    var saveCourseLanguageBtn = document.getElementById("saveCourseLanguageBtn");
+    if (saveCourseLanguageBtn) saveCourseLanguageBtn.addEventListener("click", function () {
+      void saveCourseLanguage().catch(function (error) {
+        console.error(error);
+        var status = document.getElementById("courseLanguageStatus");
+        if (status) { status.hidden = false; status.textContent = "Не удалось сохранить язык курса"; }
+      });
+    });
+
     document.getElementById("lessonsList").addEventListener("click", function (event) {
       if (event.target.closest(".lesson-drag-handle")) return;
       if (event.target.closest(".duplicate-lesson-btn")) return;
@@ -6018,6 +6050,9 @@
     state.courseAccessSettings = await fetchCourseAccessSettings();
     state.savedCourseAccessSettings = normalizeCourseAccessSettings(state.courseAccessSettings);
     renderCourseAccessSettings();
+    state.courseLanguage = await fetchCourseLanguage();
+    var courseLanguageInput = document.getElementById("courseLanguageInput");
+    if (courseLanguageInput) courseLanguageInput.value = state.courseLanguage;
     state.selectedThemeId = await fetchCourseThemeId();
     state.savedThemeId = state.selectedThemeId;
     currentPreviewThemeId = state.selectedThemeId;
