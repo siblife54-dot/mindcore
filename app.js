@@ -251,7 +251,7 @@
 
     var result = await client
       .from("course_settings")
-      .select("theme_id, course_structure, addon_nutrition_calculator, addon_eva_calculator, addon_emotion_navigator, addon_designer_xp, addon_forms_enabled, addon_agreement_enabled, access_mode, access_control_enabled, access_duration_days, access_expired_title, access_expired_text, access_expired_button_text, access_expired_button_url")
+      .select("theme_id, language, course_structure, addon_nutrition_calculator, addon_eva_calculator, addon_emotion_navigator, addon_designer_xp, addon_forms_enabled, addon_agreement_enabled, access_mode, access_control_enabled, access_duration_days, access_expired_title, access_expired_text, access_expired_button_text, access_expired_button_url")
       .eq("course_id", getActiveCourseId())
       .maybeSingle();
 
@@ -259,6 +259,7 @@
       console.warn("Supabase course_settings load error:", result.error);
       return {
         theme_id: "dark_premium",
+        language: "ru",
         addon_nutrition_calculator: false,
         addon_eva_calculator: false,
         course_structure: "classic",
@@ -278,6 +279,7 @@
 
     return {
       theme_id: normalizeThemeId(result.data && result.data.theme_id),
+      language: window.MindCoreI18n ? window.MindCoreI18n.normalizeLanguage(result.data && result.data.language) : "ru",
       course_structure: (result.data && result.data.course_structure === "grouped") ? "grouped" : "classic",
       addon_nutrition_calculator: Boolean(result.data && result.data.addon_nutrition_calculator === true),
       addon_eva_calculator: Boolean(result.data && result.data.addon_eva_calculator === true),
@@ -3647,6 +3649,7 @@
     }
     COURSE_ACCESS = await fetchCourseAccessInfo();
     COURSE_SETTINGS = courseSettings;
+    if (window.MindCoreI18n) window.MindCoreI18n.setLanguage(courseSettings.language);
     if (isPreviewMode()) {
       var previewThemeId = getPreviewThemeId();
       if (previewThemeId) themeId = previewThemeId;
@@ -3783,6 +3786,7 @@ document.addEventListener("click", function (e) {
       }
       COURSE_ACCESS = await fetchCourseAccessInfo();
       COURSE_SETTINGS = courseSettings;
+      if (window.MindCoreI18n) window.MindCoreI18n.setLanguage(courseSettings.language);
 
       if (isNutritionCalculatorEnabled(COURSE_SETTINGS)
         && !NUTRITION

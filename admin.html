@@ -78,6 +78,25 @@
       </div>
 
       <section class="admin-tab-panel" data-admin-panel="appearance">
+        <section class="admin-card">
+          <div class="admin-card__header admin-card__header--compact">
+            <div>
+              <p class="admin-card__eyebrow">Настройки курса</p>
+              <h2>Язык WebApp</h2>
+              <p class="admin-hint">Интерфейс админки всегда остаётся на русском языке.</p>
+            </div>
+          </div>
+          <div class="admin-form">
+            <label for="courseLanguageInput">Язык курса
+              <select id="courseLanguageInput">
+                <option value="ru">Русский</option>
+                <option value="tr">Турецкий</option>
+              </select>
+            </label>
+            <div><button id="saveCourseLanguageBtn" class="btn btn-primary" type="button">Сохранить язык</button></div>
+            <p id="courseLanguageStatus" class="admin-hint" hidden></p>
+          </div>
+        </section>
         <section class="admin-card admin-theme-card">
         <div class="admin-card__header admin-card__header--compact admin-card__header--theme">
           <div>
