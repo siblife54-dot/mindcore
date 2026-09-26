@@ -1075,13 +1075,14 @@
   function getLessonGroupHeaderParts(groupTitle, groupIndex) {
     var title = String(groupTitle || "").trim();
     var fallbackIndex = Number(groupIndex || 0) || 1;
-    var kind = /модул/i.test(title) ? "МОДУЛЬ" : "НЕДЕЛЯ";
+    var modulePattern = /^(?:модул(?:ь|я|ю|е)|mod[uü]l(?:ü)?)$/i;
+    var kindKey = /(?:модул|mod[uü]l)/i.test(title) ? "lesson.group.module" : "lesson.group.week";
     var index = fallbackIndex;
     var normalizedTitle = title;
-    var match = title.match(/^(недел(?:я|и|ю|е)|модул(?:ь|я|ю|е))\s*(\d+)\s*(?:[-–—:|.]\s*)?(.*)$/i);
+    var match = title.match(/^(недел(?:я|и|ю|е)|модул(?:ь|я|ю|е)|hafta(?:s[ıi])?|mod[uü]l(?:ü)?)\s*(\d+)\s*(?:[-–—:|.]\s*)?(.*)$/i);
 
     if (match) {
-      kind = /модул/i.test(match[1]) ? "МОДУЛЬ" : "НЕДЕЛЯ";
+      kindKey = modulePattern.test(match[1]) ? "lesson.group.module" : "lesson.group.week";
       index = Number(match[2]) || fallbackIndex;
       if (String(match[3] || "").trim()) {
         normalizedTitle = String(match[3] || "").trim();
@@ -1089,7 +1090,7 @@
     }
 
     return {
-      chip: kind + " " + index,
+      chip: t(kindKey) + " " + index,
       title: normalizedTitle
     };
   }
@@ -1111,7 +1112,7 @@
     var client = window.getSupabaseClient();
 
     if (!client) {
-      throw new Error("Supabase client not initialized. Проверьте config.js и supabase.js");
+      throw new Error(t("errors.supabaseClient"));
     }
 
     var result = await client
@@ -1122,7 +1123,7 @@
 
     if (result.error) {
       console.error("Supabase load error:", result.error);
-      throw new Error("Ошибка загрузки данных из Supabase");
+      throw new Error(t("errors.lessonsLoad"));
     }
 
     return (result.data || []).map(normalizeLesson);
@@ -1132,7 +1133,7 @@
     var client = window.getSupabaseClient();
 
     if (!client) {
-      throw new Error("Supabase client not initialized");
+      throw new Error(t("errors.supabaseClient"));
     }
 
     var result = await client
@@ -1143,7 +1144,7 @@
 
     if (result.error) {
       console.error("Supabase blocks load error:", result.error);
-      throw new Error("Ошибка загрузки блоков урока");
+      throw new Error(t("errors.lessonBlocksLoad"));
     }
 
     return result.data || [];
@@ -1153,7 +1154,7 @@
     var client = window.getSupabaseClient();
 
     if (!client) {
-      throw new Error("Supabase client not initialized");
+      throw new Error(t("errors.supabaseClient"));
     }
 
     var result = await client
@@ -1164,7 +1165,7 @@
 
     if (result.error) {
       console.warn("Supabase lesson block groups load error:", result.error);
-      throw new Error("Ошибка загрузки групп материалов урока");
+      throw new Error(t("errors.lessonBlockGroupsLoad"));
     }
 
     return result.data || [];
@@ -1174,7 +1175,7 @@
     var client = window.getSupabaseClient();
 
     if (!client) {
-      throw new Error("Supabase client not initialized");
+      throw new Error(t("errors.supabaseClient"));
     }
 
     var result = await client
@@ -1185,7 +1186,7 @@
 
     if (result.error) {
       console.error("Supabase block items load error:", result.error);
-      throw new Error("Ошибка загрузки элементов блока");
+      throw new Error(t("errors.blockItemsLoad"));
     }
 
     return result.data || [];
