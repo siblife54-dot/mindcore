@@ -8,7 +8,15 @@ const helpersEnd = js.indexOf("  async function fetchStudentHomeworks()", helper
 assert(helpersStart >= 0 && helpersEnd > helpersStart, "Homework gate helpers must be defined before the Homework API client");
 
 const helperSource = js.slice(helpersStart, helpersEnd);
-const context = {};
+const labels = {
+  "homework.notSubmitted": "ДЗ не отправлено", "homework.pendingShort": "ДЗ на проверке",
+  "homework.revisionShort": "Нужна доработка", "homework.acceptedShort": "ДЗ принято",
+  "homework.unavailable": "Статус ДЗ недоступен", "lesson.completed": "Пройдено ✓",
+  "homework.checkError": "Не удалось проверить домашнее задание", "homework.checking": "Проверяем домашнее задание...",
+  "lesson.complete": "Отметить как пройдено", "homework.submitFirst": "Сначала отправьте домашнее задание",
+  "homework.pendingGate": "Домашнее задание на проверке", "homework.revisionGate": "Требуется доработка"
+};
+const context = { t: (key) => labels[key] || key };
 vm.runInNewContext(
   `${helperSource}\nthis.gate = { getHomeworkGateState, buildHomeworkByLesson, getHomeworkDashboardStatus, getLessonHomeworkGateState, getLessonCompletionControlState, shouldAutoCompleteHomework, autoCompleteAcceptedHomework, reconcileAcceptedHomeworks };`,
   context

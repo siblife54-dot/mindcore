@@ -96,7 +96,12 @@ function loadRenewalScreen() {
     fetch: null,
     window: { location: { assign() {} } }
   };
+  context.globalThis = context;
   vm.createContext(context);
+  for (const file of ["locales/ru.js", "locales/tr.js", "localization.js"]) {
+    vm.runInContext(fs.readFileSync(path.join(rootDir, file), "utf8"), context);
+  }
+  context.window.MindCoreI18n = context.MindCoreI18n;
   vm.runInContext(fs.readFileSync(path.join(rootDir, "renewal-screen.js"), "utf8"), context);
   return context;
 }
