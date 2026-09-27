@@ -11,13 +11,20 @@ assert.match(html, /<h2>Структура курса<\/h2>/);
 assert.match(html, /name="courseStructure" value="classic"/);
 assert.match(html, /name="courseStructure" value="grouped"/);
 assert.match(html, /admin-course-structure-card/);
+assert.match(html, /id="groupLabelTypeField"[^>]*hidden/);
+for (const value of ["auto", "week", "module", "section", "none"]) {
+  assert.match(html, new RegExp(`<option value="${value}">`));
+}
 assert.match(css, /\.admin-form \.admin-course-structure-option input \{[^}]*width: 16px;[^}]*height: 16px;[^}]*min-height: 0;/s);
 assert.match(css, /\.admin-course-structure-form \{[^}]*max-width: 680px;/s);
 assert.match(html, /id="lessonStartsGroupInput"/);
 assert.match(html, /id="lessonGroupTitleInput"[^>]*Modül 1 - Diyafram/);
-assert.match(js, /select\("course_structure"\)\.eq\("course_id", getActiveCourseId\(\)\)/);
-assert.match(js, /update\(\{ course_structure: courseStructure \}\)\.eq\("course_id", getActiveCourseId\(\)\)/);
-assert.match(js, /state\.courseStructure = await fetchCourseStructure\(\)/);
+assert.match(js, /select\("course_structure, group_label_type"\)\.eq\("course_id", getActiveCourseId\(\)\)/);
+assert.match(js, /update\(\{ course_structure: courseStructure, group_label_type: groupLabelType \}\)\.eq\("course_id", getActiveCourseId\(\)\)/);
+assert.match(js, /state\.courseStructure = courseStructureSettings\.courseStructure/);
+assert.match(js, /state\.groupLabelType = courseStructureSettings\.groupLabelType/);
+assert.match(js, /renderGroupLabelTypeVisibility\(selected && selected\.value\)/,
+  "changing classic/grouped must only change visibility, not erase the label setting");
 assert.match(js, /state\.courseStructure === "grouped"[\s\S]*payload\.group_title = startsGroup \? groupTitle : null/);
 
 const saveLesson = js.match(/async function saveLesson\(\) \{([\s\S]*?)\n  \}\n\n  async function deleteLesson/);

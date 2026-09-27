@@ -30,6 +30,7 @@ assert.equal(i18n.t("dashboard.progress", { completed: 2, total: 5 }), "Tamamlan
 assert.equal(i18n.t("lesson.day", { number: 3 }), "3. Gün");
 assert.equal(i18n.t("lesson.group.week"), "HAFTA");
 assert.equal(i18n.t("lesson.group.module"), "MODÜL");
+assert.equal(i18n.t("lesson.group.section"), "BÖLÜM");
 assert.equal(i18n.t("errors.lessonBlocksLoad"), "Ders blokları yüklenemedi");
 assert.equal(i18n.t("forms.otherRequired", { label: "Açıklama" }), "«Açıklama» alanını doldurun veya seçimi kaldırın.");
 assert.equal(i18n.t("homework.uploading", { current: 1, total: 3 }), "Yükleniyor: 1/3...");
@@ -69,6 +70,11 @@ assert.deepEqual(
   { chip: "HAFTA 4", title: "Авторский этап" },
   "Expert-authored group titles must remain unchanged"
 );
+assert.deepEqual(
+  JSON.parse(JSON.stringify(groupContext.getParts("Bölüm 4 — Nefes", 2))),
+  { chip: "HAFTA 2", title: "Bölüm 4 — Nefes" },
+  "Auto mode must retain the exact legacy parser behavior"
+);
 const russianGroupContext = { t: (key) => localeContext.MindCoreLocales.ru[key] };
 vm.createContext(russianGroupContext);
 vm.runInContext(`${appSource.slice(groupHelperStart, groupHelperEnd)}\nthis.getParts = getLessonGroupHeaderParts;`, russianGroupContext);
@@ -77,10 +83,40 @@ assert.deepEqual(
   { chip: "МОДУЛЬ 5", title: "Практика" },
   "Russian group headings must preserve their existing display"
 );
+assert.deepEqual(
+  JSON.parse(JSON.stringify(groupContext.getParts("Modül 1 - Diyafram", 1, "module"))),
+  { chip: "MODÜL 1", title: "Diyafram" },
+  "An explicit module label must not duplicate a stored standard prefix"
+);
+assert.deepEqual(
+  JSON.parse(JSON.stringify(groupContext.getParts("Modül 2 - Vakum", 2, "module"))),
+  { chip: "MODÜL 2", title: "Vakum" }
+);
+assert.deepEqual(
+  JSON.parse(JSON.stringify(russianGroupContext.getParts("Неделя 2 - Название", 1, "week"))),
+  { chip: "НЕДЕЛЯ 2", title: "Название" }
+);
+assert.deepEqual(
+  JSON.parse(JSON.stringify(russianGroupContext.getParts("Авторский этап", 3, "section"))),
+  { chip: "РАЗДЕЛ 3", title: "Авторский этап" },
+  "Explicit labels must not trim arbitrary titles"
+);
+assert.deepEqual(
+  JSON.parse(JSON.stringify(groupContext.getParts("Bölüm 4 — Nefes", 1, "none"))),
+  { chip: "", title: "Nefes" },
+  "None mode must remove recognized labels and render only the title"
+);
+assert.deepEqual(
+  JSON.parse(JSON.stringify(russianGroupContext.getParts("Свободное название", 2, "none"))),
+  { chip: "", title: "Свободное название" }
+);
 for (const key of ["errors.supabaseClient", "errors.lessonsLoad", "errors.lessonBlocksLoad", "errors.lessonBlockGroupsLoad", "errors.blockItemsLoad"]) {
   assert.ok(appSource.includes(`throw new Error(t("${key}"))`), `Loading error must use i18n: ${key}`);
 }
 const migration = fs.readFileSync(path.join(root, "migrations/20260926120000_add_language_to_course_settings.sql"), "utf8");
 assert.match(migration, /language text not null default 'ru'/i);
 assert.match(migration, /check \(language in \('ru', 'tr'\)\)/i);
+const groupLabelMigration = fs.readFileSync(path.join(root, "migrations/20260927120000_add_group_label_type_to_course_settings.sql"), "utf8");
+assert.match(groupLabelMigration, /group_label_type text not null default 'auto'/i);
+assert.match(groupLabelMigration, /check \(group_label_type in \('auto', 'week', 'module', 'section', 'none'\)\)/i);
 console.log("localization tests passed");

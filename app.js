@@ -264,7 +264,7 @@
 
     var result = await client
       .from("course_settings")
-      .select("theme_id, language, course_structure, addon_nutrition_calculator, addon_eva_calculator, addon_emotion_navigator, addon_designer_xp, addon_forms_enabled, addon_agreement_enabled, access_mode, access_control_enabled, access_duration_days, access_expired_title, access_expired_text, access_expired_button_text, access_expired_button_url")
+      .select("theme_id, language, course_structure, group_label_type, addon_nutrition_calculator, addon_eva_calculator, addon_emotion_navigator, addon_designer_xp, addon_forms_enabled, addon_agreement_enabled, access_mode, access_control_enabled, access_duration_days, access_expired_title, access_expired_text, access_expired_button_text, access_expired_button_url")
       .eq("course_id", getActiveCourseId())
       .maybeSingle();
 
@@ -276,6 +276,7 @@
         addon_nutrition_calculator: false,
         addon_eva_calculator: false,
         course_structure: "classic",
+        group_label_type: "auto",
         addon_emotion_navigator: false,
         addon_designer_xp: false,
         addon_forms_enabled: false,
@@ -294,6 +295,9 @@
       theme_id: normalizeThemeId(result.data && result.data.theme_id),
       language: window.MindCoreI18n ? window.MindCoreI18n.normalizeLanguage(result.data && result.data.language) : "ru",
       course_structure: (result.data && result.data.course_structure === "grouped") ? "grouped" : "classic",
+      group_label_type: ["week", "module", "section", "none"].indexOf(result.data && result.data.group_label_type) === -1
+        ? "auto"
+        : result.data.group_label_type,
       addon_nutrition_calculator: Boolean(result.data && result.data.addon_nutrition_calculator === true),
       addon_eva_calculator: Boolean(result.data && result.data.addon_eva_calculator === true),
       addon_emotion_navigator: Boolean(result.data && result.data.addon_emotion_navigator === true),
@@ -1072,25 +1076,37 @@
     };
   }
 
-  function getLessonGroupHeaderParts(groupTitle, groupIndex) {
+  function getLessonGroupHeaderParts(groupTitle, groupIndex, groupLabelType) {
     var title = String(groupTitle || "").trim();
     var fallbackIndex = Number(groupIndex || 0) || 1;
     var modulePattern = /^(?:модул(?:ь|я|ю|е)|mod[uü]l(?:ü)?)$/i;
+    var sectionPattern = /^(?:раздел(?:а|у|е|ом)?|b[oö]l[uü]m(?:[uü])?)$/i;
     var kindKey = /(?:модул|mod[uü]l)/i.test(title) ? "lesson.group.module" : "lesson.group.week";
     var index = fallbackIndex;
     var normalizedTitle = title;
-    var match = title.match(/^(недел(?:я|и|ю|е)|модул(?:ь|я|ю|е)|hafta(?:s[ıi])?|mod[uü]l(?:ü)?)\s*(\d+)\s*(?:[-–—:|.]\s*)?(.*)$/i);
+    var normalizedLabelType = ["week", "module", "section", "none"].indexOf(groupLabelType) === -1
+      ? "auto"
+      : groupLabelType;
+    var legacyPattern = /^(недел(?:я|и|ю|е)|модул(?:ь|я|ю|е)|hafta(?:s[ıi])?|mod[uü]l(?:ü)?)\s*(\d+)\s*(?:[-–—:|.]\s*)?(.*)$/i;
+    var explicitPattern = /^(недел(?:я|и|ю|е)|модул(?:ь|я|ю|е)|раздел(?:а|у|е|ом)?|hafta(?:s[ıi])?|mod[uü]l(?:ü)?|b[oö]l[uü]m(?:[uü])?)\s*(\d+)\s*(?:[-–—:|.]\s*)?(.*)$/i;
+    var match = title.match(normalizedLabelType === "auto" ? legacyPattern : explicitPattern);
 
     if (match) {
-      kindKey = modulePattern.test(match[1]) ? "lesson.group.module" : "lesson.group.week";
+      kindKey = modulePattern.test(match[1])
+        ? "lesson.group.module"
+        : (sectionPattern.test(match[1]) ? "lesson.group.section" : "lesson.group.week");
       index = Number(match[2]) || fallbackIndex;
-      if (String(match[3] || "").trim()) {
+      if (String(match[3] || "").trim() || normalizedLabelType !== "auto") {
         normalizedTitle = String(match[3] || "").trim();
       }
     }
 
+    if (normalizedLabelType !== "auto" && normalizedLabelType !== "none") {
+      kindKey = "lesson.group." + normalizedLabelType;
+    }
+
     return {
-      chip: t(kindKey) + " " + index,
+      chip: normalizedLabelType === "none" ? "" : t(kindKey) + " " + index,
       title: normalizedTitle
     };
   }
@@ -3066,12 +3082,12 @@
 
         if (groupTitle && groupTitle !== lastGroupTitle) {
           groupIndex += 1;
-          var groupHeaderParts = getLessonGroupHeaderParts(groupTitle, groupIndex);
+          var groupHeaderParts = getLessonGroupHeaderParts(groupTitle, groupIndex, COURSE_SETTINGS.group_label_type);
 
           groupHeader = [
             '<div class="lesson-group-header">',
-            '<span class="lesson-group-header__chip">' + escapeHtml(groupHeaderParts.chip) + '</span>',
-            '<h2 class="lesson-group-header__title">' + escapeHtml(groupHeaderParts.title) + '</h2>',
+            (groupHeaderParts.chip ? '<span class="lesson-group-header__chip">' + escapeHtml(groupHeaderParts.chip) + '</span>' : ''),
+            (groupHeaderParts.title ? '<h2 class="lesson-group-header__title">' + escapeHtml(groupHeaderParts.title) + '</h2>' : ''),
             '</div>'
           ].join("");
         }
