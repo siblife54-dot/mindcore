@@ -5,10 +5,14 @@ const path = require("path");
 const root = path.join(__dirname, "..");
 const html = fs.readFileSync(path.join(root, "admin.html"), "utf8");
 const js = fs.readFileSync(path.join(root, "admin.js"), "utf8");
+const css = fs.readFileSync(path.join(root, "admin.css"), "utf8");
 
 assert.match(html, /<h2>Структура курса<\/h2>/);
 assert.match(html, /name="courseStructure" value="classic"/);
 assert.match(html, /name="courseStructure" value="grouped"/);
+assert.match(html, /admin-course-structure-card/);
+assert.match(css, /\.admin-form \.admin-course-structure-option input \{[^}]*width: 16px;[^}]*height: 16px;[^}]*min-height: 0;/s);
+assert.match(css, /\.admin-course-structure-form \{[^}]*max-width: 680px;/s);
 assert.match(html, /id="lessonStartsGroupInput"/);
 assert.match(html, /id="lessonGroupTitleInput"[^>]*Modül 1 - Diyafram/);
 assert.match(js, /select\("course_structure"\)\.eq\("course_id", getActiveCourseId\(\)\)/);
