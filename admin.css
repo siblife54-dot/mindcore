@@ -3606,6 +3606,18 @@ body[data-page="admin"] h5 { color: var(--admin-text); letter-spacing: -0.03em; 
 .admin-theme-status { color: var(--admin-accent); background: var(--admin-accent-soft); border: 0; }
 .admin-theme-badge { color: #9a6812; background: var(--admin-warning-soft); border: 0; }
 
+.admin-course-structure-options { display: grid; gap: 10px; margin: 0; padding: 0; border: 0; }
+.admin-course-structure-option { display: flex; align-items: flex-start; gap: 12px; padding: 14px 16px; border: 1px solid var(--admin-border); border-radius: var(--admin-radius-md); background: var(--admin-bg-elevated); cursor: pointer; }
+.admin-course-structure-option:has(input:checked) { border-color: var(--admin-accent); background: var(--admin-accent-soft); }
+.admin-course-structure-option input { margin-top: 3px; accent-color: var(--admin-accent); }
+.admin-course-structure-option span { display: grid; gap: 3px; }
+.admin-course-structure-option strong { color: var(--admin-text); }
+.admin-course-structure-option small { color: var(--admin-text-secondary); }
+.admin-visually-hidden { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+.admin-lesson-group-fields { display: grid; gap: 14px; padding: 16px; border: 1px solid var(--admin-border); border-radius: var(--admin-radius-md); background: var(--admin-bg-elevated); }
+.admin-checkbox-row { display: flex !important; flex-direction: row !important; align-items: center; gap: 10px; color: var(--admin-text); cursor: pointer; }
+.admin-checkbox-row input { width: 18px; height: 18px; margin: 0; accent-color: var(--admin-accent); }
+
 .admin-lesson-preview-uploader { border-top: 1px solid var(--admin-border); }
 .admin-lesson-preview-box { border: 1px dashed #cbd3e6; background: var(--admin-bg-elevated); border-radius: 18px; }
 .admin-lesson-preview-box__placeholder { color: var(--admin-text-secondary); background: linear-gradient(135deg, var(--admin-bg-elevated), var(--admin-info-soft)); }

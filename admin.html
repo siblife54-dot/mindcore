@@ -97,6 +97,30 @@
             <p id="courseLanguageStatus" class="admin-hint" hidden></p>
           </div>
         </section>
+        <section class="admin-card">
+          <div class="admin-card__header admin-card__header--compact">
+            <div>
+              <p class="admin-card__eyebrow">Настройки курса</p>
+              <h2>Структура курса</h2>
+              <p class="admin-hint">Выберите, как модули будут собраны в WebApp. Сохранённые названия разделов не удаляются при выборе обычного списка.</p>
+            </div>
+          </div>
+          <div class="admin-form admin-course-structure-form">
+            <fieldset class="admin-course-structure-options">
+              <legend class="admin-visually-hidden">Структура курса</legend>
+              <label class="admin-course-structure-option">
+                <input type="radio" name="courseStructure" value="classic" checked>
+                <span><strong>Обычный список уроков</strong><small>Все модули отображаются единым списком.</small></span>
+              </label>
+              <label class="admin-course-structure-option">
+                <input type="radio" name="courseStructure" value="grouped">
+                <span><strong>Разделы с уроками</strong><small>Модули объединяются под названиями разделов.</small></span>
+              </label>
+            </fieldset>
+            <div><button id="saveCourseStructureBtn" class="btn btn-primary" type="button">Сохранить структуру</button></div>
+            <p id="courseStructureStatus" class="admin-hint" hidden></p>
+          </div>
+        </section>
         <section class="admin-card admin-theme-card">
         <div class="admin-card__header admin-card__header--compact admin-card__header--theme">
           <div>
@@ -139,6 +163,17 @@
                 Подзаголовок
                 <input id="subtitleInput" type="text" placeholder="Введите подзаголовок" />
               </label>
+
+              <div id="lessonGroupFields" class="admin-lesson-group-fields" hidden>
+                <label class="admin-checkbox-row">
+                  <input id="lessonStartsGroupInput" type="checkbox" />
+                  <span>Этот урок начинает новый раздел</span>
+                </label>
+                <label id="lessonGroupTitleField" hidden>
+                  Название раздела
+                  <input id="lessonGroupTitleInput" type="text" placeholder="Например: Modül 1 - Diyafram" />
+                </label>
+              </div>
 
               <label>
                 <span class="admin-label-title">
