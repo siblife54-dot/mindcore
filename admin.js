@@ -7,6 +7,7 @@
     selectedThemeId: "dark_premium",
     courseLanguage: "ru",
     courseStructure: "classic",
+    groupLabelType: "auto",
     blocks: [],
     blockGroups: [],
     blockItemsByBlockId: {},
@@ -2227,26 +2228,45 @@
     return courseStructure === "grouped" ? "grouped" : "classic";
   }
 
+  function normalizeGroupLabelType(groupLabelType) {
+    var allowed = ["auto", "week", "module", "section", "none"];
+    return allowed.indexOf(groupLabelType) === -1 ? "auto" : groupLabelType;
+  }
+
   async function fetchCourseStructure() {
-    var result = await getClient().from("course_settings").select("course_structure").eq("course_id", getActiveCourseId()).maybeSingle();
+    var result = await getClient().from("course_settings").select("course_structure, group_label_type").eq("course_id", getActiveCourseId()).maybeSingle();
     if (result.error) throw result.error;
-    return normalizeCourseStructure(result.data && result.data.course_structure);
+    return {
+      courseStructure: normalizeCourseStructure(result.data && result.data.course_structure),
+      groupLabelType: normalizeGroupLabelType(result.data && result.data.group_label_type)
+    };
   }
 
   function renderCourseStructure() {
     document.querySelectorAll('input[name="courseStructure"]').forEach(function (input) {
       input.checked = input.value === state.courseStructure;
     });
+    var groupLabelTypeInput = document.getElementById("groupLabelTypeInput");
+    if (groupLabelTypeInput) groupLabelTypeInput.value = state.groupLabelType;
+    renderGroupLabelTypeVisibility(state.courseStructure);
     renderLessonGroupFields();
+  }
+
+  function renderGroupLabelTypeVisibility(courseStructure) {
+    var field = document.getElementById("groupLabelTypeField");
+    if (field) field.hidden = normalizeCourseStructure(courseStructure) !== "grouped";
   }
 
   async function saveCourseStructure() {
     var selected = document.querySelector('input[name="courseStructure"]:checked');
     var courseStructure = normalizeCourseStructure(selected && selected.value);
+    var groupLabelTypeInput = document.getElementById("groupLabelTypeInput");
+    var groupLabelType = normalizeGroupLabelType(groupLabelTypeInput && groupLabelTypeInput.value);
     var status = document.getElementById("courseStructureStatus");
-    var result = await getClient().from("course_settings").update({ course_structure: courseStructure }).eq("course_id", getActiveCourseId()).select("course_structure").maybeSingle();
+    var result = await getClient().from("course_settings").update({ course_structure: courseStructure, group_label_type: groupLabelType }).eq("course_id", getActiveCourseId()).select("course_structure, group_label_type").maybeSingle();
     if (result.error) throw result.error;
     state.courseStructure = normalizeCourseStructure(result.data && result.data.course_structure);
+    state.groupLabelType = normalizeGroupLabelType(result.data && result.data.group_label_type);
     renderCourseStructure();
     if (status) { status.hidden = false; status.textContent = "Структура курса сохранена"; }
     refreshPreviewData();
@@ -5576,6 +5596,13 @@
       });
     });
 
+    document.querySelectorAll('input[name="courseStructure"]').forEach(function (input) {
+      input.addEventListener("change", function () {
+        var selected = document.querySelector('input[name="courseStructure"]:checked');
+        renderGroupLabelTypeVisibility(selected && selected.value);
+      });
+    });
+
     var lessonStartsGroupInput = document.getElementById("lessonStartsGroupInput");
     if (lessonStartsGroupInput) lessonStartsGroupInput.addEventListener("change", function () {
       var titleField = document.getElementById("lessonGroupTitleField");
@@ -6132,7 +6159,9 @@
     state.courseLanguage = await fetchCourseLanguage();
     var courseLanguageInput = document.getElementById("courseLanguageInput");
     if (courseLanguageInput) courseLanguageInput.value = state.courseLanguage;
-    state.courseStructure = await fetchCourseStructure();
+    var courseStructureSettings = await fetchCourseStructure();
+    state.courseStructure = courseStructureSettings.courseStructure;
+    state.groupLabelType = courseStructureSettings.groupLabelType;
     renderCourseStructure();
     state.selectedThemeId = await fetchCourseThemeId();
     state.savedThemeId = state.selectedThemeId;

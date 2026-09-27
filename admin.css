@@ -3618,6 +3618,9 @@ body[data-page="admin"] h5 { color: var(--admin-text); letter-spacing: -0.03em; 
 .admin-course-structure-option span { display: grid; gap: 2px; min-width: 0; }
 .admin-course-structure-option strong { color: var(--admin-text); font-size: 14px; line-height: 1.3; }
 .admin-course-structure-option small { color: var(--admin-text-secondary); font-size: 12px; line-height: 1.35; }
+.admin-form .admin-course-group-label-field { display: grid; gap: 5px; max-width: 320px; color: var(--admin-text); font-size: 14px; font-weight: 600; }
+.admin-form .admin-course-group-label-field[hidden] { display: none; }
+.admin-course-group-label-field small { color: var(--admin-text-secondary); font-size: 12px; font-weight: 400; line-height: 1.35; }
 .admin-course-structure-actions { display: flex; }
 .admin-visually-hidden { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
 .admin-lesson-group-fields { display: grid; gap: 14px; padding: 16px; border: 1px solid var(--admin-border); border-radius: var(--admin-radius-md); background: var(--admin-bg-elevated); }
