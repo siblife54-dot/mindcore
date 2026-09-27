@@ -107,6 +107,19 @@ assert.deepEqual(
   "None mode must remove recognized labels and render only the title"
 );
 assert.deepEqual(
+  JSON.parse(JSON.stringify(groupContext.getParts("Modül 1", 1, "none"))),
+  { chip: "", title: "" },
+  "None mode may produce no visible group-header content for a standard prefix"
+);
+const groupedRenderStart = appSource.indexOf('if (COURSE_SETTINGS && COURSE_SETTINGS.course_structure === "grouped")');
+const groupedRenderEnd = appSource.indexOf("if (isDebugMode())", groupedRenderStart);
+const groupedRenderSource = appSource.slice(groupedRenderStart, groupedRenderEnd);
+assert.match(
+  groupedRenderSource,
+  /if \(groupHeaderParts\.chip \|\| groupHeaderParts\.title\) \{[\s\S]*?<div class="lesson-group-header">/,
+  "An empty chip and title must not create an empty group-header container"
+);
+assert.deepEqual(
   JSON.parse(JSON.stringify(russianGroupContext.getParts("Свободное название", 2, "none"))),
   { chip: "", title: "Свободное название" }
 );

@@ -3084,12 +3084,14 @@
           groupIndex += 1;
           var groupHeaderParts = getLessonGroupHeaderParts(groupTitle, groupIndex, COURSE_SETTINGS.group_label_type);
 
-          groupHeader = [
-            '<div class="lesson-group-header">',
-            (groupHeaderParts.chip ? '<span class="lesson-group-header__chip">' + escapeHtml(groupHeaderParts.chip) + '</span>' : ''),
-            (groupHeaderParts.title ? '<h2 class="lesson-group-header__title">' + escapeHtml(groupHeaderParts.title) + '</h2>' : ''),
-            '</div>'
-          ].join("");
+          if (groupHeaderParts.chip || groupHeaderParts.title) {
+            groupHeader = [
+              '<div class="lesson-group-header">',
+              (groupHeaderParts.chip ? '<span class="lesson-group-header__chip">' + escapeHtml(groupHeaderParts.chip) + '</span>' : ''),
+              (groupHeaderParts.title ? '<h2 class="lesson-group-header__title">' + escapeHtml(groupHeaderParts.title) + '</h2>' : ''),
+              '</div>'
+            ].join("");
+          }
         }
 
         if (groupTitle) lastGroupTitle = groupTitle;
