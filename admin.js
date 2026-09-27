@@ -3926,7 +3926,8 @@
       "created_at",
       "updated_at",
       "day_number",
-      "lesson_id"
+      "lesson_id",
+      "group_title"
     ]);
 
     nextLessonPayload.day_number = nextDayNumber;
@@ -4228,9 +4229,11 @@
     if (!client) return;
 
     var lessonToDelete = state.selectedLesson;
-    var confirmed = window.confirm(
-      "Удалить модуль полностью? Будут удалены все материалы, текст, видео и файлы этого модуля. Это действие нельзя отменить."
-    );
+    var deleteConfirmation = "Удалить модуль полностью? Будут удалены все материалы, текст, видео и файлы этого модуля. Это действие нельзя отменить.";
+    if (String(lessonToDelete.group_title || "").trim()) {
+      deleteConfirmation += "\n\nЭтот урок начинает раздел, поэтому после удаления заголовок раздела исчезнет. Чтобы сохранить раздел, назначьте следующий урок его началом.";
+    }
+    var confirmed = window.confirm(deleteConfirmation);
     if (!confirmed) return;
 
     var lessonBlocksResult = await client

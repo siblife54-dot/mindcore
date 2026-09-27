@@ -28,4 +28,20 @@ assert(saveStructure, "saveCourseStructure must exist");
 assert.match(saveStructure[1], /refreshPreviewData\(\)/,
   "saving the structure must refresh the WebApp preview");
 
+const duplicateLesson = js.match(/async function duplicateLesson\(lessonDbId\) \{([\s\S]*?)\n  \}\n\n  async function duplicateBlock/);
+assert(duplicateLesson, "duplicateLesson must exist");
+assert.match(duplicateLesson[1], /cloneRecord\(sourceLesson, \[[\s\S]*?"group_title"[\s\S]*?\]\)/,
+  "duplicating a lesson must exclude group_title from the copied record");
+assert.doesNotMatch(duplicateLesson[1], /nextLessonPayload\.group_title\s*=/,
+  "duplicating a lesson must not restore the source group title");
+
+const deleteLesson = js.match(/async function deleteLesson\(\) \{([\s\S]*?)\n  \}\n\n  function/);
+assert(deleteLesson, "deleteLesson must exist");
+assert.match(deleteLesson[1], /String\(lessonToDelete\.group_title \|\| ""\)\.trim\(\)/,
+  "the section warning must only be added for a non-empty group title");
+assert.match(deleteLesson[1], /Этот урок начинает раздел, поэтому после удаления заголовок раздела исчезнет\./);
+assert.match(deleteLesson[1], /Чтобы сохранить раздел, назначьте следующий урок его началом\./);
+assert.doesNotMatch(deleteLesson[1], /update\([^)]*group_title|group_title[^;]*update\(/,
+  "deleting a section start must not transfer group_title automatically");
+
 console.log("admin course structure tests passed");
