@@ -6,6 +6,7 @@
     selectedLesson: null,
     selectedThemeId: "dark_premium",
     courseLanguage: "ru",
+    courseStructure: "classic",
     blocks: [],
     blockGroups: [],
     blockItemsByBlockId: {},
@@ -2222,6 +2223,35 @@
     return language === "tr" ? "tr" : "ru";
   }
 
+  function normalizeCourseStructure(courseStructure) {
+    return courseStructure === "grouped" ? "grouped" : "classic";
+  }
+
+  async function fetchCourseStructure() {
+    var result = await getClient().from("course_settings").select("course_structure").eq("course_id", getActiveCourseId()).maybeSingle();
+    if (result.error) throw result.error;
+    return normalizeCourseStructure(result.data && result.data.course_structure);
+  }
+
+  function renderCourseStructure() {
+    document.querySelectorAll('input[name="courseStructure"]').forEach(function (input) {
+      input.checked = input.value === state.courseStructure;
+    });
+    renderLessonGroupFields();
+  }
+
+  async function saveCourseStructure() {
+    var selected = document.querySelector('input[name="courseStructure"]:checked');
+    var courseStructure = normalizeCourseStructure(selected && selected.value);
+    var status = document.getElementById("courseStructureStatus");
+    var result = await getClient().from("course_settings").update({ course_structure: courseStructure }).eq("course_id", getActiveCourseId()).select("course_structure").maybeSingle();
+    if (result.error) throw result.error;
+    state.courseStructure = normalizeCourseStructure(result.data && result.data.course_structure);
+    renderCourseStructure();
+    if (status) { status.hidden = false; status.textContent = "Структура курса сохранена"; }
+    refreshPreviewData();
+  }
+
   async function fetchCourseLanguage() {
     var result = await getClient().from("course_settings").select("language").eq("course_id", getActiveCourseId()).maybeSingle();
     if (result.error) throw result.error;
@@ -3186,12 +3216,29 @@
     document.getElementById("lessonLabelInput").value = lesson.lesson_label || "";
     document.getElementById("titleInput").value = lesson.title || "";
     document.getElementById("subtitleInput").value = lesson.subtitle || "";
+    renderLessonGroupFields();
 
     updateLessonEditorPanelsVisibility();
     renderLessonPreviewUploader();
     renderBlockGroupsManager();
     renderBlocksList();
     refreshPreviewData();
+  }
+
+  function renderLessonGroupFields() {
+    var fields = document.getElementById("lessonGroupFields");
+    var checkbox = document.getElementById("lessonStartsGroupInput");
+    var titleField = document.getElementById("lessonGroupTitleField");
+    var titleInput = document.getElementById("lessonGroupTitleInput");
+    if (!fields || !checkbox || !titleField || !titleInput) return;
+    var isGrouped = state.courseStructure === "grouped";
+    var groupTitle = state.selectedLesson && typeof state.selectedLesson.group_title === "string"
+      ? state.selectedLesson.group_title
+      : "";
+    fields.hidden = !isGrouped;
+    checkbox.checked = Boolean(groupTitle.trim());
+    titleField.hidden = !checkbox.checked;
+    titleInput.value = groupTitle;
   }
 
   function renderLessonPreviewUploader() {
@@ -4133,6 +4180,16 @@
       day_number: Number(document.getElementById("dayNumberInput").value) || null,
       lesson_label: document.getElementById("lessonLabelInput").value.trim()
     };
+
+    if (state.courseStructure === "grouped") {
+      var startsGroup = document.getElementById("lessonStartsGroupInput").checked;
+      var groupTitle = document.getElementById("lessonGroupTitleInput").value.trim();
+      if (startsGroup && !groupTitle) {
+        alert("Введите название раздела");
+        return;
+      }
+      payload.group_title = startsGroup ? groupTitle : null;
+    }
 
     if (!state.selectedLesson.lesson_id) {
       payload.lesson_id = generateLessonId();
@@ -5507,6 +5564,25 @@
       });
     });
 
+    var saveCourseStructureBtn = document.getElementById("saveCourseStructureBtn");
+    if (saveCourseStructureBtn) saveCourseStructureBtn.addEventListener("click", function () {
+      void saveCourseStructure().catch(function (error) {
+        console.error(error);
+        var status = document.getElementById("courseStructureStatus");
+        if (status) { status.hidden = false; status.textContent = "Не удалось сохранить структуру курса"; }
+      });
+    });
+
+    var lessonStartsGroupInput = document.getElementById("lessonStartsGroupInput");
+    if (lessonStartsGroupInput) lessonStartsGroupInput.addEventListener("change", function () {
+      var titleField = document.getElementById("lessonGroupTitleField");
+      if (titleField) titleField.hidden = !lessonStartsGroupInput.checked;
+      if (lessonStartsGroupInput.checked) {
+        var titleInput = document.getElementById("lessonGroupTitleInput");
+        if (titleInput) titleInput.focus();
+      }
+    });
+
     document.getElementById("lessonsList").addEventListener("click", function (event) {
       if (event.target.closest(".lesson-drag-handle")) return;
       if (event.target.closest(".duplicate-lesson-btn")) return;
@@ -6053,6 +6129,8 @@
     state.courseLanguage = await fetchCourseLanguage();
     var courseLanguageInput = document.getElementById("courseLanguageInput");
     if (courseLanguageInput) courseLanguageInput.value = state.courseLanguage;
+    state.courseStructure = await fetchCourseStructure();
+    renderCourseStructure();
     state.selectedThemeId = await fetchCourseThemeId();
     state.savedThemeId = state.selectedThemeId;
     currentPreviewThemeId = state.selectedThemeId;
