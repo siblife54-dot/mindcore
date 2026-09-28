@@ -3455,8 +3455,9 @@
           seek.max = duration || 0;
           if (!seek.matches(":active")) seek.value = audio.currentTime || 0;
           time.textContent = formatAudioTime(audio.currentTime) + " / " + formatAudioTime(duration);
-          toggle.textContent = audio.paused ? t("lesson.audioPlay") : t("lesson.audioPause");
-          toggle.setAttribute("aria-label", toggle.textContent);
+          toggle.classList.toggle("is-playing", !audio.paused);
+          toggle.setAttribute("aria-label", audio.paused ? t("lesson.audioPlay") : t("lesson.audioPause"));
+          toggle.setAttribute("aria-pressed", String(!audio.paused));
         }
         toggle.addEventListener("click", function () { if (audio.paused) void audio.play(); else audio.pause(); });
         seek.addEventListener("input", function () { audio.currentTime = Number(seek.value) || 0; });
@@ -3504,13 +3505,16 @@
           if (item.item_type === "audio" && item.audio_url) {
             html += [
               '<section class="lesson-audio-player">',
-              item.audio_title ? '<h4 class="lesson-audio-player__title">' + escapeHtml(item.audio_title) + '</h4>' : '',
               '<audio preload="metadata" src="' + escapeAttr(item.audio_url) + '"></audio>',
-              '<div class="lesson-audio-player__controls">',
-              '<button class="lesson-audio-player__toggle" type="button">' + escapeHtml(t("lesson.audioPlay")) + '</button>',
+              '<button class="lesson-audio-player__toggle" type="button" aria-label="' + escapeAttr(t("lesson.audioPlay")) + '" aria-pressed="false">',
+              '<svg class="lesson-audio-player__play-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M8.5 6.8v10.4a1 1 0 0 0 1.55.83l7.25-5.2a1 1 0 0 0 0-1.66l-7.25-5.2a1 1 0 0 0-1.55.83Z"/></svg>',
+              '<svg class="lesson-audio-player__pause-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M7.5 6.5A1.5 1.5 0 0 1 9 5h.5A1.5 1.5 0 0 1 11 6.5v11A1.5 1.5 0 0 1 9.5 19H9a1.5 1.5 0 0 1-1.5-1.5v-11Zm5.5 0A1.5 1.5 0 0 1 14.5 5h.5a1.5 1.5 0 0 1 1.5 1.5v11A1.5 1.5 0 0 1 15 19h-.5a1.5 1.5 0 0 1-1.5-1.5v-11Z"/></svg>',
+              '</button>',
+              '<div class="lesson-audio-player__content">',
+              item.audio_title ? '<h4 class="lesson-audio-player__title">' + escapeHtml(item.audio_title) + '</h4>' : '',
               '<input class="lesson-audio-player__seek" type="range" min="0" max="0" value="0" step="0.1" aria-label="' + escapeAttr(t("lesson.audioSeek")) + '">',
-              '<span class="lesson-audio-player__time">0:00 / 0:00</span>',
-              '<select class="lesson-audio-player__speed" aria-label="' + escapeAttr(t("lesson.audioSpeed")) + '"><option value="1">1×</option><option value="1.5">1.5×</option><option value="2">2×</option></select>',
+              '<div class="lesson-audio-player__meta"><span class="lesson-audio-player__time">0:00 / 0:00</span>',
+              '<select class="lesson-audio-player__speed" aria-label="' + escapeAttr(t("lesson.audioSpeed")) + '"><option value="1">1×</option><option value="1.5">1.5×</option><option value="2">2×</option></select></div>',
               '</div></section>'
             ].join("");
           }
