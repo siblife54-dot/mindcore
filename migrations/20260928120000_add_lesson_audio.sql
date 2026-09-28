@@ -32,7 +32,7 @@ values (
   'lesson-audio',
   true,
   52428800,
-  array['audio/mpeg', 'audio/mp4', 'audio/x-m4a']
+  array['audio/mpeg', 'audio/mp4', 'audio/m4a', 'audio/x-m4a']
 )
 on conflict (id) do update set
   public = excluded.public,

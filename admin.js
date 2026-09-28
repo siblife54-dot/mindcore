@@ -84,7 +84,7 @@
   };
   var ALLOWED_PREVIEW_MIME_TYPES = ["image/jpeg", "image/png", "image/webp"];
   var MAX_PREVIEW_FILE_SIZE = 5 * 1024 * 1024;
-  var ALLOWED_AUDIO_MIME_TYPES = ["audio/mpeg", "audio/mp4", "audio/x-m4a"];
+  var ALLOWED_AUDIO_MIME_TYPES = ["audio/mpeg", "audio/mp4", "audio/m4a", "audio/x-m4a"];
   var ALLOWED_AUDIO_EXTENSIONS = ["mp3", "m4a"];
   var MAX_AUDIO_FILE_SIZE = 50 * 1024 * 1024;
   var ALLOWED_LESSON_FILE_MIME_TYPES = ["application/pdf", "application/msword", "application/vnd.openxmlformats-officedocument.wordprocessingml.document", "application/vnd.ms-excel", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "application/vnd.ms-powerpoint", "application/vnd.openxmlformats-officedocument.presentationml.presentation", "application/zip", "application/x-zip-compressed", "application/vnd.rar", "application/x-rar-compressed", "image/png", "image/jpeg", "image/webp"];
@@ -4333,8 +4333,24 @@
     var blockIds = (lessonBlocksResult.data || []).map(function (block) {
       return block.id;
     });
+    var lessonAudioUrls = [];
 
     if (blockIds.length) {
+      var audioItemsResult = await client
+        .from("lesson_block_items")
+        .select("audio_url")
+        .in("block_id", blockIds)
+        .not("audio_url", "is", null);
+
+      if (audioItemsResult.error) {
+        console.error(audioItemsResult.error);
+        alert("Не удалось получить аудиофайлы урока перед удалением");
+        return;
+      }
+      lessonAudioUrls = Array.from(new Set((audioItemsResult.data || []).map(function (item) {
+        return item.audio_url;
+      }).filter(Boolean)));
+
       var deleteItemsResult = await client
         .from("lesson_block_items")
         .delete()
@@ -4344,6 +4360,10 @@
         console.error(deleteItemsResult.error);
         alert("Не удалось удалить материалы урока");
         return;
+      }
+
+      for (var audioIndex = 0; audioIndex < lessonAudioUrls.length; audioIndex += 1) {
+        await removeUnreferencedAudio(lessonAudioUrls[audioIndex]);
       }
     }
 
@@ -4785,6 +4805,21 @@
     var confirmDelete = window.confirm("Удалить материал и его содержимое?");
     if (!confirmDelete) return;
 
+    var audioItemsResult = await client
+      .from("lesson_block_items")
+      .select("audio_url")
+      .eq("block_id", blockId)
+      .not("audio_url", "is", null);
+
+    if (audioItemsResult.error) {
+      console.error(audioItemsResult.error);
+      alert("Не удалось получить аудиофайлы материала перед удалением");
+      return;
+    }
+    var blockAudioUrls = Array.from(new Set((audioItemsResult.data || []).map(function (item) {
+      return item.audio_url;
+    }).filter(Boolean)));
+
     var deleteItemsResult = await client
       .from("lesson_block_items")
       .delete()
@@ -4794,6 +4829,10 @@
       console.error(deleteItemsResult.error);
       alert("Ошибка удаления контента материала!");
       return;
+    }
+
+    for (var audioIndex = 0; audioIndex < blockAudioUrls.length; audioIndex += 1) {
+      await removeUnreferencedAudio(blockAudioUrls[audioIndex]);
     }
 
     var deleteBlockResult = await client
@@ -5019,6 +5058,28 @@
     renderBlocksList();
     refreshPreviewData();
     return { item: result.data, previousUrl: existing ? existing.audio_url : null };
+  }
+
+  async function updateAudioTitle(blockId, audioTitle) {
+    var existing = getAudioItems(blockId).find(function (item) { return item.audio_url; });
+    var client = getClient();
+    if (!client || !existing) return null;
+    var result = await client.from("lesson_block_items")
+      .update({ audio_title: audioTitle || null })
+      .eq("id", existing.id)
+      .select()
+      .single();
+    if (result.error) {
+      console.error(result.error);
+      alert("Ошибка сохранения названия голосового сообщения");
+      return null;
+    }
+    state.blockItemsByBlockId[String(blockId)] = getItems(blockId).map(function (item) {
+      return String(item.id) === String(existing.id) ? result.data : item;
+    });
+    renderBlocksList();
+    refreshPreviewData();
+    return result.data;
   }
 
   async function removeUnreferencedAudio(audioUrl) {
@@ -6096,15 +6157,28 @@
         var audioInput = document.querySelector('.audio-file-input[data-block-id="' + audioBlockId + '"]');
         var audioTitleInput = document.querySelector('.audio-title-input[data-block-id="' + audioBlockId + '"]');
         var audioFile = audioInput && audioInput.files ? audioInput.files[0] : null;
+        var existingAudio = getAudioItems(audioBlockId).find(function (item) { return item.audio_url; });
+        var audioTitle = audioTitleInput ? audioTitleInput.value.trim() : "";
+        if (!audioFile && existingAudio) {
+          void updateAudioTitle(audioBlockId, audioTitle).then(function (savedItem) {
+            if (savedItem) alert("Название голосового сообщения сохранено");
+          });
+          return;
+        }
         if (!audioFile) { alert("Выберите MP3 или M4A файл"); return; }
+        var uploadedAudioUrl = "";
         void uploadSectionAudio(audioBlockId, audioFile).then(function (uploadResult) {
-          return saveAudioItem(audioBlockId, uploadResult.publicUrl, audioTitleInput ? audioTitleInput.value.trim() : "");
+          uploadedAudioUrl = uploadResult.publicUrl;
+          return saveAudioItem(audioBlockId, uploadResult.publicUrl, audioTitle);
         }).then(function (saved) {
-          if (!saved) return;
+          if (!saved) {
+            return removeUnreferencedAudio(uploadedAudioUrl);
+          }
           if (saved.previousUrl && saved.previousUrl !== saved.item.audio_url) void removeUnreferencedAudio(saved.previousUrl);
           alert("Голосовое сообщение сохранено");
         }).catch(function (error) {
           console.error(error);
+          if (uploadedAudioUrl) void removeUnreferencedAudio(uploadedAudioUrl);
           alert(error && error.message ? error.message : "Не удалось загрузить аудио");
         });
         return;
