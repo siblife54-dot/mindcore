@@ -1333,6 +1333,23 @@ a { color: inherit; }
   line-height: 1.4;
 }
 
+.lesson-audio-player {
+  margin: 14px 0 18px;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: var(--card-2);
+  color: var(--text);
+}
+
+.lesson-audio-player__title { margin: 0 0 10px; font-size: 15px; }
+.lesson-audio-player__controls { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.lesson-audio-player__toggle,
+.lesson-audio-player__speed { border: 1px solid var(--border); border-radius: 10px; background: var(--card); color: var(--text); padding: 8px 10px; }
+.lesson-audio-player__toggle { min-width: 110px; cursor: pointer; }
+.lesson-audio-player__seek { flex: 1 1 160px; accent-color: var(--accent); }
+.lesson-audio-player__time { color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; }
+
 
 html,
 body {

@@ -3436,6 +3436,36 @@
       });
     }
 
+    function formatAudioTime(seconds) {
+      if (!Number.isFinite(seconds) || seconds < 0) return "0:00";
+      var minutes = Math.floor(seconds / 60);
+      return minutes + ":" + String(Math.floor(seconds % 60)).padStart(2, "0");
+    }
+
+    function initLessonAudioPlayers() {
+      content.querySelectorAll(".lesson-audio-player").forEach(function (player) {
+        var audio = player.querySelector("audio");
+        var toggle = player.querySelector(".lesson-audio-player__toggle");
+        var seek = player.querySelector(".lesson-audio-player__seek");
+        var time = player.querySelector(".lesson-audio-player__time");
+        var speed = player.querySelector(".lesson-audio-player__speed");
+        if (!audio || !toggle || !seek || !time || !speed) return;
+        function update() {
+          var duration = Number.isFinite(audio.duration) ? audio.duration : 0;
+          seek.max = duration || 0;
+          if (!seek.matches(":active")) seek.value = audio.currentTime || 0;
+          time.textContent = formatAudioTime(audio.currentTime) + " / " + formatAudioTime(duration);
+          toggle.textContent = audio.paused ? t("lesson.audioPlay") : t("lesson.audioPause");
+          toggle.setAttribute("aria-label", toggle.textContent);
+        }
+        toggle.addEventListener("click", function () { if (audio.paused) void audio.play(); else audio.pause(); });
+        seek.addEventListener("input", function () { audio.currentTime = Number(seek.value) || 0; });
+        speed.addEventListener("change", function () { audio.playbackRate = Number(speed.value) || 1; });
+        ["loadedmetadata", "timeupdate", "play", "pause", "ended"].forEach(function (name) { audio.addEventListener(name, update); });
+        update();
+      });
+    }
+
     async function renderLessonBlock(block) {
       var items = await fetchBlockItems(block.id);
       var html = "";
@@ -3469,6 +3499,20 @@
 
           if (item.item_type === "image" && item.image_url) {
             html += '<figure class="lesson-inline-image"><img src="' + escapeAttr(item.image_url) + '" alt="' + escapeAttr(item.image_alt || t("lesson.imageAlt")) + '" loading="lazy">' + (item.image_alt ? '<figcaption>' + escapeHtml(item.image_alt) + '</figcaption>' : "") + '</figure>';
+          }
+
+          if (item.item_type === "audio" && item.audio_url) {
+            html += [
+              '<section class="lesson-audio-player">',
+              item.audio_title ? '<h4 class="lesson-audio-player__title">' + escapeHtml(item.audio_title) + '</h4>' : '',
+              '<audio preload="metadata" src="' + escapeAttr(item.audio_url) + '"></audio>',
+              '<div class="lesson-audio-player__controls">',
+              '<button class="lesson-audio-player__toggle" type="button">' + escapeHtml(t("lesson.audioPlay")) + '</button>',
+              '<input class="lesson-audio-player__seek" type="range" min="0" max="0" value="0" step="0.1" aria-label="' + escapeAttr(t("lesson.audioSeek")) + '">',
+              '<span class="lesson-audio-player__time">0:00 / 0:00</span>',
+              '<select class="lesson-audio-player__speed" aria-label="' + escapeAttr(t("lesson.audioSpeed")) + '"><option value="1">1×</option><option value="1.5">1.5×</option><option value="2">2×</option></select>',
+              '</div></section>'
+            ].join("");
           }
         });
 
@@ -3546,6 +3590,7 @@
     } else {
       content.textContent = lesson.content_text || t("lesson.contentEmpty");
     }
+    initLessonAudioPlayers();
 
     var videoModel = getVideoRenderModel(lesson.video_url);
     var videoWrap = document.getElementById("videoWrap");
