@@ -1134,7 +1134,7 @@ body[data-page="admin"] {
   padding: 0;
   border: 1px solid var(--admin-border);
   border-radius: 8px;
-  background: #fff;
+  background: var(--admin-surface);
   color: var(--admin-text);
   font: inherit;
   cursor: pointer;
@@ -1143,7 +1143,7 @@ body[data-page="admin"] {
 .video-description-format-btn:hover,
 .video-description-format-btn:focus-visible {
   border-color: var(--admin-accent);
-  background: color-mix(in srgb, var(--admin-accent) 7%, #fff);
+  background: color-mix(in srgb, var(--admin-accent) 7%, var(--admin-surface));
 }
 
 .video-description-input {
@@ -1153,7 +1153,7 @@ body[data-page="admin"] {
   overflow-wrap: anywhere;
   border: 1px solid var(--admin-border);
   border-radius: 12px;
-  background: #fbfcff;
+  background: var(--admin-bg-elevated);
   color: var(--admin-text);
   font-size: 13px;
   font-weight: 400;
@@ -1163,8 +1163,8 @@ body[data-page="admin"] {
 
 .video-description-input:focus {
   border-color: color-mix(in srgb, var(--admin-accent) 48%, var(--admin-border));
-  box-shadow: 0 0 0 4px rgba(118,87,230,.12);
-  background: #fff;
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--admin-accent) 12%, transparent);
+  background: var(--admin-surface);
 }
 
 .video-description-input:empty::before {

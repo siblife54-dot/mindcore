@@ -3422,8 +3422,8 @@
     var videoDescriptionQueue = [];
 
     function renderVideoDescription(block) {
-      var description = String((block && block.video_description) || "");
-      if (!description.trim()) return "";
+      var description = sanitizeVideoDescription((block && block.video_description) || "");
+      if (!description) return "";
 
       var descriptionIndex = videoDescriptionQueue.push(description) - 1;
       return '<div class="lesson-media__description" data-video-description-index="' + descriptionIndex + '"></div>';
@@ -3688,10 +3688,11 @@
     var hasFormatting = /<(?:strong|b|em|i|u|ul|ol|li|br|p|div)(?:\s|>|\/)/i.test(source);
     var input = document.createElement("template");
     var inputRoot = input.content;
-    if (hasFormatting) {
-      input.innerHTML = source;
-    } else {
-      source.split(/\r?\n/).forEach(function (line, index) {
+    input.innerHTML = source;
+    if (!hasFormatting) {
+      var plainText = inputRoot.textContent || "";
+      inputRoot.textContent = "";
+      plainText.split(/\r?\n/).forEach(function (line, index) {
         if (index) inputRoot.appendChild(document.createElement("br"));
         inputRoot.appendChild(document.createTextNode(line));
       });
@@ -3711,7 +3712,7 @@
       Array.prototype.slice.call(node.childNodes).forEach(function (child) { copySafe(child, target); });
     }
     Array.prototype.slice.call(inputRoot.childNodes).forEach(function (node) { copySafe(node, output); });
-    return output.innerHTML;
+    return (output.textContent || "").trim() ? output.innerHTML : "";
   }
 
   function escapeHtml(value) {
