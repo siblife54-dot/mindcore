@@ -1110,6 +1110,80 @@ body[data-page="admin"] {
   padding: 11px 12px;
 }
 
+.video-description-field {
+  display: grid;
+  gap: 7px;
+}
+
+.video-description-label {
+  color: var(--admin-text);
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.video-description-toolbar {
+  display: flex;
+  gap: 4px;
+}
+
+.video-description-format-btn {
+  display: inline-grid;
+  place-items: center;
+  width: 32px;
+  min-height: 30px;
+  padding: 0;
+  border: 1px solid var(--admin-border);
+  border-radius: 8px;
+  background: var(--admin-surface);
+  color: var(--admin-text);
+  font: inherit;
+  cursor: pointer;
+}
+
+.video-description-format-btn:hover,
+.video-description-format-btn:focus-visible {
+  border-color: var(--admin-accent);
+  background: color-mix(in srgb, var(--admin-accent) 7%, var(--admin-surface));
+}
+
+.video-description-input {
+  width: 100%;
+  min-height: 96px;
+  padding: 11px 12px;
+  overflow-wrap: anywhere;
+  border: 1px solid var(--admin-border);
+  border-radius: 12px;
+  background: var(--admin-bg-elevated);
+  color: var(--admin-text);
+  font-size: 13px;
+  font-weight: 400;
+  line-height: 1.5;
+  outline: none;
+}
+
+.video-description-input:focus {
+  border-color: color-mix(in srgb, var(--admin-accent) 48%, var(--admin-border));
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--admin-accent) 12%, transparent);
+  background: var(--admin-surface);
+}
+
+.video-description-input:empty::before {
+  color: var(--admin-text-secondary);
+  content: attr(data-placeholder);
+  pointer-events: none;
+}
+
+.video-description-input ul,
+.video-description-input ol {
+  margin: 4px 0;
+  padding-left: 24px;
+}
+
+.video-description-input p,
+.video-description-input div {
+  margin: 0;
+}
+
 .admin-section-form textarea {
   min-height: 96px;
   resize: vertical;
