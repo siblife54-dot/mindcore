@@ -1222,7 +1222,23 @@ a { color: inherit; }
   color: var(--muted);
   font-size: 0.92rem;
   line-height: 1.55;
-  white-space: pre-line;
+  font-weight: 400;
+}
+
+.lesson-media__description p,
+.lesson-media__description div,
+.lesson-media__description ul,
+.lesson-media__description ol {
+  margin: 0 0 8px;
+}
+
+.lesson-media__description ul,
+.lesson-media__description ol {
+  padding-left: 22px;
+}
+
+.lesson-media__description > :last-child {
+  margin-bottom: 0;
 }
 
 /* Final override: compact Quill HTML spacing in lesson WebApp */

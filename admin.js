@@ -3539,9 +3539,17 @@
       '<label>Ссылка на видео',
       '<input class="video-id-input" data-block-id="' + blockId + '" type="text" placeholder="https://..." />',
       '</label>',
-      '<label>Описание под видео',
-      '<textarea class="video-description-input" data-block-id="' + blockId + '" rows="4" placeholder="Короткий текст, который будет показан под видео. Можно оставить пустым.">' + escapeHtml(videoDescription) + '</textarea>',
-      '</label>',
+      '<div class="video-description-field">',
+      '<span class="video-description-label">Описание под видео</span>',
+      '<div class="video-description-toolbar" role="toolbar" aria-label="Форматирование описания">',
+      '<button class="video-description-format-btn" type="button" data-command="bold" aria-label="Жирный"><strong>B</strong></button>',
+      '<button class="video-description-format-btn" type="button" data-command="italic" aria-label="Курсив"><em>I</em></button>',
+      '<button class="video-description-format-btn" type="button" data-command="underline" aria-label="Подчёркивание"><u>U</u></button>',
+      '<button class="video-description-format-btn" type="button" data-command="insertUnorderedList" aria-label="Маркированный список">•≡</button>',
+      '<button class="video-description-format-btn" type="button" data-command="insertOrderedList" aria-label="Нумерованный список">1.</button>',
+      '</div>',
+      '<div class="video-description-input" data-block-id="' + blockId + '" contenteditable="true" role="textbox" aria-multiline="true" data-placeholder="Короткий текст, который будет показан под видео. Можно оставить пустым.">' + sanitizeVideoDescription(videoDescription) + '</div>',
+      '</div>',
       '<p class="admin-hint">Короткий текст, который будет показан под видео. Можно оставить пустым.</p>',
       '<p class="admin-hint">Поддерживаются:<br><strong class="admin-hint__brand">Kinescope</strong>, Vimeo, Rutube и Google Drive.</p>',
       '<p class="admin-hint admin-hint--kinescope">Kinescope рекомендуется для курсов:<br>без рекламы, лучше работает в Telegram и поддерживает защиту видео.</p>',
@@ -4935,7 +4943,7 @@
     var client = getClient();
     if (!client) return false;
 
-    var normalizedDescription = String(description || "");
+    var normalizedDescription = sanitizeVideoDescription(description);
     var payload = { video_description: normalizedDescription.trim() ? normalizedDescription : null };
     var result = await client
       .from("lesson_blocks")
@@ -5972,7 +5980,26 @@
       void saveBlockGroupSelection(groupSelect.getAttribute("data-block-id"), groupSelect.value);
     });
 
+    document.getElementById("blocksList").addEventListener("mousedown", function (event) {
+      if (event.target.closest(".video-description-format-btn")) event.preventDefault();
+    });
+
+    document.getElementById("blocksList").addEventListener("paste", function (event) {
+      if (!event.target.closest(".video-description-input")) return;
+      event.preventDefault();
+      document.execCommand("insertText", false, event.clipboardData.getData("text/plain"));
+    });
+
     document.getElementById("blocksList").addEventListener("click", async function (event) {
+      var formatVideoDescriptionBtn = event.target.closest(".video-description-format-btn[data-command]");
+      if (formatVideoDescriptionBtn) {
+        var editor = formatVideoDescriptionBtn.closest(".video-description-field").querySelector(".video-description-input");
+        if (editor) {
+          editor.focus();
+          document.execCommand(formatVideoDescriptionBtn.getAttribute("data-command"), false, null);
+        }
+        return;
+      }
       var groupSelect = event.target.closest(".block-group-select");
       if (groupSelect) {
         event.stopPropagation();
@@ -6038,7 +6065,7 @@
         if (!videoInput) return;
 
         var videoValue = videoInput.value.trim();
-        var descriptionValue = descriptionInput ? descriptionInput.value : "";
+        var descriptionValue = descriptionInput ? descriptionInput.innerHTML : "";
         var descriptionSaved = await saveVideoDescription(videoBlockId, descriptionValue);
         if (!descriptionSaved) return;
 
@@ -6288,6 +6315,37 @@
       clearDragOverClasses();
       resetDragAndDropState();
     });
+  }
+
+  function sanitizeVideoDescription(value) {
+    var source = String(value || "");
+    var hasFormatting = /<(?:strong|b|em|i|u|ul|ol|li|br|p|div)(?:\s|>|\/)/i.test(source);
+    var input = document.createElement("template");
+    var inputRoot = input.content;
+    if (hasFormatting) {
+      input.innerHTML = source;
+    } else {
+      source.split(/\r?\n/).forEach(function (line, index) {
+        if (index) inputRoot.appendChild(document.createElement("br"));
+        inputRoot.appendChild(document.createTextNode(line));
+      });
+    }
+
+    var output = document.createElement("div");
+    var allowed = { STRONG: "strong", B: "strong", EM: "em", I: "em", U: "u", UL: "ul", OL: "ol", LI: "li", BR: "br", P: "p", DIV: "div" };
+    var blocked = { SCRIPT: true, STYLE: true, IFRAME: true, OBJECT: true, EMBED: true, SVG: true, MATH: true };
+    function copySafe(node, parent) {
+      if (node.nodeType === 3) {
+        parent.appendChild(document.createTextNode(node.nodeValue || ""));
+        return;
+      }
+      if (node.nodeType !== 1 || blocked[node.tagName]) return;
+      var target = allowed[node.tagName] ? document.createElement(allowed[node.tagName]) : parent;
+      if (target !== parent) parent.appendChild(target);
+      Array.prototype.slice.call(node.childNodes).forEach(function (child) { copySafe(child, target); });
+    }
+    Array.prototype.slice.call(inputRoot.childNodes).forEach(function (node) { copySafe(node, output); });
+    return output.innerHTML;
   }
 
   function escapeHtml(value) {

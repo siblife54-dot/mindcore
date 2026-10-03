@@ -3426,13 +3426,13 @@
       if (!description.trim()) return "";
 
       var descriptionIndex = videoDescriptionQueue.push(description) - 1;
-      return '<p class="lesson-media__description" data-video-description-index="' + descriptionIndex + '"></p>';
+      return '<div class="lesson-media__description" data-video-description-index="' + descriptionIndex + '"></div>';
     }
 
     function hydrateVideoDescriptions() {
       content.querySelectorAll(".lesson-media__description[data-video-description-index]").forEach(function (descriptionNode) {
         var descriptionIndex = Number(descriptionNode.getAttribute("data-video-description-index"));
-        descriptionNode.textContent = videoDescriptionQueue[descriptionIndex] || "";
+        descriptionNode.innerHTML = sanitizeVideoDescription(videoDescriptionQueue[descriptionIndex] || "");
       });
     }
 
@@ -3681,6 +3681,37 @@
     if (mod10 === 1 && mod100 !== 11) return forms[0];
     if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)) return forms[1];
     return forms[2];
+  }
+
+  function sanitizeVideoDescription(value) {
+    var source = String(value || "");
+    var hasFormatting = /<(?:strong|b|em|i|u|ul|ol|li|br|p|div)(?:\s|>|\/)/i.test(source);
+    var input = document.createElement("template");
+    var inputRoot = input.content;
+    if (hasFormatting) {
+      input.innerHTML = source;
+    } else {
+      source.split(/\r?\n/).forEach(function (line, index) {
+        if (index) inputRoot.appendChild(document.createElement("br"));
+        inputRoot.appendChild(document.createTextNode(line));
+      });
+    }
+
+    var output = document.createElement("div");
+    var allowed = { STRONG: "strong", B: "strong", EM: "em", I: "em", U: "u", UL: "ul", OL: "ol", LI: "li", BR: "br", P: "p", DIV: "div" };
+    var blocked = { SCRIPT: true, STYLE: true, IFRAME: true, OBJECT: true, EMBED: true, SVG: true, MATH: true };
+    function copySafe(node, parent) {
+      if (node.nodeType === 3) {
+        parent.appendChild(document.createTextNode(node.nodeValue || ""));
+        return;
+      }
+      if (node.nodeType !== 1 || blocked[node.tagName]) return;
+      var target = allowed[node.tagName] ? document.createElement(allowed[node.tagName]) : parent;
+      if (target !== parent) parent.appendChild(target);
+      Array.prototype.slice.call(node.childNodes).forEach(function (child) { copySafe(child, target); });
+    }
+    Array.prototype.slice.call(inputRoot.childNodes).forEach(function (node) { copySafe(node, output); });
+    return output.innerHTML;
   }
 
   function escapeHtml(value) {
