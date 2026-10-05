@@ -123,6 +123,22 @@ assert.deepEqual(
   JSON.parse(JSON.stringify(russianGroupContext.getParts("Свободное название", 2, "none"))),
   { chip: "", title: "Свободное название" }
 );
+const lessonLabelHelperStart = groupHelperEnd;
+const lessonLabelHelperEnd = appSource.indexOf("async function fetchLessons(", lessonLabelHelperStart);
+const lessonLabelContext = {
+  t: (key, params) => key === "lesson.day" ? `День ${params.number}` : "Урок"
+};
+vm.createContext(lessonLabelContext);
+vm.runInContext(`${appSource.slice(lessonLabelHelperStart, lessonLabelHelperEnd)}\nthis.getLabel = getLessonDisplayLabel;`, lessonLabelContext);
+assert.equal(lessonLabelContext.getLabel({ lesson_label: "", day_number: 1 }), "День 1", "An empty lesson label must retain the day fallback");
+assert.equal(lessonLabelContext.getLabel({ lesson_label: " Модуль А ", day_number: 2 }), "Модуль А", "A custom lesson label must be displayed");
+assert.equal(lessonLabelContext.getLabel({ lesson_label: " - ", day_number: 3 }), "", "A trimmed hyphen must hide the lesson label");
+const lessonCardStart = appSource.indexOf("function renderLessonCard(lesson)");
+const lessonCardEnd = appSource.indexOf('if (COURSE_SETTINGS && COURSE_SETTINGS.course_structure === "grouped")', lessonCardStart);
+const lessonCardSource = appSource.slice(lessonCardStart, lessonCardEnd);
+assert.match(lessonCardSource, /displayLabel \? '<span class="lesson-day">'/, "A hidden lesson label must not render an empty element");
+assert.ok(lessonCardSource.includes("subtitle.trim() ? '<p>' + escapeHtml(subtitle) + '</p>' : ''"), "Only a non-blank lesson description must render a paragraph");
+assert.doesNotMatch(lessonCardSource, /lesson\.descriptionMissing/, "Lesson cards must not render the missing-description fallback");
 for (const key of ["errors.supabaseClient", "errors.lessonsLoad", "errors.lessonBlocksLoad", "errors.lessonBlockGroupsLoad", "errors.blockItemsLoad"]) {
   assert.ok(appSource.includes(`throw new Error(t("${key}"))`), `Loading error must use i18n: ${key}`);
 }
