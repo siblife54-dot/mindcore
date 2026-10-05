@@ -1115,6 +1115,7 @@
     if (!lesson) return t("lesson.title");
 
     var customLabel = String(lesson.lesson_label || "").trim();
+    if (customLabel === "-") return "";
     if (customLabel) return customLabel;
 
     if (lesson.day_number) {
@@ -3039,6 +3040,8 @@
       var done = completed.includes(lesson.lesson_id);
       var accessible = Boolean(accessModel.map[lesson.lesson_id]);
       var locked = isPreviewMode() ? false : !accessible;
+      var displayLabel = getLessonDisplayLabel(lesson);
+      var subtitle = lesson.subtitle == null ? "" : String(lesson.subtitle);
       var dashboardHomework = dashboardHomeworkByLesson
         ? dashboardHomeworkByLesson[String(lesson.id)]
         : null;
@@ -3051,7 +3054,7 @@
         '</div>',
         '<div class="lesson-card-body">',
         '<div class="lesson-meta">',
-        '<span class="lesson-day">' + escapeHtml(getLessonDisplayLabel(lesson)) + '</span>',
+        (displayLabel ? '<span class="lesson-day">' + escapeHtml(displayLabel) + '</span>' : ''),
         '<div class="lesson-indicators">',
         (done ? '<span class="status done">' + escapeHtml(t("lesson.statusDone")) + '</span>' : ''),
         (locked ? '<span class="status locked">' + escapeHtml(t("lesson.statusLocked")) + '</span>' : ''),
@@ -3061,7 +3064,7 @@
         '</div>',
         '</div>',
         '<h3>' + escapeHtml(lesson.title) + '</h3>',
-        '<p>' + escapeHtml(lesson.subtitle || t("lesson.descriptionMissing")) + '</p>',
+        (subtitle.trim() ? '<p>' + escapeHtml(subtitle) + '</p>' : ''),
         '<div class="lesson-actions">',
         (locked
           ? '<button class="btn btn-open" type="button" disabled>' + escapeHtml(t("common.open")) + '</button>'
