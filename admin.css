@@ -3983,6 +3983,8 @@ body[data-page="admin"] h5 { color: var(--admin-text); letter-spacing: -0.03em; 
 .admin-homework-review-queue { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 14px; }
 .admin-homework-review-card { display: flex; align-items: flex-start; justify-content: space-between; gap: 18px; }
 .admin-homework-review-card h3, .admin-homework-detail-card h2, .admin-homework-detail-card h3 { margin: 0; }
+.admin-homework-plan-badge { display: inline-block; max-width: 100%; margin-inline-start: 8px; padding: 3px 8px; border: 1px solid var(--admin-border); border-radius: var(--admin-radius-sm); background: var(--admin-accent-soft); color: var(--admin-text); font-size: 12px; font-weight: 650; line-height: 1.4; vertical-align: middle; overflow-wrap: anywhere; }
+.admin-homework-plan-badge[hidden] { display: none; }
 .admin-homework-review-card p { margin: 10px 0; color: var(--admin-text-secondary); }
 .admin-homework-review-card time { color: var(--admin-muted); font-size: 13px; }
 .admin-homework-review-card__text { display: -webkit-box; overflow: hidden; -webkit-box-orient: vertical; -webkit-line-clamp: 3; }
