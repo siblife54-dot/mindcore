@@ -516,6 +516,110 @@
 
 
   var HOMEWORK_QUEUE_ERROR = "Не удалось загрузить работы. Попробуйте ещё раз.";
+  var homeworkPlans = { courseId: null, session: null, enabled: false, generation: 0, cache: new Map(), queue: [], active: 0 };
+  var HOMEWORK_PLAN_CACHE_MS = 5 * 60 * 1000;
+
+  function configureHomeworkPlans(courseId, enabled) {
+    var session = getAdminSessionToken();
+    if (homeworkPlans.courseId !== courseId || homeworkPlans.session !== session || !enabled) {
+      homeworkPlans.generation += 1;
+      homeworkPlans.cache.clear();
+      homeworkPlans.queue = [];
+    }
+    homeworkPlans.courseId = courseId;
+    homeworkPlans.session = session;
+    homeworkPlans.enabled = enabled === true;
+    refreshHomeworkPlanBadges();
+  }
+
+  function homeworkPlansEnabled() {
+    return homeworkPlans.enabled && homeworkPlans.courseId === getActiveCourseId() &&
+      homeworkPlans.session === getAdminSessionToken();
+  }
+
+  function homeworkPlanLabel(result) {
+    if (!result || result.status === "disabled") return "";
+    if (result.complete === false) return "Ошибка проверки";
+    if ((result.status === "detected" || result.status === "ambiguous") && result.complete !== true) return "Ошибка проверки";
+    if (result.status === "detected") {
+      if (result.ambiguous || !Array.isArray(result.plans) || result.plans.length !== 1) return "Ошибка проверки";
+      var plan = result.plans[0] || {};
+      var label = String(plan.label || plan.code || "");
+      return label === "OZEL" || plan.code === "OZEL" ? "ÖZEL" : label || "Ошибка проверки";
+    }
+    return { ambiguous: "Несколько тарифов", no_membership: "Тариф не определён",
+      identity_unavailable: "Telegram не подтверждён", telegram_error: "Ошибка проверки" }[result.status] || "Ошибка проверки";
+  }
+
+  function homeworkPlanBadge(student) {
+    if (!homeworkPlansEnabled() || !student || !student.product_user_id) return "";
+    var entry = homeworkPlans.cache.get(homeworkPlans.courseId + ":" + student.product_user_id);
+    var label = homeworkPlanLabel(entry && entry.result);
+    return '<span class="admin-homework-plan-badge" data-homework-plan="' + escapeAttr(student.product_user_id) + '"' +
+      (label ? '' : ' hidden') + '>' + escapeHtml(label) + '</span>';
+  }
+
+  function refreshHomeworkPlanBadges() {
+    document.querySelectorAll("[data-homework-plan]").forEach(function (node) {
+      var entry = homeworkPlansEnabled() && homeworkPlans.cache.get(homeworkPlans.courseId + ":" + node.getAttribute("data-homework-plan"));
+      var label = homeworkPlanLabel(entry && entry.result);
+      node.textContent = label;
+      node.hidden = !label;
+    });
+  }
+
+  function queueHomeworkPlans(students) {
+    if (!homeworkPlansEnabled()) return;
+    students.forEach(function (student) {
+      if (!student || !student.product_user_id) return;
+      var key = homeworkPlans.courseId + ":" + student.product_user_id;
+      var cached = homeworkPlans.cache.get(key);
+      if (cached && (!cached.result || cached.expiresAt > Date.now())) return;
+      var entry = { key: key, courseId: homeworkPlans.courseId, studentId: student.product_user_id,
+        generation: homeworkPlans.generation, session: homeworkPlans.session, result: null, expiresAt: 0 };
+      homeworkPlans.cache.set(key, entry);
+      homeworkPlans.queue.push(entry);
+    });
+    drainHomeworkPlans();
+  }
+
+  function drainHomeworkPlans() {
+    while (homeworkPlansEnabled() && homeworkPlans.active < 3 && homeworkPlans.queue.length) {
+      var entry = homeworkPlans.queue.shift();
+      homeworkPlans.active += 1;
+      void loadHomeworkPlan(entry);
+    }
+  }
+
+  async function loadHomeworkPlan(entry) {
+    var controller = new AbortController();
+    var timeout = setTimeout(function () { controller.abort(); }, 10000);
+    var result;
+    try {
+      var config = getConfig();
+      var response = await window.fetch(config.supabaseUrl + "/functions/v1/get-homework-student-plans", {
+        method: "POST", signal: controller.signal,
+        headers: Object.assign({ "Content-Type": "application/json", apikey: config.supabaseAnonKey,
+          Authorization: "Bearer " + config.supabaseAnonKey }, getAdminSessionHeaders()),
+        body: JSON.stringify({ course_id: entry.courseId, product_user_id: entry.studentId })
+      });
+      result = await response.json();
+      if (!response.ok || !result || result.ok !== true || result.course_id !== entry.courseId ||
+        result.product_user_id !== entry.studentId) throw new Error("Plan lookup failed");
+    } catch (error) {
+      result = { status: "telegram_error", complete: false };
+    } finally {
+      clearTimeout(timeout);
+      homeworkPlans.active -= 1;
+    }
+    if (entry.generation === homeworkPlans.generation && entry.session === getAdminSessionToken() &&
+      entry.courseId === getActiveCourseId() && homeworkPlansEnabled()) {
+      entry.result = result;
+      entry.expiresAt = Date.now() + HOMEWORK_PLAN_CACHE_MS;
+      refreshHomeworkPlanBadges();
+    }
+    drainHomeworkPlans();
+  }
 
   function homeworkStudentName(student) {
     student = student || {};
@@ -596,7 +700,7 @@
       var student = item.student || {}, attempt = item.latest_attempt || {};
       var username = student.username ? '<span class="admin-hint">@' + escapeHtml(String(student.username).replace(/^@/, "")) + "</span>" : "";
       var excerpt = attempt.student_text ? '<p class="admin-homework-review-card__text">' + escapeHtml(attempt.student_text) + "</p>" : "";
-      return '<article class="admin-card admin-homework-review-card"><div><h3>' + escapeHtml(homeworkStudentName(student)) + "</h3>" + username +
+      return '<article class="admin-card admin-homework-review-card"><div><h3>' + escapeHtml(homeworkStudentName(student)) + homeworkPlanBadge(student) + "</h3>" + username +
         '<p><strong>' + escapeHtml((item.lesson && item.lesson.title) || "Урок") + "</strong> · " + escapeHtml((item.homework && item.homework.title) || "Домашнее задание") + "</p>" + excerpt +
         '<time>' + escapeHtml(formatHomeworkDate(attempt.submitted_at || item.updated_at)) + '</time></div><button class="btn btn-primary" type="button" data-homework-open="' + escapeAttr(item.submission_id) + '">Открыть</button></article>';
     }).join("");
@@ -616,13 +720,13 @@
     var attemptHistory = previousAttempts.length ? '<section class="admin-homework-history"><h3>Предыдущие ответы</h3><div class="admin-homework-history__list">' + previousAttempts.map(function (item) { return renderHomeworkAttempt(item, false); }).join("") + "</div></section>" : "";
     var revision = state.homeworkRevisionOpen ? '<div class="admin-homework-revision"><label for="homeworkRevisionComment">Комментарий ученику</label><textarea id="homeworkRevisionComment" required></textarea><p id="homeworkRevisionError" class="admin-field-error" hidden>Введите комментарий ученику.</p><button class="btn btn-primary" type="button" data-homework-review="request_revision"' + (state.homeworkReviewSubmitting ? " disabled" : "") + '>Отправить на доработку</button></div>' : "";
     root.hidden = false;
-    root.innerHTML = '<div class="admin-card admin-homework-detail-card"><div class="admin-homework-detail-head"><div><h2>' + escapeHtml(homeworkStudentName(detail.student)) + '</h2><p><strong>Урок:</strong> ' + escapeHtml((detail.lesson && detail.lesson.title) || "—") + '</p><p><strong>Домашнее задание:</strong> ' + escapeHtml((detail.homework && detail.homework.title) || "—") + '</p></div><button class="admin-btn-ghost" type="button" data-homework-detail-close>Закрыть</button></div>' + currentAttempt + '<p id="homeworkReviewError" class="admin-field-error"' + (state.homeworkReviewError ? "" : " hidden") + '>' + escapeHtml(state.homeworkReviewError || "") + '</p><div class="admin-homework-review-actions"><button class="btn btn-primary" type="button" data-homework-review="accept"' + (state.homeworkReviewSubmitting ? " disabled" : "") + '>Принять</button><button class="admin-btn-ghost" type="button" data-homework-revision-toggle' + (state.homeworkReviewSubmitting ? " disabled" : "") + '>На доработку</button></div>' + revision + attemptHistory + "</div>";
+    root.innerHTML = '<div class="admin-card admin-homework-detail-card"><div class="admin-homework-detail-head"><div><h2>' + escapeHtml(homeworkStudentName(detail.student)) + homeworkPlanBadge(detail.student) + '</h2><p><strong>Урок:</strong> ' + escapeHtml((detail.lesson && detail.lesson.title) || "—") + '</p><p><strong>Домашнее задание:</strong> ' + escapeHtml((detail.homework && detail.homework.title) || "—") + '</p></div><button class="admin-btn-ghost" type="button" data-homework-detail-close>Закрыть</button></div>' + currentAttempt + '<p id="homeworkReviewError" class="admin-field-error"' + (state.homeworkReviewError ? "" : " hidden") + '>' + escapeHtml(state.homeworkReviewError || "") + '</p><div class="admin-homework-review-actions"><button class="btn btn-primary" type="button" data-homework-review="accept"' + (state.homeworkReviewSubmitting ? " disabled" : "") + '>Принять</button><button class="admin-btn-ghost" type="button" data-homework-revision-toggle' + (state.homeworkReviewSubmitting ? " disabled" : "") + '>На доработку</button></div>' + revision + attemptHistory + "</div>";
   }
 
   async function loadHomeworkReviewQueue(options) {
     var courseId = getActiveCourseId();
     if (!courseId || !getAdminSessionToken()) return;
-    if (!(options && options.refresh) && state.homeworkQueueCourseId === courseId && !state.homeworkQueueError) { renderHomeworkReviewQueue(); return; }
+    if (!(options && options.refresh) && state.homeworkQueueCourseId === courseId && !state.homeworkQueueError) { queueHomeworkPlans(state.homeworkSubmissions.map(function (item) { return item.student; })); renderHomeworkReviewQueue(); return; }
     var sequence = ++state.homeworkQueueSequence;
     state.homeworkQueueLoading = true; state.homeworkQueueError = null; renderHomeworkReviewQueue();
     try {
@@ -633,6 +737,7 @@
       if (!response.ok || !result || result.ok !== true || !Array.isArray(result.submissions)) throw new Error(HOMEWORK_QUEUE_ERROR);
       if (sequence !== state.homeworkQueueSequence || courseId !== getActiveCourseId()) return;
       state.homeworkSubmissions = result.submissions; state.homeworkQueueCourseId = courseId;
+      queueHomeworkPlans(result.submissions.map(function (item) { return item.student; }));
     } catch (error) { if (sequence === state.homeworkQueueSequence) state.homeworkQueueError = HOMEWORK_QUEUE_ERROR; }
     finally { if (sequence === state.homeworkQueueSequence) { state.homeworkQueueLoading = false; renderHomeworkReviewQueue(); } }
   }
@@ -648,6 +753,7 @@
       if (!response.ok || !result || result.ok !== true || !result.submission || !Array.isArray(result.attempts)) throw new Error();
       if (sequence !== state.homeworkDetailSequence || courseId !== getActiveCourseId() || state.activeAdminTab !== "homework") return;
       state.homeworkDetail = result;
+      queueHomeworkPlans([result.student]);
     } catch (error) { if (sequence === state.homeworkDetailSequence) state.homeworkDetailError = "Не удалось загрузить работу."; }
     finally { if (sequence === state.homeworkDetailSequence) { state.homeworkDetailLoading = false; renderHomeworkReviewDetail(); } }
   }
@@ -2013,6 +2119,8 @@
   }
 
   function clearAdminSession() {
+    configureHomeworkPlans(null, false);
+    refreshHomeworkPlanBadges();
     try {
       window.localStorage.removeItem(ADMIN_SESSION_TOKEN_KEY);
       window.localStorage.removeItem(ADMIN_SESSION_EXPIRES_AT_KEY);
@@ -2371,12 +2479,16 @@
   async function fetchCourseAccessSettings() {
     var client = getClient();
     if (!client) throw new Error("Supabase client not initialized");
+    var courseId = getActiveCourseId(), session = getAdminSessionToken();
     var result = await client
       .from("course_settings")
-      .select("access_control_enabled, access_duration_days, access_expired_title, access_expired_text, access_expired_button_text, access_expired_button_url")
-      .eq("course_id", getActiveCourseId())
+      .select("telegram_plan_detection_enabled, access_control_enabled, access_duration_days, access_expired_title, access_expired_text, access_expired_button_text, access_expired_button_url")
+      .eq("course_id", courseId)
       .maybeSingle();
     if (result.error) throw result.error;
+    if (courseId === getActiveCourseId() && session === getAdminSessionToken()) {
+      configureHomeworkPlans(courseId, Boolean(result.data && result.data.telegram_plan_detection_enabled === true));
+    }
     return normalizeCourseAccessSettings(result.data || getDefaultCourseAccessSettings());
   }
 
@@ -6378,6 +6490,7 @@
   }
 
   async function initCourseEditor() {
+    configureHomeworkPlans(getActiveCourseId(), false);
     console.log("activeCourseId:", getActiveCourseId());
     var adminCourseLabel = document.getElementById("adminCourseLabel");
     if (adminCourseLabel) {
@@ -6394,6 +6507,9 @@
     initPreviewIframe();
     state.activeStudentsTab = getDefaultStudentsTab();
     setActiveStudentsTab(state.activeStudentsTab);
+    state.courseAccessSettings = await fetchCourseAccessSettings();
+    state.savedCourseAccessSettings = normalizeCourseAccessSettings(state.courseAccessSettings);
+    renderCourseAccessSettings();
     var defaultAdminTab = getDefaultAdminTab();
     setActiveAdminTab(defaultAdminTab);
     void loadRenewalRequests().catch(function () {});
@@ -6402,9 +6518,6 @@
     }
     renderConnectionScreen();
     await loadTelegramIntegration();
-    state.courseAccessSettings = await fetchCourseAccessSettings();
-    state.savedCourseAccessSettings = normalizeCourseAccessSettings(state.courseAccessSettings);
-    renderCourseAccessSettings();
     state.courseLanguage = await fetchCourseLanguage();
     var courseLanguageInput = document.getElementById("courseLanguageInput");
     if (courseLanguageInput) courseLanguageInput.value = state.courseLanguage;
