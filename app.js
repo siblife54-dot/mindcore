@@ -77,7 +77,10 @@
 
   function getActiveCourseId() {
     var params = new URLSearchParams(window.location.search);
-    return params.get("course") || getConfig().courseId;
+    var shortCourseId = params.get("c") || "";
+    return params.get("course")
+      || (/^\d+$/.test(shortCourseId) ? "course_" + shortCourseId : null)
+      || getConfig().courseId;
   }
 
   function getNavigationType() {
