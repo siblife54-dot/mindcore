@@ -3757,7 +3757,6 @@
   }
 
   async function init() {
-    document.documentElement.setAttribute("data-course-id", getActiveCourseId() || "");
     refreshStorageKeys();
     if (window.RenewalScreen && typeof window.RenewalScreen.reset === "function") window.RenewalScreen.reset();
     STARTUP_MODE = detectStartupMode();
