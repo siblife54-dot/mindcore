@@ -2588,10 +2588,14 @@
         console.warn("[MindCore] Student Homework has an unknown submission status");
       }
 
+      var homeworkTitle = homework.title === "Домашнее задание"
+        ? t("homework.defaultTitle")
+        : homework.title || t("homework.title");
+
       host.innerHTML = [
         '<p class="lesson-homework__section-title">' + escapeHtml(t("homework.title")) + '</p>',
         '<div class="lesson-homework__card">',
-        '<h2 class="lesson-homework__title">' + escapeHtml(homework.title || t("homework.title")) + '</h2>',
+        '<h2 class="lesson-homework__title">' + escapeHtml(homeworkTitle) + '</h2>',
         homework.description ? '<p class="lesson-homework__description">' + escapeHtml(homework.description) + '</p>' : '',
         '<div class="lesson-homework__response-types">',
         '<p class="lesson-homework__response-label">' + escapeHtml(t("homework.canSend")) + '</p>',
