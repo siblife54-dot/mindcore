@@ -73,3 +73,40 @@ window.APP_THEME_PRESETS = [
     }
   }
 ];
+
+window.APP_COURSE_FORM_OVERRIDES = {
+  "course_1781255103582": {
+    "94739b9b-fa30-4feb-83f2-6170ea460a9c": {
+      title: "BAŞLANGIÇ NOKTANIZ | A NOKTASI",
+      description: "",
+      intro_blocks: [
+        { text: "Eğitime başlamadan önce kendiniz için küçük bir başlangıç kaydı oluşturun. 🌿" },
+        { text: "Bugün bu eğitime hangi noktadan başlıyorsunuz?", bold: true },
+        { text: "Örneğin: Karın bölgesindeki gevşeklik, şişkinlik, nefes kontrolünde zorlanma, bedeninizle ilgili güvensizlik veya ulaşmak istediğiniz sonuçlar…" },
+        { text: "Başlangıç olarak kendiniz için:" },
+        { items: [
+          "Kilonuzu ve vücut ölçülerinizi kaydedin.",
+          "Fotoğrafınızı çekin.",
+          "Mevcut durumunuzu ve beklentilerinizi birkaç cümleyle yazın."
+        ] },
+        { text: "📌 Bu kayıt tamamen size özeldir. Kimseyle paylaşmanız gerekmez." },
+        { text: "Eğitimin sonunda A noktanıza geri dönün ve nelerin değiştiğini kendiniz görün." },
+        { text: "Unutmayın, gelişiminizi görebilmek için önce nereden başladığınızı bilmelisiniz.", bold: true, suffix: " ✨" }
+      ],
+      form_schema: {
+        questions: [{
+          id: "problems",
+          type: "multiple_choice",
+          title: "Bugün bu eğitime hangi noktadan başlıyorsunuz?",
+          required: true,
+          options: [],
+          allow_other: true,
+          text_only: true,
+          label_hidden: true,
+          other_placeholder: "Mevcut durumunuzu ve beklentilerinizi yazın…"
+        }]
+      },
+      settings: { result_title: "BAŞLANGIÇ NOKTANIZ | A NOKTASI" }
+    }
+  }
+};

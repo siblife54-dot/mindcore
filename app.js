@@ -1471,6 +1471,30 @@
     renderDesignerXpToast(host);
   }
 
+  function applyCourseFormOverrides(form) {
+    var courseId = getActiveCourseId();
+    if (!form || (form.course_id && form.course_id !== courseId)) return form;
+    var courseOverrides = (window.APP_COURSE_FORM_OVERRIDES || {})[courseId] || {};
+    var override = courseOverrides[form.id];
+    if (!override) return form;
+    return Object.assign({}, form, override, {
+      id: form.id,
+      course_id: form.course_id,
+      settings: Object.assign({}, normalizeFormSettings(form.settings), override.settings || {})
+    });
+  }
+
+  function renderCourseFormIntro(form) {
+    if (!Array.isArray(form.intro_blocks)) return '<p>' + escapeHtml(form.description || "") + '</p>';
+    return '<div class="course-form-intro">' + form.intro_blocks.map(function (block) {
+      if (Array.isArray(block.items)) {
+        return '<ul>' + block.items.map(function (item) { return '<li>' + escapeHtml(item) + '</li>'; }).join("") + '</ul>';
+      }
+      var text = escapeHtml(block.text || "");
+      return '<p>' + (block.bold ? '<strong>' + text + '</strong>' : text) + escapeHtml(block.suffix || "") + '</p>';
+    }).join("") + '</div>';
+  }
+
   function normalizeFormSchema(schema) {
     var parsed = schema;
     if (typeof parsed === "string") {
@@ -1491,7 +1515,9 @@
           if (option && typeof option === "object") return { value: String(option.value || option.label || ""), label: String(option.label || option.value || "") };
           return { value: String(option), label: String(option) };
         }).filter(function (option) { return option.value || option.label; }),
-        allowOther: question.allow_other === true,
+        allowOther: question.allow_other === true || question.text_only === true,
+        textOnly: type === "multiple_choice" && question.text_only === true,
+        labelHidden: question.label_hidden === true,
         otherLabel: String(question.other_label || "").trim() || t("forms.other"),
         otherPlaceholder: String(question.other_placeholder || "").trim() || t("forms.otherPlaceholder")
       };
@@ -1584,7 +1610,7 @@
       return [];
     }
 
-    COURSE_FORMS = formsResult.data || [];
+    COURSE_FORMS = (formsResult.data || []).map(applyCourseFormOverrides);
     await loadSavedCourseFormAnswers();
 
     return COURSE_FORMS;
@@ -1738,16 +1764,18 @@
     var items = getFormAnswerSummaryItems(form, answer);
     var settings = normalizeFormSettings(form.settings);
     var submittedDate = formatCourseFormSubmittedDate(answer);
+    var hasIntro = Array.isArray(form.intro_blocks);
     content.innerHTML = [
       '<div class="course-form-modal__header">',
       '<div class="course-form-modal__heading">',
       '<h2 class="nutrition-title">' + escapeHtml(getSubmittedFormTitle(form, settings)) + '</h2>',
       (submittedDate ? '<p class="nutrition-text course-form-submitted-at">' + escapeHtml(t("forms.recorded", { date: submittedDate })) + '</p>' : ''),
-      (form.description ? '<p class="nutrition-text">' + escapeHtml(form.description) + '</p>' : '<p class="nutrition-text">' + escapeHtml(t("forms.answersSaved")) + '</p>'),
+      (hasIntro ? '' : (form.description ? '<p class="nutrition-text">' + escapeHtml(form.description) + '</p>' : '<p class="nutrition-text">' + escapeHtml(t("forms.answersSaved")) + '</p>')),
       '</div>',
       '<button class="nutrition-modal__close" type="button" data-course-form-close aria-label="' + escapeHtml(t("common.close")) + '">×</button>',
       '</div>',
-      '<div class="course-form-modal__body">',
+      '<div class="course-form-modal__body' + (hasIntro ? ' course-form-modal__body--free-answer' : '') + '">',
+      (hasIntro ? renderCourseFormIntro(form) : ''),
       '<div class="course-form-summary">',
       (items.length ? '<ul class="course-form-answer-list">' + items.map(function (item) { return '<li>' + escapeHtml(item) + '</li>'; }).join("") + '</ul>' : '<p>' + escapeHtml(t("forms.answerSaved")) + '</p>'),
       '</div>',
@@ -1764,18 +1792,27 @@
   function renderCourseFormEditor(form, existingAnswer) {
     var content = openCourseFormModal();
     var questions = normalizeFormSchema(form.form_schema);
+    var hasIntro = Array.isArray(form.intro_blocks);
+    var hasTextOnly = questions.some(function (question) { return question.textOnly; });
     content.innerHTML = [
       '<div class="course-form-modal__header">',
       '<div class="course-form-modal__heading">',
       '<h2 class="nutrition-title">' + escapeHtml(form.title || t("forms.defaultTitle")) + '</h2>',
-      (form.description ? '<p class="nutrition-text">' + escapeHtml(form.description) + '</p>' : ''),
+      (!hasIntro && form.description ? '<p class="nutrition-text">' + escapeHtml(form.description) + '</p>' : ''),
       '</div>',
       '<button class="nutrition-modal__close" type="button" data-course-form-close aria-label="' + escapeHtml(t("common.close")) + '">×</button>',
       '</div>',
-      '<form class="nutrition-form course-form" id="courseFormEditor">',
+      '<form class="nutrition-form course-form" id="courseFormEditor"' + (hasTextOnly ? ' novalidate' : '') + '>',
       '<div class="course-form-modal__body">',
+      (hasIntro ? renderCourseFormIntro(form) : ''),
       questions.map(function (question) {
         var saved = getFormAnswerValue(existingAnswer, question.id);
+        if (question.textOnly) {
+          var textAnswer = normalizeMultipleChoiceAnswer(saved).other;
+          return '<label class="nutrition-field course-form-free-answer"><span' + (question.labelHidden ? ' class="course-form-free-answer__label"' : '') + '>' + escapeHtml(question.title) + '</span>' +
+            '<textarea class="course-form-free-answer__input" name="' + escapeAttr(question.id) + '" data-course-form-other-input="' + escapeAttr(question.id) + '" rows="6" placeholder="' + escapeAttr(question.otherPlaceholder) + '"' + (question.required ? ' required' : '') + '>' + escapeHtml(textAnswer) + '</textarea></label>' +
+            '<p class="course-form-error" data-course-form-error="' + escapeAttr(question.id) + '" role="alert" hidden></p>';
+        }
         if (question.type === "text") {
           return '<label class="nutrition-field"><span>' + escapeHtml(question.title) + '</span><input name="' + escapeAttr(question.id) + '" type="text" value="' + escapeAttr(saved || "") + '"' + (question.required ? ' required' : '') + '></label>';
         }
@@ -1793,6 +1830,7 @@
       }).join(""),
       '</div>',
       '<div class="course-form-modal__footer">',
+      (hasTextOnly ? '<p class="course-form-error" data-course-form-save-error role="alert" hidden></p>' : ''),
       '<button type="submit" class="btn btn-primary nutrition-submit">' + escapeHtml(t("common.save")) + '</button>',
       '</div>',
       '</form>'
@@ -1806,15 +1844,42 @@
         if (!toggle.checked && input) input.value = "";
       });
     });
-    document.getElementById("courseFormEditor").addEventListener("submit", function (event) {
+    var formEditor = document.getElementById("courseFormEditor");
+    var saving = false;
+    formEditor.addEventListener("submit", async function (event) {
       event.preventDefault();
-      void saveCourseFormAnswer(form, questions, existingAnswer);
+      if (!hasTextOnly) {
+        void saveCourseFormAnswer(form, questions, existingAnswer);
+        return;
+      }
+      if (saving) return;
+      saving = true;
+      var saveButton = formEditor.querySelector('button[type="submit"]');
+      var saveError = formEditor.querySelector("[data-course-form-save-error]");
+      saveError.hidden = true;
+      saveButton.disabled = true;
+      saveButton.textContent = t("forms.saving");
+      formEditor.querySelectorAll("textarea").forEach(function (input) { input.readOnly = true; });
+      try {
+        var saved = await saveCourseFormAnswer(form, questions, existingAnswer);
+        if (!saved && !formEditor.querySelector('[data-course-form-error]:not([hidden])')) throw new Error("Form answer was not saved");
+      } catch (error) {
+        saveError.textContent = t("forms.saveError");
+        saveError.hidden = false;
+      } finally {
+        saving = false;
+        if (formEditor.isConnected) {
+          saveButton.disabled = false;
+          saveButton.textContent = t("common.save");
+          formEditor.querySelectorAll("textarea").forEach(function (input) { input.readOnly = false; });
+        }
+      }
     });
   }
 
   async function saveCourseFormAnswer(form, questions, existingAnswer) {
     var client = window.getSupabaseClient();
-    if (!client) return;
+    if (!client) return false;
     var formElement = document.getElementById("courseFormEditor");
     var answers = {};
     var hasErrors = false;
@@ -1822,13 +1887,18 @@
     questions.forEach(function (question) {
       var selector = getFormFieldSelector(question.id);
       if (question.type === "multiple_choice") {
-        var selected = Array.from(formElement.querySelectorAll(selector + ':checked')).map(function (input) { return input.value; });
+        var selected = question.textOnly ? [] : Array.from(formElement.querySelectorAll(selector + ':checked')).map(function (input) { return input.value; });
         if (question.allowOther) {
           var otherToggle = formElement.querySelector(getCourseFormDataSelector("data-course-form-other-toggle", question.id));
           var otherInput = formElement.querySelector(getCourseFormDataSelector("data-course-form-other-input", question.id));
-          var other = otherToggle && otherToggle.checked && otherInput ? String(otherInput.value || "").trim() : "";
+          var other = (question.textOnly || (otherToggle && otherToggle.checked)) && otherInput ? String(otherInput.value || "").trim() : "";
           answers[question.id] = { selected: selected, other: other };
-          if (otherToggle && otherToggle.checked && !other) {
+          if (question.textOnly && question.required && !other) {
+            hasErrors = true;
+            var textError = formElement.querySelector(getCourseFormDataSelector("data-course-form-error", question.id));
+            if (textError) { textError.textContent = t("forms.textRequired"); textError.hidden = false; }
+            if (otherInput) otherInput.focus();
+          } else if (otherToggle && otherToggle.checked && !other) {
             hasErrors = true;
             var otherError = formElement.querySelector(getCourseFormDataSelector("data-course-form-error", question.id));
             if (otherError) { otherError.textContent = t("forms.otherRequired", { label: question.otherLabel }); otherError.hidden = false; }
@@ -1850,7 +1920,7 @@
         answers[question.id] = field ? field.value : "";
       }
     });
-    if (hasErrors) return;
+    if (hasErrors) return false;
     var summary = buildFormSummary(form, answers);
     var courseId = getActiveCourseId();
     var productUserId = PRODUCT_USER && PRODUCT_USER.id ? PRODUCT_USER.id : null;
@@ -1862,11 +1932,11 @@
     console.log("[MindCore Forms] webapp_user_id:", webappUserId);
     if (!isUuid(productUserId)) {
       console.warn("[MindCore Forms] Answer was not saved: product_user_id is missing or is not a Supabase UUID", productUserId);
-      return;
+      return false;
     }
     if (!isUuid(webappUserId)) {
       console.warn("[MindCore Forms] Answer was not saved: webapp_user_id is missing or is not a Supabase UUID", webappUserId);
-      return;
+      return false;
     }
     var payload = {
       form_id: form.id,
@@ -1890,7 +1960,7 @@
         .maybeSingle();
       if (duplicateResult.error) {
         console.warn("[MindCore Forms] save error:", duplicateResult.error);
-        return;
+        return false;
       }
       storedAnswer = duplicateResult.data || null;
     }
@@ -1908,11 +1978,12 @@
     console.log("[MindCore Forms] save error:", result.error || null);
     if (result.error) {
       console.warn("Supabase course_form_answers save error:", result.error);
-      return;
+      return false;
     }
     COURSE_FORM_ANSWERS[form.id] = result.data;
     await renderCourseForms();
     renderCourseFormView(form, result.data);
+    return true;
   }
 
   async function renderCourseForms() {
@@ -1946,7 +2017,7 @@
       var items = getFormAnswerSummaryItems(form, answer);
       var submittedDate = showSubmitted ? formatCourseFormSubmittedDate(answer) : "";
       return [
-        '<section class="card course-form-card">',
+        '<section class="card course-form-card' + (Array.isArray(form.intro_blocks) ? ' course-form-card--free-answer' : '') + '">',
         '<div class="course-form-card__header">',
         (showSubmitted ? '<span class="course-form-card__accent" aria-hidden="true"></span>' : ''),
         '<div class="course-form-card__heading">',
@@ -1956,7 +2027,7 @@
         '</div>',
         (showSubmitted
           ? '<ul class="course-form-card__summary course-form-answer-list">' + items.map(function (item) { return '<li>' + escapeHtml(item) + '</li>'; }).join("") + '</ul>'
-          : '<p>' + escapeHtml(form.description || "") + '</p>'),
+          : renderCourseFormIntro(form)),
         '<button type="button" class="btn btn-primary course-form-open" data-form-id="' + escapeAttr(form.id) + '">' + escapeHtml(showSubmitted ? getSubmittedFormButtonText(settings) : (form.button_text || t("forms.fill"))) + '</button>',
         '</section>'
       ].join("");
