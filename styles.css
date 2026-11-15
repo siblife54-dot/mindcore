@@ -2383,6 +2383,76 @@ body.theme-minimal-beige a {
   line-height: 1.35;
 }
 
+.course-form-intro {
+  color: var(--muted);
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.course-form-intro p,
+.course-form-intro ul {
+  margin: 0 0 16px;
+}
+
+.course-form-intro > :last-child {
+  margin-bottom: 0;
+}
+
+.course-form-intro ul {
+  padding-left: 22px;
+}
+
+.course-form-intro li + li {
+  margin-top: 6px;
+}
+
+.course-form-intro + .course-form-free-answer,
+.course-form-intro + .course-form-summary {
+  margin-top: 20px;
+}
+
+.course-form-free-answer__label {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+.course-form-free-answer__input {
+  display: block;
+  width: 100%;
+  min-height: 160px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: rgba(255,255,255,0.04);
+  color: var(--text);
+  font: inherit;
+  font-size: 16px;
+  line-height: 1.5;
+  resize: vertical;
+}
+
+.course-form-free-answer__input::placeholder {
+  color: var(--muted);
+}
+
+.course-form-free-answer__input:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.course-form-card--free-answer .course-form-answer-list li,
+.course-form-modal__body--free-answer .course-form-answer-list li {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
 /* Valeria's heading typography is independent of the shared color themes. */
 html[data-course-id="course_1781255103582"] {
   --valeria-heading-font: "IBM Plex Serif", Georgia, "Times New Roman", serif;
